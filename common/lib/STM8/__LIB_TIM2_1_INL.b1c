@@ -1,0 +1,8 @@
+; TIM2 VALUE <value>
+
+ASM
+LD A, XH
+LD (TIM2_ARRH), A
+LD A, XL
+LD (TIM2_ARRL), A
+ENDASM

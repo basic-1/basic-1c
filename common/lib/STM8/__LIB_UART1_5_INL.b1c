@@ -1,0 +1,6 @@
+INI,__LIB_UART1_ZW
+
+; configure UART1 zone width
+ASM
+LD (__LIB_UART1_ZW), A
+ENDASM

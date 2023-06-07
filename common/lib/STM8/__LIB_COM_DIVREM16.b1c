@@ -1,0 +1,26 @@
+; divides two signed 16-bit integers
+; X - dividend, stack1 - divisor, returns 16-bit quotient in X and 16-bit remainder in Y
+:__LIB_COM_DIVREM16
+ASM
+CLR A
+TNZW X
+JRPL ::__LBL_DIVD_POS
+NEGW X
+INC A
+:::__LBL_DIVD_POS
+LDW Y, (__RET_ADDR_SIZE + 1, SP)
+JRPL ::__LBL_DIVS_POS
+NEGW Y
+ADD A, 2
+:::__LBL_DIVS_POS
+DIVW X, Y
+DEC A
+JREQ ::__LBL_REM_NEG
+DEC A
+JREQ ::__LBL_QUOT_NEG
+:::__LBL_REM_NEG
+NEGW Y
+:::__LBL_QUOT_NEG
+NEGW X
+RET
+ENDASM

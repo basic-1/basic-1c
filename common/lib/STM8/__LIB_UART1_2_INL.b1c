@@ -1,0 +1,2 @@
+; configure UART1 pins
+INL,__LIB_UART1_CFG_PINS

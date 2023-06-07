@@ -1,0 +1,4 @@
+ASM
+; set fHSI = fmaster = fcpu = 16 MHz
+CLR (CLK_CKDIVR)
+ENDASM

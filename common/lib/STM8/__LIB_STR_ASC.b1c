@@ -1,0 +1,32 @@
+INI,__LIB_ERR_LAST_ERR
+IMP,__LIB_ERR_HANDLER
+IMP,__LIB_STR_RLS
+
+; returns numeric code for the first character of the specified string
+; X - string address, returns character code in A
+:__LIB_STR_ASC
+ASM
+PUSHW X
+TNZW X
+JREQ ::__LBL_ERR
+JRMI ::__LBL_ROM_STR
+INCW X
+
+:::__LBL_ROM_STR
+TNZ (X)
+JREQ ::__LBL_ERR
+LD A, (1, X)
+JRA ::__LBL_EXIT
+
+:::__LBL_ERR
+MOV (__LIB_ERR_LAST_ERR), B1C_RTE_STR_WRONG_INDEX
+CALLR __LIB_ERR_HANDLER
+CLR A
+
+:::__LBL_EXIT
+POPW X
+PUSH A
+CALLR __LIB_STR_RLS
+POP A
+RET
+ENDASM

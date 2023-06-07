@@ -1,0 +1,4 @@
+/bin/
+/build/
+/env/win_*_env.bat
+/env/lnx_*_env.sh

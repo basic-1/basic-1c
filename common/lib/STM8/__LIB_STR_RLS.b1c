@@ -1,0 +1,18 @@
+IMP,__LIB_MEM_FRE
+
+; releases memory used by string or decreases its usage counter
+; X - string address
+:__LIB_STR_RLS
+ASM
+TNZW X
+JREQ ::__LBL_EXIT ; empty string
+JRMI ::__LBL_EXIT ; ROM string
+TNZ (X)
+JREQ ::__LBL_EXIT ; non-copyable RAM string
+DEC (X)
+JRNE ::__LBL_EXIT
+CALLR __LIB_MEM_FRE
+
+:::__LBL_EXIT
+RET
+ENDASM

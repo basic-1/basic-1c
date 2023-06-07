@@ -1,0 +1,22 @@
+IMP,__LIB_STR_RLS
+
+; releases all array strings
+; X - string array data address, stack1 - array size
+:__LIB_STR_ARR_DAT_RLS
+ASM
+LDW Y, (__RET_ADDR_SIZE + 1, SP)
+SRLW Y
+:::__LBL_FRE_LOOP
+JREQ ::__LBL_EXIT
+PUSHW X
+PUSHW Y
+CALLR __LIB_STR_RLS
+POPW Y
+POPW X
+INCW X
+INCW X
+DECW Y
+JRA ::__LBL_FRE_LOOP
+:::__LBL_EXIT
+RET
+ENDASM

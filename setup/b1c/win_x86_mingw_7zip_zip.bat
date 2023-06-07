@@ -1,0 +1,1 @@
+call ..\..\common\setup\win_7zip_zip_distr.bat b1c x86 mingw %1

@@ -1,0 +1,71 @@
+; X - string address, stack - new string length, returns justified string in X
+:__LIB_STR_RSET
+ASM
+PUSHW X ; initial string address
+CALLR __LIB_STR_CPY
+CALLR __LIB_STR_LEN
+CP A, (__RET_ADDR_SIZE + 3, SP) ; compare with new string length
+JRUGE ::__LBL_RET
+
+PUSH A ; save initial string length
+LD A, (__RET_ADDR_SIZE + 4, SP) ; new string length
+ADD A, 2 ; memory block size to hold new string
+CLRW X
+LD XL, A
+CALLR __LIB_MEM_ALC
+TNZW X
+JRNE ::__LBL_ALC_OK
+POP A
+; memory error, return empty string (X = 0)
+JRA ::__LBL_RLS_RET
+
+:::__LBL_ALC_OK
+; 1 - initial string length, 2 - initial string address
+LD A, 1
+LD (X), A
+INCW X
+LD A, (__RET_ADDR_SIZE + 4, SP) ; new string length
+LD (X), A
+INCW X
+PUSHW X ; new string data address
+LDW X, (4, SP) ; initial string address
+JRMI ::__LBL_ROM_STR
+INCW X
+:::__LBL_ROM_STR
+INCW X
+PUSHW X
+LD A, (5, SP) ; initial string length
+PUSH A
+PUSH 0
+LDW X, (5, SP) ; new string data address
+CALLR __LIB_MEM_CPY
+ADDW SP, 4
+
+LD A, (3, SP) ; initial string length
+CLRW X
+LD XL, A
+ADDW X, (1, SP) ; add new string data address
+SUB A, (__RET_ADDR_SIZE + 6, SP) ; new string length
+NEG A ; spaces to write
+PUSHW X
+PUSH A
+PUSH 0
+PUSH 32 ; space
+CALLR __LIB_MEM_SET
+ADDW SP, 5
+
+PUSHW X ; new string data address
+DECW X ; correct string address
+DECW X
+POP A ; correct stack (initial string length)
+
+:::__LBL_RLS_RET
+POPW Y ; restore initial string address
+PUSHW X ; save new string address
+LDW X, Y
+CALLR __LIB_STR_RLS
+
+:::__LBL_RET
+POPW X ; restore new string address
+RET
+ENDASM

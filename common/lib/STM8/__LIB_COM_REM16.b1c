@@ -1,0 +1,22 @@
+; calculates remainder after dividing two signed 16-bit integers
+; X - dividend, stack1 - divisor, returns 16-bit remainder in X
+:__LIB_COM_REM16
+ASM
+CLR A
+TNZW X
+JRPL ::__LBL_DIVD_POS
+NEGW X
+INC A
+:::__LBL_DIVD_POS
+LDW Y, (__RET_ADDR_SIZE + 1, SP)
+JRPL ::__LBL_DIVS_POS
+NEGW Y
+:::__LBL_DIVS_POS
+DIVW X, Y
+LDW X, Y
+TNZ A
+JREQ ::__LBL_REM_POS
+NEGW X
+:::__LBL_REM_POS
+RET
+ENDASM

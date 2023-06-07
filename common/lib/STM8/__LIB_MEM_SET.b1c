@@ -1,0 +1,15 @@
+; initializes memory region
+; X - memory address, stack1 - bytes to clear, stack2 - byte to fill memory
+:__LIB_MEM_SET
+ASM
+LD A, (__RET_ADDR_SIZE + 1, SP)
+LDW Y, (__RET_ADDR_SIZE + 2, SP)
+:::__LBL_LOOP
+JREQ ::__LBL_EXIT
+LD (X), A
+INCW X
+DECW Y
+JRA ::__LBL_LOOP
+:::__LBL_EXIT
+RET
+ENDASM

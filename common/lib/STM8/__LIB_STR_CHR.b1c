@@ -1,0 +1,22 @@
+IMP,__LIB_MEM_ALC
+
+; returns a string representing the character that corresponds to the numeric code
+; A - numeric code, returns address of the string in X
+:__LIB_STR_CHR
+ASM
+PUSH A
+LDW X, 3
+CALLR __LIB_MEM_ALC
+TNZW X
+JRNE ::__LBL_ALC_OK
+POP A
+RET
+
+:::__LBL_ALC_OK
+LD A, 1
+LD (X), A
+LD (1, X), A
+POP A
+LD (2, X), A
+RET
+ENDASM

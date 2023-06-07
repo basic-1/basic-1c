@@ -1,0 +1,22 @@
+; multiplies two 16-bit integers
+; X - multiplier 1, stack1 - multiplier 2, returns product in X
+:__LIB_COM_MUL16
+ASM
+LDW Y, X
+LD A, (__RET_ADDR_SIZE + 2, SP) ; m2.ll
+MUL X, A      ; m1.ll * m2.ll
+PUSHW X       ; prod
+LDW X, Y
+RLWA X
+MUL X, A      ; m2.ll * m1.lh
+LD A, XL
+ADD A, (1, SP); add to prod.lh
+LD (1, SP), A
+LD A, (__RET_ADDR_SIZE + 3, SP) ; m2.lh
+MUL Y, A      ; m1.ll * m2.lh
+LD A, YL
+ADD A, (1, SP); add to prod.lh
+LD (1, SP), A
+POPW X
+RET
+ENDASM

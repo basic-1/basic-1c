@@ -1,0 +1,77 @@
+INI,__INI_MEM
+IMP,__LIB_MEM_ALC
+IMP,__LIB_MEM_CPY
+IMP,__LIB_MEM_FRE
+
+; reallocates memory block
+; X - memory block address, stack1 - new block size, returns new block address in X
+:__LIB_MEM_RLC
+ASM
+PUSHW X ; block address (3)
+; try to increase the memory block size first
+DECW X
+DECW X
+LDW X, (X) ; the current block header
+SLLW X
+SRLW X
+PUSHW X ; the current block size (1)
+ADDW X, (3, SP)
+CPW X, __HEAP_START + __HEAP_SIZE
+JREQ ::__LBL_NEW_ALC
+LDW X, (X) ; the next block header
+JRMI ::__LBL_NEW_ALC
+ADDW X, (1, SP) ; size of two blocks
+CPW X, (__RET_ADDR_SIZE + 5, SP)
+JRUGE ::__LBL_TWO_BLKS
+INCW X
+INCW X
+CPW X, (__RET_ADDR_SIZE + 5, SP)
+JRULT ::__LBL_NEW_ALC
+JRA ::__LBL_ONE_BLK
+
+; 1 curr block size, 3 curr block address, 7 new block size, X - size of two blocks
+:::__LBL_TWO_BLKS
+; write the next block header
+SUBW X, (__RET_ADDR_SIZE + 5, SP)
+EXGW X, Y
+LDW X, (3, SP)
+ADDW X, (__RET_ADDR_SIZE + 5, SP)
+LDW (X), Y
+LDW X, (__RET_ADDR_SIZE + 5, SP)
+
+:::__LBL_ONE_BLK
+; correct current block header
+LD A, XH
+OR A, 0x80
+LD XH, A
+EXGW X, Y
+LDW X, (3, SP)
+DECW X
+DECW X
+LDW (X), Y
+INCW X
+INCW X
+JRA ::__LBL_EXIT
+
+:::__LBL_NEW_ALC
+LDW X, (__RET_ADDR_SIZE + 5, SP)
+CALLR __LIB_MEM_ALC
+TNZW X
+JREQ ::__LBL_EXIT
+EXGW X, Y
+LDW X, (3, SP)
+PUSHW X
+LDW X, (3, SP)
+PUSHW X
+EXGW X, Y
+CALLR __LIB_MEM_CPY
+ADDW SP, 4
+PUSHW X
+LDW X, (5, SP)
+CALLR __LIB_MEM_FRE
+POPW X
+
+:::__LBL_EXIT
+ADDW SP, 4
+RET
+ENDASM

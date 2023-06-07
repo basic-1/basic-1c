@@ -1,0 +1,11 @@
+IMP,__LIB_STR_STR
+
+; converts unsigned 16-bit integer value to string
+; X - integer value, returns string address in X
+:__LIB_STR_STR_W
+ASM
+PUSH 0
+CALLR __LIB_STR_STR
+POP A
+RET
+ENDASM

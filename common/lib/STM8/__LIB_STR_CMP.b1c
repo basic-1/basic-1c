@@ -1,0 +1,101 @@
+IMP,__LIB_STR_CPY
+IMP,__LIB_STR_LEN
+IMP,__LIB_STR_RLS
+
+; X - first string address, stack - second string address, returns result in A
+; (signed 8-bit value, negative value if str1 < str2, 0 if str1 == str2, positive value if str1 > str2)
+:__LIB_STR_CMP
+ASM
+SUBW SP, 3 ; len1 (3), len2 (4), c2 (5)
+PUSHW X ; str1 (1)
+CALLR __LIB_STR_CPY
+CALLR __LIB_STR_LEN
+LD (3, SP), A
+LDW X, (__RET_ADDR_SIZE + 6, SP)
+CALLR __LIB_STR_CPY
+CALLR __LIB_STR_LEN
+LD (4, SP), A
+
+LDW X, (1, SP)
+JRMI ::__LBL_STR1_ROM
+INCW X
+:::__LBL_STR1_ROM
+INCW X
+
+LDW Y, (__RET_ADDR_SIZE + 6, SP)
+JRMI ::__LBL_STR2_ROM
+INCW Y
+:::__LBL_STR2_ROM
+INCW Y
+
+CLR A
+
+:::__LBL_CMP_LOOP
+CP A, (3, SP)
+JRNE ::__LBL_CHK_STR1_LEN
+CP A, (4, SP)
+JRNE ::__LBL_CHK_STR1_LEN
+CLR A
+JRA ::__LBL_EXIT
+
+:::__LBL_CHK_STR1_LEN
+CP A, (3, SP)
+JRNE ::__LBL_CHK_STR2_LEN
+LD A, -1
+JRA ::__LBL_EXIT
+
+:::__LBL_CHK_STR2_LEN
+CP A, (4, SP)
+JRNE ::__LBL_GET_CHARS
+LD A, 1
+JRA ::__LBL_EXIT
+
+:::__LBL_GET_CHARS
+PUSH A
+
+LD A, (Y)
+CP A, 97 ; 'a'
+JRULT ::__LBL_NOT_SMALL_ALPHA2
+CP A, 122 ; 'z'
+JRUGT ::__LBL_NOT_SMALL_ALPHA2
+SUB A, 32 ; convert to capital letter
+
+:::__LBL_NOT_SMALL_ALPHA2
+LD (6, SP), A
+
+LD A, (X)
+CP A, 97 ; 'a'
+JRULT ::__LBL_NOT_SMALL_ALPHA1
+CP A, 122 ; 'z'
+JRUGT ::__LBL_NOT_SMALL_ALPHA1
+SUB A, 32 ; convert to capital letter
+
+:::__LBL_NOT_SMALL_ALPHA1
+CP A, (6, SP)
+POP A
+JRULE ::__LBL_CMP_CHARS_NEXT
+LD A, 1
+JRA ::__LBL_EXIT
+
+:::__LBL_CMP_CHARS_NEXT
+JRUGE ::__LBL_CMP_CONTINUE
+LD A, -1
+JRA ::__LBL_EXIT
+
+:::__LBL_CMP_CONTINUE
+
+INC A
+INCW X
+INCW Y
+JRA ::__LBL_CMP_LOOP
+
+:::__LBL_EXIT
+POPW X
+ADDW SP, 3
+PUSH A
+CALLR __LIB_STR_RLS
+LDW X, (__RET_ADDR_SIZE + 1, SP)
+CALLR __LIB_STR_RLS
+POP A
+RET
+ENDASM

@@ -1,0 +1,89 @@
+INI,__LIB_ERR_LAST_ERR
+IMP,__LIB_STR_CPY
+IMP,__LIB_STR_LEN
+IMP,__LIB_ERR_HANDLER
+IMP,__LIB_COM_MUL16
+IMP,__LIB_STR_RLS
+
+; converts string representation of an integer value to the binary form
+; X - input string, returns integer value in X
+:__LIB_STR_VAL
+ASM
+PUSH 0 ; unary minus flag
+PUSHW X ; original string
+
+CALLR __LIB_STR_CPY
+CALLR __LIB_STR_LEN
+TNZ A ; string length
+JREQ ::__LBL_INV_STR
+
+LDW X, (1, SP)
+JRMI ::__LBL_ROM_STR
+INCW X
+
+:::__LBL_ROM_STR
+INCW X
+
+PUSH A
+LD A, (X)
+CP A, 45 ; '-'
+POP A
+JRNE ::__LBL_POS_VALUE
+INC (3, SP) ; unary minus flag
+INCW X
+DEC A
+
+:::__LBL_POS_VALUE
+TNZ A
+JREQ ::__LBL_INV_STR
+
+CLRW Y
+
+; A - characters number to convert, here X - address of the next character in input string, Y - the resultint integer
+:::__LBL_CVT_LOOP
+PUSH A
+PUSHW X
+LDW X, Y
+PUSH 10
+PUSH 0
+CALLR __LIB_COM_MUL16
+ADD SP, 2
+EXGW X, Y
+POPW X
+LD A, (X)
+INCW X
+SUB A, 48 ; '0'
+CP A, 9
+JRULE ::__LBL_CHK_OK
+POP A
+JRA ::__LBL_INV_STR
+
+:::__LBL_CHK_OK
+PUSH A
+PUSH 0
+ADDW Y, (1, SP)
+ADDW SP, 2
+POP A
+DEC A
+JRNE ::__LBL_CVT_LOOP
+LDW X, Y
+JRA ::__LBL_EXIT
+
+:::__LBL_INV_STR
+MOV (__LIB_ERR_LAST_ERR), B1C_RTE_STR_INV_NUM
+CALLR __LIB_ERR_HANDLER
+CLRW X
+
+:::__LBL_EXIT
+PUSHW X
+LDW X, (3, SP)
+CALLR __LIB_STR_RLS
+POPW X
+LD A, (3, SP)
+JREQ ::__LBL_RET
+NEGW X
+
+:::__LBL_RET
+ADDW SP, 3
+RET
+ENDASM

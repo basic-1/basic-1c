@@ -1,0 +1,1 @@
+call ..\..\common\build\win_build.bat "..\.." b1c b1c x86 mingw rel "-G ""MinGW Makefiles"" -DCMAKE_BUILD_TYPE=Release" " " "." %1

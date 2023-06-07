@@ -1,0 +1,2 @@
+; new line sequence length
+=,2<BYTE>,__LIB_UART1_NL_LEN<BYTE>

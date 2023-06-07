@@ -1,0 +1,5 @@
+; initializes heap
+ASM
+LDW X, __HEAP_SIZE - 2
+LDW (__HEAP_START), X
+ENDASM

@@ -1,0 +1,24 @@
+; copies data from one memory location to another
+; X - destination address, stack1 - source address, stack2 - bytes to copy, returns destination address in X
+:__LIB_MEM_CPY
+ASM
+PUSHW X
+LDW Y, (__RET_ADDR_SIZE + 5, SP) ;src
+LDW X, (__RET_ADDR_SIZE + 3, SP) ;bytes
+:::__LBL_LOOP
+JREQ ::__LBL_EXIT
+LD A, (Y)
+INCW Y
+PUSHW X
+LDW X, (3, SP)
+LD (X), A
+INCW X
+LDW (3, SP), X
+POPW X
+DECW X
+JRA ::__LBL_LOOP
+:::__LBL_EXIT
+POPW X
+SUBW X, (__RET_ADDR_SIZE + 1, SP)
+RET
+ENDASM

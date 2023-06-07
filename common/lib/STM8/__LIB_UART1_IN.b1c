@@ -1,0 +1,192 @@
+INI,__LIB_UART1_OPT
+INI,__LIB_ERR_LAST_ERR
+IMP,__LIB_MEM_ALC
+IMP,__LIB_MEM_RLC
+IMP,__LIB_MEM_FRE
+IMP,__LIB_ERR_HANDLER
+IMP,__LIB_UART1_OUT_CHR
+
+; reads a string from UART1
+; returns string in X
+:__LIB_UART1_IN
+ASM
+CLRW X ; memory block address (blk)
+PUSHW X ; memory block size (blk_size) 7 and quoted string mark (qs) 8
+PUSHW X ; opened quote mark (q) 5 and trailing spaces number (spcnum) 6
+PUSHW X ; byte read (c) 3 and blank character mark (isspc) 4
+PUSH 1 ; skip leading spaces mark (skip) 2
+PUSH 2 ; the next writing position (i) 1
+
+:::__LBL_READ_LOOP
+; read the next byte
+BTJF (UART1_SR), UART1_SR_RXNE_POS, ::__LBL_READ_LOOP
+LD A, (UART1_DR)
+LD (3, SP), A
+
+BTJF (__LIB_UART1_OPT), 1, ::__LBL_NO_IN_ECHO
+PUSHW X
+CALLR __LIB_UART1_OUT_CHR
+POPW X
+LD A, (3, SP)
+
+:::__LBL_NO_IN_ECHO
+; isspc
+CLR (4, SP)
+CP A, 0x20 ; space character
+JREQ ::__LBL_SPC
+CP A, 0x9 ; tab character
+JREQ ::__LBL_SPC
+CPL (4, SP)
+:::__LBL_SPC
+CPL (4, SP)
+
+TNZ (2, SP)
+JREQ ::__LBL_LEAD_SPC_SKIPPED
+TNZ (4, SP)
+JRNE ::__LBL_READ_LOOP
+CP A, 0x22 ; double quote
+JRNE ::__LBL_LEAD_SPC_SKIPPED
+INC (8, SP) ; qs=1
+
+:::__LBL_LEAD_SPC_SKIPPED
+CLR (2, SP) ; skip = 0
+CP A, 0x2C ; comma
+JREQ ::__LBL_TST_INPUT_END
+CP A, 0xD ; new line
+JRNE ::__LBL_CONT_INPUT
+
+:::__LBL_TST_INPUT_END
+TNZ (8, SP)
+JREQ ::__LBL_INPUT_END
+TNZ (5, SP)
+JREQ ::__LBL_INPUT_END
+CP A, 0xD
+JRNE ::__LBL_CONT_INPUT
+LD A, B1C_RTE_STR_INVALID
+JRA ::__LBL_CHK_ERR
+
+:::__LBL_INPUT_END
+TNZW X
+JREQ ::__LBL_EXIT
+; trim trailing spaces
+LD A, (1, SP)
+SUB A, (6, SP) ; A = i - spcnum
+SUB A, (8, SP) ; if(qs) A--
+CP A, 2
+JRNE ::__LBL_CORRECT_SIZE
+; empty string, free allocated memory
+CLR A
+JRA ::__LBL_CHK_ERR
+
+:::__LBL_CORRECT_SIZE
+; not empty string, correct block size
+PUSHW X ; save prev. block address to free it on reallocation error
+PUSH A
+PUSH 0 ; new memory block size
+SUB A, 2
+LD (1, X), A
+LD A, 1
+LD (X), A
+CALLR __LIB_MEM_RLC
+ADDW SP, 2
+TNZW X
+JRNE ::__LBL_RLC_OK
+POPW X
+CLR A
+JRA ::__LBL_CHK_ERR
+
+:::__LBL_RLC_OK
+ADDW SP, 2
+JRA ::__LBL_EXIT
+
+:::__LBL_CONT_INPUT
+TNZ (8, SP) ; qs
+JREQ ::__LBL_NOT_QS
+CP A, 0x22 ; double quote
+JRNE ::__LBL_CHK_QS_VALID
+TNZ (5, SP) ; q
+JRNE ::__LBL_OPENED_QS
+INC (5, SP)
+CLR (6, SP) ; spcnum = 0
+JRA ::__LBL_READ_LOOP
+:::__LBL_OPENED_QS
+DEC (5, SP)
+JRA ::__LBL_NOT_QS
+
+:::__LBL_CHK_QS_VALID
+TNZ (5, SP)
+JRNE ::__LBL_NOT_QS
+TNZ (4, SP)
+JRNE ::__LBL_NOT_QS
+LD A, B1C_RTE_STR_INVALID
+JRA ::__LBL_CHK_ERR
+
+:::__LBL_NOT_QS
+LD A, (7, SP) ; blk_size
+CP A, (1, SP) ; i
+JRUGT ::__LBL_BLK_SIZE_OK
+CP A, B1C_MAX_STR_LEN - 16
+JRULE ::__LBL_STR_LEN_OK
+LD A, B1C_RTE_STR_TOOLONG
+JRA ::__LBL_CHK_ERR
+
+:::__LBL_STR_LEN_OK
+ADD A, 16
+LD (7, SP), A
+TNZW X
+JRNE ::__LBL_RLC_MEM
+; allocate new block
+LD XL, A
+CALLR __LIB_MEM_ALC
+TNZW X
+JREQ ::__LBL_EXIT
+
+:::__LBL_RLC_MEM
+PUSHW X ; save prev. block address to free it on reallocation error
+PUSH A
+PUSH 0
+CALLR __LIB_MEM_RLC
+ADDW SP, 2
+TNZW X
+JRNE ::__LBL_RLC_OK1
+POPW X
+CLR A
+JRA ::__LBL_CHK_ERR
+
+:::__LBL_RLC_OK1
+ADDW SP, 2
+
+:::__LBL_BLK_SIZE_OK
+INC (6, SP) ; spcnum++
+TNZ (4, SP) ; isspc
+JRNE ::__LBL_SPC1
+CLR (6, SP) ; spcnum = 0
+
+:::__LBL_SPC1
+LDW Y, X
+PUSH 0
+ADDW X, (1, SP)
+POP A
+LD A, (3, SP)
+LD (X), A
+LDW X, Y
+INC (1, SP)
+JRA ::__LBL_READ_LOOP
+
+:::__LBL_CHK_ERR
+; here A = error code (zero value - error is already reported), X - string memory block address to free
+TNZ A
+JREQ ::__LBL_FRE_MEM
+PUSHW X
+LD (__LIB_ERR_LAST_ERR), A
+CALLR __LIB_ERR_HANDLER
+POPW X
+
+:::__LBL_FRE_MEM
+CALLR __LIB_MEM_FRE
+CLRW X
+
+:::__LBL_EXIT
+ADDW SP, 8
+RET
+ENDASM

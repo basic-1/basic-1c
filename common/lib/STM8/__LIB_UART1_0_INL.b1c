@@ -1,0 +1,17 @@
+INI,__LIB_UART1_OPT
+
+; configure UART1 options (3 - mask, 4 - new values):
+; bit 0 - print new line on reaching margin (enabled by default)
+; bit 1 - input echo (enabled by default)
+; bit 2 - RX (enabled by default)
+; bit 3 - TX (enabled by default)
+; bits 4, 5, 6, 7 - reserved
+ASM
+; MODE
+PUSH {VALUE} & {MASK}
+LD A, !{MASK}.ll
+AND A, (__LIB_UART1_OPT)
+OR A, (1, SP)
+LD (__LIB_UART1_OPT), A
+POP A
+ENDASM

@@ -1,0 +1,40 @@
+IMP,__LIB_MEM_ALC
+IMP,__LIB_MEM_CPY
+
+; creates string copy or increases its usage counter
+; can raise no memory error
+; X - string address, returns new string address in X
+:__LIB_STR_CPY
+ASM
+TNZW X
+JREQ ::__LBL_EXIT ; empty string
+JRMI ::__LBL_EXIT ; ROM string
+LD A, (X)
+JREQ ::__LBL_EXIT ; non-copyable RAM string
+INC A
+JREQ ::__LBL_NEW_STR ; usage counter overflow
+LD (X), A
+RET
+
+:::__LBL_NEW_STR
+LD A, (1, X)
+ADD A, 2
+PUSHW X
+CLRW X
+LD XL, A
+PUSHW X
+CALLR __LIB_MEM_ALC
+TNZW X
+JRNE ::__LBL_ALC_OK
+ADDW SP, 4
+RET
+
+:::__LBL_ALC_OK
+CALLR __LIB_MEM_CPY
+ADDW SP, 4
+LD A, 1
+LD (X), A
+
+:::__LBL_EXIT
+RET
+ENDASM

@@ -1,0 +1,110 @@
+INI,__INI_MEM
+INI,__LIB_ERR_LAST_ERR
+IMP,__LIB_ERR_HANDLER
+IMP,__LIB_MEM_SET
+
+; allocates memory in heap
+; can raise B1C_RTE_MEM_NOT_ENOUGH error
+; X - requested memory block size, returns allocated memory block address in X
+:__LIB_MEM_ALC
+ASM
+SUBW SP, 6
+PUSHW X ; block_size (1), curr_block_size (3), prev_hdr (5), prev_ptr (7)
+
+TNZW X
+JREQ ::__LBL_EXIT
+
+CLRW X
+DECW X
+LDW (5, SP), X ; prev_hdr = 0xFFFF
+
+LDW Y, __HEAP_START ; Y = curr_ptr
+
+:::__LBL_IT_BLOCKS
+LDW X, Y
+CPW X, __HEAP_START + __HEAP_SIZE
+JRNE ::__LBL_MEM_OK
+MOV (__LIB_ERR_LAST_ERR), B1C_RTE_MEM_NOT_ENOUGH
+CALLR __LIB_ERR_HANDLER
+ADDW SP, 8
+CLRW X
+RET
+
+:::__LBL_MEM_OK
+LDW X, (X) ; X = curr_hdr
+SLLW X
+SRLW X
+LDW (3, SP), X ; curr_block_size
+LDW X, Y
+LDW X, (X) ; X = curr_hdr
+JRPL ::__LBL_EMPTY_FND
+; not empty block, go to the next one
+LDW (5, SP), X ; prev_hdr = any value >= 0x8000
+ADDW Y, 2
+ADDW Y, (3, SP)
+JRA ::__LBL_IT_BLOCKS
+
+:::__LBL_EMPTY_FND
+LDW X, (3, SP)
+SUBW X, (1, SP)
+JRMI ::__LBL_SMALL_BLOCK
+CPW X, 1
+JRULE ::__LBL_SUIT_BLOCK
+; divide found empty block in two parts
+DECW X
+DECW X
+LDW (3, SP), X ; X = size of the second block
+LDW X, (1, SP)
+ADDW X, 0x8000
+LDW (Y), X ; set the first block size and business flag
+LDW X, Y
+ADDW X, (1, SP)
+INCW X
+INCW X
+PUSHW Y
+LDW Y, (5, SP)
+LDW (X), Y ; write header of the second block
+POPW Y
+
+:::__LBL_SUIT_BLOCK
+LDW X, Y
+LD A, (X) ; set business flag
+OR A, 0x80
+LD (X), A
+INCW X
+INCW X
+JRA ::__LBL_EXIT
+
+:::__LBL_SMALL_BLOCK
+LDW X, (5, SP) ; prev_hdr
+JRMI ::__LBL_GO_NEXT
+; merge two blocks
+ADDW X, (3, SP)
+INCW X
+INCW X ; X = prev_block_size (prev_hdr) + curr_block_size + hdr_size (2)
+LDW Y, (7, SP) ; curr_ptr = prev_ptr
+LDW (Y), X ; write merged block header
+CLRW X
+DECW X
+LDW (5, SP), X ; prev_hdr = 0xFFFF
+JRA ::__LBL_IT_BLOCKS
+
+:::__LBL_GO_NEXT
+LDW (7, SP), Y ; save prev_ptr
+LDW X, (3, SP)
+LDW (5, SP), X ; save prev_hdr (curr_block_size)
+INCW X
+INCW X
+PUSHW X
+ADDW Y, (1, SP) ; curr_ptr += curr_block_size + hdr_size (2)
+POPW X
+JRA ::__LBL_IT_BLOCKS
+
+:::__LBL_EXIT
+LDW (7, SP), X ; save address to restore it after __LIB_MEM_SET call
+PUSH 0
+CALLR __LIB_MEM_SET ; reuse memory block size in stack
+ADDW SP, 7
+POPW X
+RET
+ENDASM

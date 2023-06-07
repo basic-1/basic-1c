@@ -1,0 +1,23 @@
+IMP,__LIB_STR_RLS
+
+; calculates string length
+; X - string address, returns the string length in A
+:__LIB_STR_LEN
+ASM
+CLR A
+TNZW X
+JREQ ::__LBL_EXIT
+JRMI ::__LBL_ROM_STR
+; RAM string
+LD A, (1, X)
+JRA ::__LBL_EXIT
+
+:::__LBL_ROM_STR
+LD A, (X)
+
+:::__LBL_EXIT
+PUSH A
+CALLR __LIB_STR_RLS
+POP A
+RET
+ENDASM
