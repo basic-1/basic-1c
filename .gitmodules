@@ -1,0 +1,4 @@
+[submodule "b1core"]
+	path = b1core
+	url = https://github.com/basic-1/b1core
+	branch = master
