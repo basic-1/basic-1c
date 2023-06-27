@@ -56,6 +56,30 @@ static void b1_print_version(FILE *fstr)
 	std::fputs("\n", fstr);
 }
 
+static std::wstring get_size_kB(int64_t size)
+{
+	size *= 1000;
+	size /= 1024;
+
+	auto size_int = size / 1000;
+	size %= 1000;
+
+	if (size % 10 >= 5) size = size - (size % 10) + 10;
+	if (size % 100 >= 50) size = size - (size % 100) + 100;
+
+	if (size >= 1000)
+	{
+		size_int++;
+		size = 0;
+	}
+	else
+	{
+		size /= 100;
+	}
+
+	return std::to_wstring(size_int) + (size == 0 ? L"" : (L"." + std::to_wstring(size)));
+}
+
 
 class IhxWriter
 {
@@ -4286,6 +4310,7 @@ public:
 	}
 };
 
+
 int main(int argc, char **argv)
 {
 	int i;
@@ -4721,13 +4746,13 @@ int main(int argc, char **argv)
 	if(print_mem_use)
 	{
 		std::fwprintf(stdout, L"Memory usage:\n");
-		std::fwprintf(stdout, L"Variables: %d (%d kB)\n", (int)secs.GetVariablesSize(), (int)secs.GetVariablesSize() / 1024);
-		std::fwprintf(stdout, L"Heap: %d (%d kB)\n", (int)secs.GetHeapSize(), (int)secs.GetHeapSize() / 1024);
-		std::fwprintf(stdout, L"Stack: %d (%d kB)\n", (int)secs.GetStackSize(), (int)secs.GetStackSize() / 1024);
-		std::fwprintf(stdout, L"Total RAM: %d (%d kB)\n", (int)secs.GetVariablesSize() + secs.GetHeapSize() + secs.GetStackSize(), (int)(secs.GetVariablesSize() + secs.GetHeapSize() + secs.GetStackSize()) / 1024);
-		std::fwprintf(stdout, L"Constants: %d (%d kB)\n", (int)secs.GetConstSize(), (int)secs.GetConstSize() / 1024);
-		std::fwprintf(stdout, L"Code: %d (%d kB)\n", (int)secs.GetCodeSize(), (int)secs.GetCodeSize() / 1024);
-		std::fwprintf(stdout, L"Total ROM: %d (%d kB)\n", (int)(secs.GetConstSize() + secs.GetCodeSize()), (int)(secs.GetConstSize() + secs.GetCodeSize()) / 1024);
+		std::fwprintf(stdout, L"Variables: %d (%ls kB)\n", (int)secs.GetVariablesSize(), get_size_kB(secs.GetVariablesSize()).c_str());
+		std::fwprintf(stdout, L"Heap: %d (%ls kB)\n", (int)secs.GetHeapSize(), get_size_kB(secs.GetHeapSize()).c_str());
+		std::fwprintf(stdout, L"Stack: %d (%ls kB)\n", (int)secs.GetStackSize(), get_size_kB(secs.GetStackSize()).c_str());
+		std::fwprintf(stdout, L"Total RAM: %d (%ls kB)\n", (int)secs.GetVariablesSize() + secs.GetHeapSize() + secs.GetStackSize(), get_size_kB(secs.GetVariablesSize() + secs.GetHeapSize() + secs.GetStackSize()).c_str());
+		std::fwprintf(stdout, L"Constants: %d (%ls kB)\n", (int)secs.GetConstSize(), get_size_kB(secs.GetConstSize()).c_str());
+		std::fwprintf(stdout, L"Code: %d (%ls kB)\n", (int)secs.GetCodeSize(), get_size_kB(secs.GetCodeSize()).c_str());
+		std::fwprintf(stdout, L"Total ROM: %d (%ls kB)\n", (int)(secs.GetConstSize() + secs.GetCodeSize()), get_size_kB(secs.GetConstSize() + secs.GetCodeSize()).c_str());
 	}
 
 	return 0;

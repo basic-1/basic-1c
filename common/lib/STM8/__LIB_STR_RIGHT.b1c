@@ -1,0 +1,23 @@
+IMP,__LIB_STR_CPY
+IMP,__LIB_STR_LEN
+IMP,__LIB_STR_MID
+
+; returns the right part of a string
+; X - string address, stack - characters to return (byte), returns substring in X
+:__LIB_STR_RIGHT
+ASM
+PUSHW X
+CALLR __LIB_STR_CPY
+CALLR __LIB_STR_LEN
+POPW X
+SUB A, (__RET_ADDR_SIZE + 1, SP)
+JRPL ::__LBL_N_OK
+CLR A
+:::__LBL_N_OK
+INC A
+PUSH A ; start position
+PUSH B1C_MAX_STR_LEN ; chars to extract
+CALLR __LIB_STR_MID
+ADDW SP, 2
+RET
+ENDASM

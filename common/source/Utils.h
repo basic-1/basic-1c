@@ -184,20 +184,20 @@ public:
 	bool GetPrintWarningDesc() const { return _print_warning_desc; }
 
 	B1_T_ERROR Read(const std::string &file_name);
-	bool GetValue(const std::wstring &key, std::wstring &value);
+	bool GetValue(const std::wstring &key, std::wstring &value) const;
 
 	void SetTargetName(const std::string &target_name) { _target_name = target_name;  }
 	void SetMCUName(const std::string &MCU_name) { _MCU_name = MCU_name; }
 	void SetLibDir(const std::string &lib_dir);
-	std::string GetLibFileName(const std::string &file_name, const std::string &ext);
+	std::string GetLibFileName(const std::string &file_name, const std::string &ext) const;
 
 	B1_T_ERROR ReadIoSettings(const std::string &file_name);
-	bool GetIoCmd(const std::wstring &dev_name, const std::wstring &cmd_name, IoCmd &cmd);
+	bool GetIoCmd(const std::wstring &dev_name, const std::wstring &cmd_name, IoCmd &cmd) const;
 
-	std::wstring GetIoDeviceName(const std::wstring &spec_dev_name);
+	std::wstring GetIoDeviceName(const std::wstring &spec_dev_name) const;
 
 	// returns interrupt index by name or -1 if not an interrupt name was specified
-	int GetInterruptIndex(const std::string &int_name);
+	int GetInterruptIndex(const std::string &int_name) const;
 	// splits source file name to interrupt name and file name itself
-	std::string GetInterruptName(const std::string &file_name, std::string &real_file_name);
+	std::string GetInterruptName(const std::string &file_name, std::string &real_file_name) const;
 };

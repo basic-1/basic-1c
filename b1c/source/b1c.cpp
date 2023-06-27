@@ -2908,6 +2908,17 @@ B1_T_ERROR B1FileCompiler::st_data()
 					return err;
 				}
 			}
+
+			int32_t n;
+
+			err = Utils::str2int32(value, n);
+			if(err != B1_RES_OK)
+			{
+				return err;
+			}
+
+			correct_int_value(n, type_name);
+			value = std::to_wstring(n);
 		}
 		else
 		{
@@ -3987,7 +3998,7 @@ B1C_T_ERROR B1FileCompiler::remove_jumps(bool &changed)
 {
 	changed = false;
 
-	// remove all commands between JMP, RET or END and the next label, DAT or DEF
+	// remove all commands between JMP, RET or END and the next label
 	for(auto i = cbegin(); i != cend(); i++)
 	{
 		auto &cmd = *i;
@@ -4003,14 +4014,16 @@ B1C_T_ERROR B1FileCompiler::remove_jumps(bool &changed)
 			{
 				auto &cmd1 = *i;
 
-				if(B1CUtils::is_label(cmd1) || cmd1.cmd == L"DAT" || cmd1.cmd == L"DEF" || cmd1.cmd == L"MA" || cmd1.cmd == L"NS")
+				if(B1CUtils::is_label(cmd1))
 				{
 					break;
 				}
 
-				erase(i--);
-
-				changed = true;
+				if(!(cmd1.cmd == L"DAT" || cmd1.cmd == L"DEF" || cmd1.cmd == L"MA" || cmd1.cmd == L"NS" || cmd1.cmd == L"END"))
+				{
+					erase(i--);
+					changed = true;
+				}
 			}
 
 			if(i == cend())

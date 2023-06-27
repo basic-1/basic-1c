@@ -5715,7 +5715,14 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				}
 			}
 
-			_curr_code_sec->add_op(_ret_stmt); //RET 81, RETF 87
+			if(int_handler)
+			{
+				_curr_code_sec->add_op(L"IRET"); //80
+			}
+			else
+			{
+				_curr_code_sec->add_op(_ret_stmt); //RET 81, RETF 87
+			}
 
 			_cmp_active = false;
 			_retval_active = false;
@@ -5767,12 +5774,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				_curr_code_sec->add_comment(Utils::str_trim(_src_lines[cmd.src_line_id]));
 			}
 
-			if(int_handler)
-			{
-				_curr_code_sec->add_op(L"IRET"); //80
-
-				int_handler = false;
-			}
+			int_handler = false;
 
 			_cmp_active = false;
 			_retval_active = false;

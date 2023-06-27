@@ -1,3 +1,10 @@
+IMP,__LIB_STR_CPY
+IMP,__LIB_STR_LEN
+IMP,__LIB_MEM_ALC
+IMP,__LIB_MEM_SET
+IMP,__LIB_MEM_CPY
+IMP,__LIB_STR_RLS
+
 ; X - string address, stack - new string length, returns justified string in X
 :__LIB_STR_RSET
 ASM
@@ -54,7 +61,7 @@ PUSH 32 ; space
 CALLR __LIB_MEM_SET
 ADDW SP, 5
 
-PUSHW X ; new string data address
+POPW X ; new string data address
 DECW X ; correct string address
 DECW X
 POP A ; correct stack (initial string length)

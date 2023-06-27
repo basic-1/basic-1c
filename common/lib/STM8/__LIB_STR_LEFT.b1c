@@ -1,0 +1,13 @@
+IMP,__LIB_STR_MID
+
+; returns the left part of a string
+; X - string address, stack - characters to return (byte), returns substring in X
+:__LIB_STR_LEFT
+ASM
+PUSH 1 ; start position
+LD A, (__RET_ADDR_SIZE + 2, SP) ; chars to return
+PUSH A
+CALLR __LIB_STR_MID
+ADDW SP, 2
+RET
+ENDASM

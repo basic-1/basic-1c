@@ -1,0 +1,18 @@
+' a LED connected to GPIO PB5 (output, push-pull, fast speed)
+10 PB_CR1 = 1 << 5
+20 PB_CR2 = 1 << 5
+30 PB_DDR = 1 << 5
+' blinking loop
+40 WHILE 1 < 2
+50 PB_ODR = PB_ODR XOR (1 << 5)
+60 GOSUB 1000
+70 WEND
+' the program end
+80 END
+
+' delay subroutine
+1000 FOR L1 = 0 TO 9
+1010 FOR L2 = -32768 TO 32767
+1020 NEXT L2
+1030 NEXT L1
+1040 RETURN

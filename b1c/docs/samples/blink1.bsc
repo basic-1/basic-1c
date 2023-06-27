@@ -1,0 +1,16 @@
+' a LED connected to GPIO PB5 (output, push-pull, fast speed), use IOCTL to configure the pin
+10 IOCTL PB, PIN5, OUT_PUSHPULL_FAST
+' blinking loop
+20 WHILE 1 < 2
+30 PB_ODR = PB_ODR XOR (1 << 5)
+40 GOSUB 1000
+50 WEND
+' the program end
+60 END
+
+' delay subroutine
+1000 FOR L1 = 0 TO 9
+1010 FOR L2 = -32768 TO 32767
+1020 NEXT L2
+1030 NEXT L1
+1040 RETURN

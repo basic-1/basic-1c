@@ -454,7 +454,7 @@ B1_T_ERROR Settings::Read(const std::string &file_name)
 	return B1_RES_OK;
 }
 
-bool Settings::GetValue(const std::wstring &key, std::wstring &value)
+bool Settings::GetValue(const std::wstring &key, std::wstring &value) const
 {
 	const auto v = _settings.find(key);
 
@@ -551,7 +551,7 @@ void Settings::SetLibDir(const std::string &lib_dir)
 	}
 }
 
-std::string Settings::GetLibFileName(const std::string &file_name, const std::string &ext)
+std::string Settings::GetLibFileName(const std::string &file_name, const std::string &ext) const
 {
 	for(auto dir = _lib_dirs.rbegin(); dir != _lib_dirs.rend(); dir++)
 	{
@@ -800,7 +800,7 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 	return B1_RES_OK;
 }
 
-bool Settings::GetIoCmd(const std::wstring &dev_name, const std::wstring &cmd_name, IoCmd &cmd)
+bool Settings::GetIoCmd(const std::wstring &dev_name, const std::wstring &cmd_name, IoCmd &cmd) const
 {
 	auto dc = _io_settings.find(dev_name);
 	if(dc == _io_settings.end())
@@ -818,7 +818,7 @@ bool Settings::GetIoCmd(const std::wstring &dev_name, const std::wstring &cmd_na
 	return false;
 }
 
-std::wstring Settings::GetIoDeviceName(const std::wstring &spec_dev_name)
+std::wstring Settings::GetIoDeviceName(const std::wstring &spec_dev_name) const
 {
 	std::wstring def_dev_name = spec_dev_name;
 
@@ -844,15 +844,36 @@ std::wstring Settings::GetIoDeviceName(const std::wstring &spec_dev_name)
 }
 
 // returns interrupt index by name or -1 if not an interrupt name was specified
-int Settings::GetInterruptIndex(const std::string &int_name)
+int Settings::GetInterruptIndex(const std::string &int_name) const
 {
 	auto ii = _int_names.find(int_name);
 	return (ii == _int_names.end()) ? -1 : ii->second;
 }
 
 // splits source file name to interrupt name and file name itself
-std::string Settings::GetInterruptName(const std::string &file_name, std::string &real_file_name)
+std::string Settings::GetInterruptName(const std::string &file_name, std::string &real_file_name) const
 {
+	std::string int_name;
+
+	// check for <path>/<int_name>:<file_name> format
+	auto delpos = file_name.find_last_of("\\/");
+	if(delpos != std::string::npos)
+	{
+		real_file_name = file_name.substr(0, delpos + 1);
+		int_name = file_name.substr(delpos + 1);
+		auto pos = int_name.find(':');
+		if(pos != std::string::npos)
+		{
+			real_file_name += int_name.substr(pos + 1);
+			int_name = Utils::str_toupper(int_name.substr(0, pos));
+			if(GetInterruptIndex(int_name) >= 0)
+			{
+				return int_name;
+			}
+		}
+	}
+
+	// check for <int_name>:<path>/<file_name> format
 	auto pos = file_name.find(':');
 	if(pos == std::string::npos)
 	{
@@ -860,9 +881,8 @@ std::string Settings::GetInterruptName(const std::string &file_name, std::string
 		return "";
 	}
 
-	const std::string int_name = Utils::str_toupper(file_name.substr(0, pos));
-	int int_ind = GetInterruptIndex(int_name);
-	if(int_ind < 0)
+	int_name = Utils::str_toupper(file_name.substr(0, pos));
+	if(GetInterruptIndex(int_name) < 0)
 	{
 		real_file_name = file_name;
 		return "";

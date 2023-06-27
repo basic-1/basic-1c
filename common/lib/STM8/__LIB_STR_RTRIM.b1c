@@ -1,0 +1,41 @@
+IMP,__LIB_STR_MID
+
+; returns a copy of the string without trailing spaces
+; X - string address, returns trimmed string in X
+:__LIB_STR_RTRIM
+ASM
+TNZW X
+JREQ ::__LBL_RET
+PUSHW X
+JRMI ::__LBL_ROM_STR
+INCW X
+
+:::__LBL_ROM_STR
+LD A, (X) ; string length
+PUSH A ; save length
+PUSH 0
+ADDW X, (1, SP) ; address of the last string char
+INCW X
+INC A
+
+:::__LBL_FND_SPC_LOOP
+DECW X
+DEC A
+JREQ ::__LBL_TRIM
+PUSH A
+LD A, (X)
+CP A, 32 ; space
+POP A
+JREQ ::__LBL_FND_SPC_LOOP
+
+:::__LBL_TRIM
+POPW X
+POPW X
+PUSH 1 ; start
+PUSH A ; chars to copy
+CALLR __LIB_STR_MID
+ADDW SP, 2
+
+:::__LBL_RET
+RET
+ENDASM

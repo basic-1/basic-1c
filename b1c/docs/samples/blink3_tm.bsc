@@ -1,0 +1,5 @@
+' timer interrupt handler
+10 PB_ODR = PB_ODR XOR (1 << 5)
+20 IOCTL TIMER, CLRINTFLAG
+30 RETURN
+40 END

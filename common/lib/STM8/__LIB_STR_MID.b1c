@@ -1,0 +1,82 @@
+IMP,__LIB_MEM_ALC
+IMP,__LIB_MEM_CPY
+IMP,__LIB_STR_RLS
+
+; returns substring of a source string
+; X - string address, stack1 - 1-based starting position (byte), stack2 - num. characters to copy (byte), returns substring in X
+:__LIB_STR_MID
+ASM
+PUSHW X ; initial string address
+TNZW X
+JRMI ::__LBL_ROM_STR
+; RAM string
+INCW X
+
+:::__LBL_ROM_STR
+LD A, (X) ; init. string length
+PUSH A
+LD A, (__RET_ADDR_SIZE + 5, SP) ; start
+PUSH A
+PUSH 0
+ADDW X, (1, SP)
+ADDW SP, 2
+POP A ; init. string length
+PUSHW X ; data to copy address
+; if(start == 0 || start > init_len) return ""
+CLRW X
+TNZ (__RET_ADDR_SIZE + 6, SP) ; start
+JREQ ::__LBL_RLS_RET
+CP A, (__RET_ADDR_SIZE + 6, SP)
+JRULT ::__LBL_RLS_RET
+PUSH A ; save initial string length
+; to_copy = min(num_copy, init_len - start + 1)
+SUB A, (__RET_ADDR_SIZE + 7, SP) ; init_len - start
+INC A
+CP A, (__RET_ADDR_SIZE + 6, SP) ; num_copy
+JRULE ::__LBL_TO_END
+LD A, (__RET_ADDR_SIZE + 6, SP) ; num_copy
+
+:::__LBL_TO_END
+; here A - chars to copy
+; if(init_len == to_copy) return init_str
+CP A, (1, SP)
+ADDW SP, 1 ; remove init_len
+JRNE ::__LBL_COPY
+ADDW SP, 2 ; leave init. string address only
+JRA ::__LBL_RET
+
+:::__LBL_COPY
+CLRW X
+LD XL, A
+PUSHW X ; chars to copy
+INCW X
+INCW X
+CALLR __LIB_MEM_ALC
+POPW Y ; chars to copy
+TNZW X
+JREQ ::__LBL_RLS_RET
+LD A, 1
+LD (X), A
+INCW X
+LD A, YL
+LD (X), A
+INCW X
+
+; X - dest. address, Y - chars to copy, source address is already in stack
+PUSHW Y ; chars to copy
+CALLR __LIB_MEM_CPY
+ADDW SP, 2
+DECW X
+DECW X
+
+:::__LBL_RLS_RET
+EXGW X, Y
+POPW X
+POPW X ; restore initial string address
+PUSHW Y ; save new string address
+CALLR __LIB_STR_RLS
+
+:::__LBL_RET
+POPW X ; restore new string address
+RET
+ENDASM

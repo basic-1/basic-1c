@@ -18,6 +18,7 @@ extern "C"
 #include <cwctype>
 #include <iterator>
 
+#include "moresym.h"
 #include "b1cmp.h"
 #include "Utils.h"
 
@@ -2084,20 +2085,20 @@ B1_CMP_FN::B1_CMP_FN(const std::wstring &nm, const std::wstring &rt, const std::
 const B1_CMP_FN B1_CMP_FNS::_fns[] =
 {
 //            name,         ret. type   arg. types(def. values) fn. name in std. library
-	B1_CMP_FN(L"LEN",		L"INT",		{ L"STRING" },			L"__LIB_STR_LEN"),
-	B1_CMP_FN(L"ASC",		L"INT",		{ L"STRING" },			L"__LIB_STR_ASC"),
-	B1_CMP_FN(L"CHR$",		L"STRING",	{ L"INT" },				L"__LIB_STR_CHR"),
+	B1_CMP_FN(L"LEN",		L"BYTE",	{ L"STRING" },			L"__LIB_STR_LEN"),
+	B1_CMP_FN(L"ASC",		L"BYTE",	{ L"STRING" },			L"__LIB_STR_ASC"),
+	B1_CMP_FN(L"CHR$",		L"STRING",	{ L"BYTE" },			L"__LIB_STR_CHR"),
 	B1_CMP_FN(L"STR$",		L"STRING",	{ L"INT" },				L"__LIB_STR_STR_I"),
 	B1_CMP_FN(L"STR$",		L"STRING",	{ L"WORD" },			L"__LIB_STR_STR_W"),
 	B1_CMP_FN(L"VAL",		L"INT",		{ L"STRING" },			L"__LIB_STR_VAL"),
-	B1_CMP_FN(L"MID$",		L"STRING",	{ B1_CMP_FN_ARG(L"STRING"), B1_CMP_FN_ARG(L"INT"), B1_CMP_FN_ARG(L"INT", true, L"-1") }, L"__LIB_STR_MID"),
-	B1_CMP_FN(L"INSTR",		L"INT",		{ B1_CMP_FN_ARG(L"INT", true, L"1"), B1_CMP_FN_ARG(L"STRING"), B1_CMP_FN_ARG(L"STRING") }, L"__LIB_STR_INS"),
+	B1_CMP_FN(L"MID$",		L"STRING",	{ B1_CMP_FN_ARG(L"STRING"), B1_CMP_FN_ARG(L"BYTE"), B1_CMP_FN_ARG(L"BYTE", true, std::to_wstring(B1C_T_CONST::B1C_MAX_STR_LEN)) }, L"__LIB_STR_MID"),
+	B1_CMP_FN(L"INSTR",		L"BYTE",	{ B1_CMP_FN_ARG(L"BYTE", true, L"1"), B1_CMP_FN_ARG(L"STRING"), B1_CMP_FN_ARG(L"STRING") }, L"__LIB_STR_INS"),
 	B1_CMP_FN(L"LTRIM$",	L"STRING",	{ L"STRING" },			L"__LIB_STR_LTRIM"),
 	B1_CMP_FN(L"RTRIM$",	L"STRING",	{ L"STRING" },			L"__LIB_STR_RTRIM"),
-	B1_CMP_FN(L"LEFT$",		L"STRING",	{ L"STRING", L"INT" },	L"__LIB_STR_LEFT"),
-	B1_CMP_FN(L"RIGHT$",	L"STRING",	{ L"STRING", L"INT" },	L"__LIB_STR_RIGHT"),
-	B1_CMP_FN(L"LSET$",		L"STRING",	{ L"STRING", L"INT" },	L"__LIB_STR_LSET"),
-	B1_CMP_FN(L"RSET$",		L"STRING",	{ L"STRING", L"INT" },	L"__LIB_STR_RSET"),
+	B1_CMP_FN(L"LEFT$",		L"STRING",	{ L"STRING", L"BYTE" },	L"__LIB_STR_LEFT"),
+	B1_CMP_FN(L"RIGHT$",	L"STRING",	{ L"STRING", L"BYTE" },	L"__LIB_STR_RIGHT"),
+	B1_CMP_FN(L"LSET$",		L"STRING",	{ L"STRING", L"BYTE" },	L"__LIB_STR_LSET"),
+	B1_CMP_FN(L"RSET$",		L"STRING",	{ L"STRING", L"BYTE" },	L"__LIB_STR_RSET"),
 	B1_CMP_FN(L"UCASE$",	L"STRING",	{ L"STRING" },			L"__LIB_STR_UCASE"),
 	B1_CMP_FN(L"RCASE$",	L"STRING",	{ L"STRING" },			L"__LIB_STR_LCASE"),
 

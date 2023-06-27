@@ -1,3 +1,10 @@
+b1c (1.0.0-3) unstable; urgency=low
+
+  * more string library functions implemented
+  * some bug-fixes and improvements
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Tue, 27 Jun 2023 18:21:48 +0300
+
 b1c (1.0.0-1) unstable; urgency=low
 
   * initial commit
