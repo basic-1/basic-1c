@@ -239,12 +239,14 @@ class B1_CMP_VAR
 public:
 	std::wstring name;
 	std::wstring type;
-	int32_t dimnum;
-	int32_t size;
-	int32_t address;
-	std::vector<int32_t> dims;
-	bool known_size;
-	bool volat;
+	int32_t size;				// variable size in bytes (sengle element size for subscripted variable)
+	bool is_volatile;			// volatile variable
+	int32_t dim_num;			// dimensions count (0 for simple variable)
+	bool use_symbol;			// use symbolic name instead of address (address is unknown on this stage)
+	int32_t address;			// variable address
+	std::wstring symbol;		// constant name
+	bool fixed_size;			// fixed size array
+	std::vector<int32_t> dims;	// dimensions (for fixed size array)
 
 	int32_t src_line_cnt;
 	int32_t src_file_id;

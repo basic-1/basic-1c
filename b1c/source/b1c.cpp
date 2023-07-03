@@ -321,11 +321,28 @@ void B1FileCompiler::change_ufn_names()
 	}
 }
 
-// processes RPN expressions like 10--- -> -10
+// processes RPN expressions like (10)--- -> (-10)
 bool B1FileCompiler::correct_rpn(B1_CMP_EXP_TYPE &res_type, B1_CMP_ARG &res, bool get_ref)
 {
 	if(get_ref)
 	{
+		return false;
+	}
+
+	if(B1_RPNREC_GET_TYPE(b1_rpn[0].flags) == B1_RPNREC_TYPE_FNVAR)
+	{
+		B1_T_INDEX id_off = (*(b1_rpn)).data.id.offset;
+		B1_T_INDEX id_len = (*(b1_rpn)).data.id.length;
+		auto token = B1CUtils::get_progline_substring(id_off, id_off + id_len);
+
+		if(Utils::check_const_name(token) && b1_rpn[1].flags == 0)
+		{
+			res = token;
+			res_type = B1_CMP_EXP_TYPE::B1_CMP_ET_IMM_VAL;
+
+			return true;
+		}
+
 		return false;
 	}
 
@@ -385,6 +402,8 @@ B1_T_ERROR B1FileCompiler::process_expression(B1_CMP_EXP_TYPE &res_type, B1_CMP_
 	int last_ind = -1;
 	std::wstring last_token;
 
+	bool const_name = false;
+
 	if(correct_rpn(res_type, res, get_ref))
 	{
 		return B1_RES_OK;
@@ -411,6 +430,7 @@ B1_T_ERROR B1FileCompiler::process_expression(B1_CMP_EXP_TYPE &res_type, B1_CMP_
 
 		log_op = false;
 		last_token.clear();
+		const_name = false;
 
 		if(B1_RPNREC_TEST_SPEC_ARG(tflags))
 		{
@@ -473,6 +493,12 @@ B1_T_ERROR B1FileCompiler::process_expression(B1_CMP_EXP_TYPE &res_type, B1_CMP_
 			id_len = (*(b1_rpn + i)).data.id.length;
 			token = Utils::str_toupper(B1CUtils::get_progline_substring(id_off, id_off + id_len));
 
+			if(B1_RPNREC_GET_TYPE(tflags) == B1_RPNREC_TYPE_FNVAR && Utils::check_const_name(token))
+			{
+				args_num = 0;
+				const_name = true;
+			}
+			else
 			if(B1_RPNREC_GET_TYPE(tflags) == B1_RPNREC_TYPE_FNVAR)
 			{
 				args_num = B1_RPNREC_GET_FNVAR_ARG_NUM(tflags);
@@ -536,32 +562,40 @@ B1_T_ERROR B1FileCompiler::process_expression(B1_CMP_EXP_TYPE &res_type, B1_CMP_
 			token = B1CUtils::get_progline_substring(id_off, id_off + id_len, true);
 		}
 
-		if(	B1_RPNREC_TEST_TYPES(tflags, B1_RPNREC_TYPE_FN_ARG | B1_RPNREC_TYPE_IMM_VALUE) ||
+		if(	const_name ||
+			B1_RPNREC_TEST_TYPES(tflags, B1_RPNREC_TYPE_FN_ARG | B1_RPNREC_TYPE_IMM_VALUE) ||
 			(B1_RPNREC_GET_TYPE(tflags) == B1_RPNREC_TYPE_FNVAR && args_num == 0))
 		{
-			uint8_t type = B1_RPNREC_GET_TYPE(tflags);
-			B1_CMP_VAL_TYPE vtype = type == B1_RPNREC_TYPE_IMM_VALUE ? B1_CMP_VAL_TYPE::B1_CMP_VT_IMM_VAL :
-				type == B1_RPNREC_TYPE_FNVAR ? B1_CMP_VAL_TYPE::B1_CMP_VT_FNVAR :
-				B1_CMP_VAL_TYPE::B1_CMP_VT_FN_ARG;
-
-			if(vtype == B1_CMP_VAL_TYPE::B1_CMP_VT_IMM_VAL && B1_RPNREC_TEST_IMM_VALUE_NULL_ARG(tflags))
+			if(const_name)
 			{
-				// omitted function argument
-				token.clear();
+				stack.push_back(std::pair<std::wstring, B1_CMP_VAL_TYPE>(token, B1_CMP_VAL_TYPE::B1_CMP_VT_IMM_VAL));
 			}
 			else
-			if(vtype == B1_CMP_VAL_TYPE::B1_CMP_VT_FN_ARG)
 			{
-				wchar_t c = token.back();
-				token = L"__ARG_" + std::to_wstring(args_num);
-				// no floating-point types at the moment
-				if(c == L'$' /*|| c == L'!' || c == L'#'*/ || c == L'%')
-				{
-					token += c;
-				}
-			}
+				uint8_t type = B1_RPNREC_GET_TYPE(tflags);
+				B1_CMP_VAL_TYPE vtype = type == B1_RPNREC_TYPE_IMM_VALUE ? B1_CMP_VAL_TYPE::B1_CMP_VT_IMM_VAL :
+					type == B1_RPNREC_TYPE_FNVAR ? B1_CMP_VAL_TYPE::B1_CMP_VT_FNVAR :
+					B1_CMP_VAL_TYPE::B1_CMP_VT_FN_ARG;
 
-			stack.push_back(std::pair<std::wstring, B1_CMP_VAL_TYPE>(token, vtype));
+				if(vtype == B1_CMP_VAL_TYPE::B1_CMP_VT_IMM_VAL && B1_RPNREC_TEST_IMM_VALUE_NULL_ARG(tflags))
+				{
+					// omitted function argument
+					token.clear();
+				}
+				else
+				if(vtype == B1_CMP_VAL_TYPE::B1_CMP_VT_FN_ARG)
+				{
+					wchar_t c = token.back();
+					token = L"__ARG_" + std::to_wstring(args_num);
+					// no floating-point types at the moment
+					if(c == L'$' /*|| c == L'!' || c == L'#'*/ || c == L'%')
+					{
+						token += c;
+					}
+				}
+
+				stack.push_back(std::pair<std::wstring, B1_CMP_VAL_TYPE>(token, vtype));
+			}
 
 			i++;
 			continue;
@@ -808,7 +842,7 @@ B1_T_ERROR B1FileCompiler::eval_chr(const std::wstring &num_val, const std::wstr
 		res_str += L"\"\"";
 	}
 	else
-	if (n == '\\')
+	if(n == '\\')
 	{
 		res_str += L"\\\\";
 	}
@@ -1551,7 +1585,7 @@ B1_T_ERROR B1FileCompiler::st_dim_get_size(bool allow_TO_stop_word, std::pair<B1
 
 	// "TO" stop token must be the first in DIM_STOP_TOKENS array
 	err = b1_rpn_build(b1_curr_prog_line_offset, allow_TO_stop_word ? DIM_STOP_TOKENS : (DIM_STOP_TOKENS + 1), &b1_curr_prog_line_offset);
-	if (err != B1_RES_OK)
+	if(err != B1_RES_OK)
 	{
 		return err;
 	}
@@ -1581,7 +1615,7 @@ B1C_T_ERROR B1FileCompiler::st_dim(bool first_run)
 	{
 		std::wstring name;
 		bool at;
-		int32_t address;
+		std::wstring address;
 		std::vector<std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE>> subs;
 
 		at = false;
@@ -1627,6 +1661,11 @@ B1C_T_ERROR B1FileCompiler::st_dim(bool first_run)
 		}
 
 		name = Utils::str_toupper(B1CUtils::get_progline_substring(b1_curr_prog_line_offset, b1_curr_prog_line_offset + len));
+
+		if(Utils::check_const_name(name))
+		{
+			return static_cast<B1C_T_ERROR>(B1_RES_EIDINUSE);
+		}
 
 		b1_curr_prog_line_offset += len;
 		type = B1_TYPE_NULL;
@@ -1802,7 +1841,7 @@ B1C_T_ERROR B1FileCompiler::st_dim(bool first_run)
 			// address
 			if(at)
 			{
-				args.push_back(std::to_wstring(address));
+				args.push_back(address);
 			}
 
 			args[1][0].value = type_name;
@@ -1883,6 +1922,11 @@ B1_T_ERROR B1FileCompiler::st_erase()
 
 		name = B1CUtils::get_progline_substring(b1_curr_prog_line_offset, b1_curr_prog_line_offset + len);
 
+		if(Utils::check_const_name(name))
+		{
+			return B1_RES_EIDINUSE;
+		}
+
 		b1_curr_prog_line_offset += len;
 
 		err = b1_tok_get(b1_curr_prog_line_offset, 0, &td);
@@ -1919,7 +1963,7 @@ B1_T_ERROR B1FileCompiler::st_erase()
 }
 
 // get optional "AS <type_name>" clause
-B1_T_ERROR B1FileCompiler::st_get_type_def(bool allow_addr, B1_TOKENDATA &td, B1_T_INDEX &len, uint8_t &type, bool *addr_present /*= nullptr*/, int32_t *address /*= nullptr*/)
+B1_T_ERROR B1FileCompiler::st_get_type_def(bool allow_addr, B1_TOKENDATA &td, B1_T_INDEX &len, uint8_t &type, bool *addr_present /*= nullptr*/, std::wstring *address /*= nullptr*/)
 {
 	B1_T_ERROR err;
 	bool read_type;
@@ -1982,13 +2026,16 @@ B1_T_ERROR B1FileCompiler::st_get_type_def(bool allow_addr, B1_TOKENDATA &td, B1
 			b1_curr_prog_line_offset = td.offset;
 			len = td.length;
 
-			if(td.type & B1_TOKEN_TYPE_NUMERIC)
+			if(td.type & (B1_TOKEN_TYPE_NUMERIC | B1_TOKEN_TYPE_IDNAME))
 			{
-				err = Utils::str2int32(B1CUtils::get_progline_substring(b1_curr_prog_line_offset, b1_curr_prog_line_offset + len), *address);
-				if(err != B1_RES_OK)
+				auto addr_tok = B1CUtils::get_progline_substring(b1_curr_prog_line_offset, b1_curr_prog_line_offset + len);
+
+				if((td.type & B1_TOKEN_TYPE_IDNAME) && !Utils::check_const_name(addr_tok))
 				{
-					return err;
+					return B1_RES_EUNKIDENT;
 				}
+
+				*address = addr_tok;
 				*addr_present = true;
 			}
 			else
@@ -2051,7 +2098,7 @@ B1_T_ERROR B1FileCompiler::st_def(bool first_run)
 
 		// get variable name
 		err = b1_tok_get(b1_curr_prog_line_offset, 0, &td);
-		if (err != B1_RES_OK)
+		if(err != B1_RES_OK)
 		{
 			return err;
 		}
@@ -2068,6 +2115,12 @@ B1_T_ERROR B1FileCompiler::st_def(bool first_run)
 
 	// get name
 	name = Utils::str_toupper(B1CUtils::get_progline_substring(b1_curr_prog_line_offset, b1_curr_prog_line_offset + len));
+
+	if(Utils::check_const_name(name))
+	{
+		return B1_RES_EIDINUSE;
+	}
+
 	b1_curr_prog_line_offset += len;
 
 	err = b1_tok_get(b1_curr_prog_line_offset, 0, &td);
@@ -2869,14 +2922,16 @@ B1_T_ERROR B1FileCompiler::st_data()
 		}
 
 		std::wstring value;
+		bool const_name;
 
 		// try to get simple numeric values
 		B1_CMP_EXP_TYPE res_type;
 		B1_CMP_ARG res;
 
-		if(correct_rpn(res_type, res, false) && B1CUtils::is_num_val(res[0].value))
+		if(correct_rpn(res_type, res, false) && (B1CUtils::is_num_val(res[0].value) || Utils::check_const_name(res[0].value)))
 		{
 			value = res[0].value;
+			const_name = !B1CUtils::is_num_val(res[0].value);
 
 			// get type
 			if(types.size() > 0)
@@ -2895,6 +2950,11 @@ B1_T_ERROR B1FileCompiler::st_data()
 				}
 			}
 			else
+			if(const_name)
+			{
+				type_name = Utils::get_const_type(value);
+			}
+			else
 			{
 				err = b1_t_get_type_by_type_spec((B1_T_CHAR)value.back(), B1_TYPE_INT, &type);
 				if(err != B1_RES_OK)
@@ -2909,16 +2969,19 @@ B1_T_ERROR B1FileCompiler::st_data()
 				}
 			}
 
-			int32_t n;
-
-			err = Utils::str2int32(value, n);
-			if(err != B1_RES_OK)
+			if(!const_name)
 			{
-				return err;
-			}
+				int32_t n;
 
-			correct_int_value(n, type_name);
-			value = std::to_wstring(n);
+				err = Utils::str2int32(value, n);
+				if(err != B1_RES_OK)
+				{
+					return err;
+				}
+
+				correct_int_value(n, type_name);
+				value = std::to_wstring(n);
+			}
 		}
 		else
 		{
@@ -3540,7 +3603,7 @@ B1C_T_ERROR B1FileCompiler::remove_duplicate_labels(bool &changed)
 bool B1FileCompiler::is_udef_used(const B1_TYPED_VALUE &val)
 {
 	auto fn = get_fn(val);
-	if (fn != nullptr && !fn->isstdfn)
+	if(fn != nullptr && !fn->isstdfn)
 	{
 		return true;
 	}
@@ -3819,7 +3882,7 @@ B1C_T_ERROR B1FileCompiler::remove_duplicate_assigns(bool &changed)
 			dstarg = &cmd.args[1];
 		}
 		else
-		if (B1CUtils::is_bin_op(cmd))
+		if(B1CUtils::is_bin_op(cmd))
 		{
 			dstarg = &cmd.args[2];
 		}
@@ -4567,7 +4630,7 @@ B1C_T_ERROR B1FileCompiler::eval_unary_ops(bool &changed)
 				if(cmd.args[0][0].type.empty())
 				{
 					cmd.cmd = L"=";
-					if (cmd.args[0][0].value.find(L"-") == 0)
+					if(cmd.args[0][0].value.find(L"-") == 0)
 					{
 						cmd.args[0][0].value.erase(0, 1);
 					}
@@ -5163,6 +5226,12 @@ B1_T_ERROR B1FileCompiler::get_type(B1_TYPED_VALUE &v, bool read)
 		return B1_RES_OK;
 	}
 
+	if(Utils::check_const_name(v.value))
+	{
+		v.type = Utils::get_const_type(v.value);
+		return B1_RES_OK;
+	}
+
 	auto fn = get_fn(v);
 	if(fn != nullptr)
 	{
@@ -5224,6 +5293,11 @@ B1_T_ERROR B1FileCompiler::get_type(B1_CMP_ARG &a, bool read)
 	if(a.size() == 1)
 	{
 		return get_type(a[0], read);
+	}
+
+	if(Utils::check_const_name(a[0].value))
+	{
+		return B1_RES_ESYNTAX;
 	}
 
 	// process arguments first
@@ -5473,13 +5547,17 @@ B1C_T_ERROR B1FileCompiler::inline_fns(bool &changed)
 {
 	changed = false;
 
-	// remove unnecessary VAL, CHR$ and STR$ function calls
+	// remove unnecessary ASC, VAL, CHR$ and STR$ function calls
 	for(auto &cmd: *this)
 	{
 		if(B1CUtils::is_label(cmd))
 		{
 			continue;
 		}
+
+		_curr_line_num = cmd.line_num;
+		_curr_line_cnt = cmd.line_cnt;
+		_curr_src_line_id = cmd.src_line_id;
 
 		for(auto &a: cmd.args)
 		{
@@ -5500,7 +5578,24 @@ B1C_T_ERROR B1FileCompiler::inline_fns(bool &changed)
 				}
 
 				a.erase(a.begin() + 1);
+				changed = true;
+			}
+			else
+			if(a.size() == 2 && a[0].value == L"ASC" && B1CUtils::is_str_val(a[1].value))
+			{
+				std::wstring sval;
+				auto err = B1CUtils::get_string_data(a[1].value, sval);
+				if(err != B1_RES_OK)
+				{
+					return static_cast<B1C_T_ERROR>(err);
+				}
+				if(sval.empty())
+				{
+					return static_cast<B1C_T_ERROR>(B1_RES_EINVARG);
+				}
 
+				a[0].value = std::to_wstring(sval.front());
+				a.erase(a.begin() + 1);
 				changed = true;
 			}
 		}
@@ -6549,7 +6644,7 @@ B1C_T_ERROR B1FileCompiler::remove_DAT_stmts()
 				
 				while(B1CUtils::is_label(*li))
 				{
-					if (new_label.empty())
+					if(new_label.empty())
 					{
 						new_label = emit_label(true);
 					}
@@ -6811,6 +6906,12 @@ B1C_T_ERROR B1FileCompiler::calc_vars_usage(B1_TYPED_VALUE &v, bool read)
 		return B1C_T_ERROR::B1C_RES_OK;
 	}
 
+	if(Utils::check_const_name(v.value))
+	{
+		// a predefined constant
+		return B1C_T_ERROR::B1C_RES_OK;
+	}
+
 	auto fn = get_fn(v);
 	if(fn != nullptr)
 	{
@@ -6839,6 +6940,12 @@ B1C_T_ERROR B1FileCompiler::calc_vars_usage(B1_CMP_ARG &a, bool read)
 		{
 			return err;
 		}
+	}
+
+	if(Utils::check_const_name(a[0].value))
+	{
+		// a predefined constant
+		return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
 	}
 
 	auto fn = get_fn(a);
@@ -7958,7 +8065,7 @@ B1C_T_ERROR B1FileCompiler::PutTypesAndOptimize()
 		{
 			break;
 		}
-		if (changed)
+		if(changed)
 		{
 			stop = false;
 		}
@@ -7968,7 +8075,7 @@ B1C_T_ERROR B1FileCompiler::PutTypesAndOptimize()
 		{
 			break;
 		}
-		if (changed)
+		if(changed)
 		{
 			stop = false;
 		}
@@ -8114,6 +8221,16 @@ B1C_T_ERROR B1FileCompiler::Optimize(bool init)
 		}
 
 		err = remove_unused_vars(changed);
+		if(err != B1C_T_ERROR::B1C_RES_OK)
+		{
+			break;
+		}
+		if(changed)
+		{
+			stop = false;
+		}
+
+		err = inline_fns(changed);
 		if(err != B1C_T_ERROR::B1C_RES_OK)
 		{
 			break;
@@ -9136,7 +9253,7 @@ int main(int argc, char **argv)
 		// specify RAM starting address
 		if((argv[i][0] == '-' || argv[i][0] == '/') && Utils::str_toupper(std::string(argv[i] + 1)) == "RAM_START")
 		{
-			if (i == argc - 1)
+			if(i == argc - 1)
 			{
 				args_error = true;
 				args_error_txt = "missing RAM starting address";
@@ -9188,7 +9305,7 @@ int main(int argc, char **argv)
 		// specify ROM starting address
 		if((argv[i][0] == '-' || argv[i][0] == '/') && Utils::str_toupper(std::string(argv[i] + 1)) == "ROM_START")
 		{
-			if (i == argc - 1)
+			if(i == argc - 1)
 			{
 				args_error = true;
 				args_error_txt = "missing ROM starting address";

@@ -795,7 +795,7 @@ C1STM8_T_ERROR C1STM8Compiler::load_next_command(const std::wstring &line, const
 				{
 					return err;
 				}
-				if(!check_address(tv.value))
+				if(!Utils::check_const_name(tv.value) && !check_address(tv.value))
 				{
 					return static_cast<C1STM8_T_ERROR>(B1_RES_EINVNUM);
 				}
@@ -1294,8 +1294,15 @@ C1STM8_T_ERROR C1STM8Compiler::check_arg(B1_CMP_ARG &arg)
 				auto v = _vars.find(a->value);
 				if(v == _vars.end())
 				{
-					_vars_order[_vars_order.size()] = a->value;
-					_vars[a->value] = B1_CMP_VAR(a->value, a->type, 0, false, _curr_src_file_id, _curr_line_cnt);
+					if(Utils::check_const_name(a->value))
+					{
+						a->type = Utils::get_const_type(a->value);
+					}
+					else
+					{
+						_vars_order[_vars_order.size()] = a->value;
+						_vars[a->value] = B1_CMP_VAR(a->value, a->type, 0, false, _curr_src_file_id, _curr_line_cnt);
+					}
 				}
 				else
 				{
@@ -1303,7 +1310,7 @@ C1STM8_T_ERROR C1STM8Compiler::check_arg(B1_CMP_ARG &arg)
 					{
 						return C1STM8_T_ERROR::C1STM8_RES_EVARTYPMIS;
 					}
-					if(v->second.dimnum != 0)
+					if(v->second.dim_num != 0)
 					{
 						return C1STM8_T_ERROR::C1STM8_RES_EVARDIMMIS;
 					}
@@ -1315,7 +1322,7 @@ C1STM8_T_ERROR C1STM8Compiler::check_arg(B1_CMP_ARG &arg)
 				{
 					return C1STM8_T_ERROR::C1STM8_RES_EVARTYPMIS;
 				}
-				if(ma->second.dimnum != 0)
+				if(ma->second.dim_num != 0)
 				{
 					return C1STM8_T_ERROR::C1STM8_RES_EVARDIMMIS;
 				}
@@ -1367,8 +1374,20 @@ C1STM8_T_ERROR C1STM8Compiler::check_arg(B1_CMP_ARG &arg)
 			auto v = _vars.find(arg[0].value);
 			if(v == _vars.end())
 			{
-				_vars_order[_vars_order.size()] = arg[0].value;
-				_vars[arg[0].value] = B1_CMP_VAR(arg[0].value, arg[0].type, arg.size() - 1, false, _curr_src_file_id, _curr_line_cnt);
+				if(Utils::check_const_name(arg[0].value))
+				{
+					if(arg.size() != 1)
+					{
+						return static_cast<C1STM8_T_ERROR>(B1_RES_ESYNTAX);
+					}
+
+					arg[0].type = Utils::get_const_type(arg[0].value);
+				}
+				else
+				{
+					_vars_order[_vars_order.size()] = arg[0].value;
+					_vars[arg[0].value] = B1_CMP_VAR(arg[0].value, arg[0].type, arg.size() - 1, false, _curr_src_file_id, _curr_line_cnt);
+				}
 			}
 			else
 			{
@@ -1376,7 +1395,7 @@ C1STM8_T_ERROR C1STM8Compiler::check_arg(B1_CMP_ARG &arg)
 				{
 					return C1STM8_T_ERROR::C1STM8_RES_EVARTYPMIS;
 				}
-				if(v->second.dimnum != arg.size() - 1)
+				if(v->second.dim_num != arg.size() - 1)
 				{
 					return C1STM8_T_ERROR::C1STM8_RES_EVARDIMMIS;
 				}
@@ -1388,7 +1407,7 @@ C1STM8_T_ERROR C1STM8Compiler::check_arg(B1_CMP_ARG &arg)
 			{
 				return C1STM8_T_ERROR::C1STM8_RES_EVARTYPMIS;
 			}
-			if(ma->second.dimnum != arg.size() - 1)
+			if(ma->second.dim_num != arg.size() - 1)
 			{
 				return C1STM8_T_ERROR::C1STM8_RES_EVARDIMMIS;
 			}
@@ -1423,18 +1442,26 @@ C1STM8_T_ERROR C1STM8Compiler::read_ufns()
 
 		if(cmd.cmd == L"DEF")
 		{
-			if(_ufns.find(cmd.args[0][0].value) != _ufns.end())
+			const auto &fname = cmd.args[0][0].value;
+
+			// function name can't be one from the predifined constants list
+			if(Utils::check_const_name(fname))
+			{
+				return static_cast<C1STM8_T_ERROR>(B1_RES_EIDINUSE);
+			}
+
+			if(_ufns.find(fname) != _ufns.end())
 			{
 				return C1STM8_T_ERROR::C1STM8_RES_EUFNREDEF;
 			}
 
-			B1_CMP_FN fn(cmd.args[0][0].value, cmd.args[1][0].value, std::vector<std::wstring>(), cmd.args[0][0].value, false);
+			B1_CMP_FN fn(fname, cmd.args[1][0].value, std::vector<std::wstring>(), fname, false);
 			for(auto at = cmd.args.begin() + 2; at != cmd.args.end(); at++)
 			{
 				fn.args.push_back(B1_CMP_FN_ARG(at->at(0).value, false, L""));
 			}
 
-			_ufns.emplace(std::make_pair(cmd.args[0][0].value, fn));
+			_ufns.emplace(std::make_pair(fname, fn));
 		}
 	}
 
@@ -1513,11 +1540,18 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 			auto &vars = is_ma ? _mem_areas : _vars;
 
 			const auto &vname = cmd.args[0][0].value;
+
+			// variable name can't be one from the predifined constants list
+			if(Utils::check_const_name(vname))
+			{
+				return static_cast<C1STM8_T_ERROR>(B1_RES_EIDINUSE);
+			}
+
 			const auto &vtype = cmd.args[1][0].value;
 			auto v = vars.find(vname);
 			int32_t dims_off = is_ma ? 3 : 2;
 			int32_t dims = cmd.args.size() - dims_off;
-			bool volat = (cmd.args[1].size() > 1) && cmd.args[1][1].value.length() == 1 && (cmd.args[1][1].value.front() == L'V');
+			bool is_volatile = (cmd.args[1].size() > 1) && cmd.args[1][1].value.length() == 1 && (cmd.args[1][1].value.front() == L'V');
 
 			if(is_ma)
 			{
@@ -1548,17 +1582,25 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 
 			if(v == vars.end())
 			{
-				vars[vname] = B1_CMP_VAR(vname, vtype, dims / 2, volat, _curr_src_file_id, _curr_line_cnt);
+				vars[vname] = B1_CMP_VAR(vname, vtype, dims / 2, is_volatile, _curr_src_file_id, _curr_line_cnt);
 				v = vars.find(vname);
 
 				if(is_ma)
 				{
 					int32_t addr = 0, size = 0;
 
-					auto err = Utils::str2int32(cmd.args[2][0].value, addr);
-					if(err != B1_RES_OK)
+					if(Utils::check_const_name(cmd.args[2][0].value))
 					{
-						return static_cast<C1STM8_T_ERROR>(err);
+						v->second.use_symbol = true;
+						v->second.symbol = cmd.args[2][0].value;
+					}
+					else
+					{
+						auto err = Utils::str2int32(cmd.args[2][0].value, addr);
+						if(err != B1_RES_OK)
+						{
+							return static_cast<C1STM8_T_ERROR>(err);
+						}
 					}
 
 					// write address and size for MA variables
@@ -1570,7 +1612,7 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 					}
 					// single element size (even for subscripted variables)
 					v->second.size = size;
-					v->second.known_size = true;
+					v->second.fixed_size = true;
 				}
 				else
 				{
@@ -1585,17 +1627,17 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 				}
 				v->second.type = vtype;
 
-				if(v->second.dimnum >= 0 && v->second.dimnum != dims / 2)
+				if(v->second.dim_num >= 0 && v->second.dim_num != dims / 2)
 				{
 					return C1STM8_T_ERROR::C1STM8_RES_EVARDIMMIS;
 				}
-				v->second.dimnum = dims / 2;
+				v->second.dim_num = dims / 2;
 
-				if(!v->second.type.empty() && v->second.volat != volat)
+				if(!v->second.type.empty() && v->second.is_volatile != is_volatile)
 				{
 					return C1STM8_T_ERROR::C1STM8_RES_EVARTYPMIS;
 				}
-				v->second.volat = volat;
+				v->second.is_volatile = is_volatile;
 			}
 
 			for(auto a = cmd.args.begin() + dims_off; a != cmd.args.end(); a++)
@@ -1651,6 +1693,12 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 		if(cmd.cmd == L"GF")
 		{
 			const auto &vname = cmd.args[0][0].value;
+
+			// variable name can't be one from the predifined constants list
+			if(Utils::check_const_name(vname))
+			{
+				return static_cast<C1STM8_T_ERROR>(B1_RES_EIDINUSE);
+			}
 
 			auto v = _vars.find(vname);
 			if(v == _vars.end())
@@ -1757,12 +1805,12 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 	{
 		auto ea = exp_alloc.find(var.second.name);
 
-		var.second.known_size = (ea == exp_alloc.end());
+		var.second.fixed_size = (ea == exp_alloc.end());
 
 		// implicitly allocated variables
-		if(var.second.known_size)
+		if(var.second.fixed_size)
 		{
-			for(int d = 0; d < var.second.dimnum; d++)
+			for(int d = 0; d < var.second.dim_num; d++)
 			{
 				var.second.dims.push_back(b1_opt_base_val);
 				var.second.dims.push_back(10);
@@ -1772,7 +1820,7 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 		// OPTION EXPLICIT and single GA (DIM) with fixed sizes
 		if(b1_opt_explicit_val != 0 && ea->second == 1)
 		{
-			var.second.known_size = true;
+			var.second.fixed_size = true;
 		}
 	}
 
@@ -1935,7 +1983,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_data_sec()
 		_curr_src_file_id = v->second.src_file_id;
 		_curr_line_cnt = v->second.src_line_cnt;
 
-		if(v->second.dimnum == 0)
+		if(v->second.dim_num == 0)
 		{
 			if(!B1CUtils::get_asm_type(v->second.type, &type, &size, &rep))
 			{
@@ -1944,13 +1992,13 @@ C1STM8_T_ERROR C1STM8Compiler::write_data_sec()
 		}
 		else
 		{
-			if(!B1CUtils::get_asm_type(v->second.type, &type, &size, &rep, v->second.dimnum))
+			if(!B1CUtils::get_asm_type(v->second.type, &type, &size, &rep, v->second.dim_num))
 			{
 				return static_cast<C1STM8_T_ERROR>(B1_RES_ESYNTAX);
 			}
 
 			// correct size for arrays with known sizes (address only, no dimensions)
-			if(v->second.known_size)
+			if(v->second.fixed_size)
 			{
 				size = size / rep;
 				rep = 1;
@@ -2139,11 +2187,11 @@ C1STM8_T_ERROR C1STM8Compiler::write_const_sec()
 
 C1STM8_T_ERROR C1STM8Compiler::calc_array_size(const B1_CMP_VAR &var, int32_t size1)
 {
-	if(var.known_size)
+	if(var.fixed_size)
 	{
 		int32_t arr_size = 1;
 
-		for(int32_t i = 0; i < var.dimnum; i++)
+		for(int32_t i = 0; i < var.dim_num; i++)
 		{
 			arr_size *= (var.dims[i * 2 + 1] - var.dims[i * 2] + 1);
 		}
@@ -2156,7 +2204,7 @@ C1STM8_T_ERROR C1STM8Compiler::calc_array_size(const B1_CMP_VAR &var, int32_t si
 	{
 		_curr_code_sec->add_op(L"LDW X, (" + var.name + L" + 0x4)"); //BE SHORT_ADDRESS, CE LONG_ADDRESS
 
-		for(int32_t i = 1; i < var.dimnum; i++)
+		for(int32_t i = 1; i < var.dim_num; i++)
 		{
 			_curr_code_sec->add_op(L"PUSHW X"); //89
 			_stack_ptr += 2;
@@ -2190,13 +2238,15 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_st_gf(const B1_CMP_VAR &var, bool is_ma)
 		_req_symbols.insert(var.name);
 	}
 
-	if(var.dimnum == 0)
+	const std::wstring v = is_ma ? (var.use_symbol ? var.symbol : std::to_wstring(var.address)) : var.name;
+
+	if(var.dim_num == 0)
 	{
 		// simple variable
 		if(size1 == 1)
 		{
 			// BYTE type
-			_curr_code_sec->add_op(L"MOV (" + std::to_wstring(var.address) + L"), 0"); //35 00 LONG_ADDRESS
+			_curr_code_sec->add_op(L"MOV (" + v + L"), 0"); //35 00 LONG_ADDRESS
 		}
 		else
 		{
@@ -2204,12 +2254,12 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_st_gf(const B1_CMP_VAR &var, bool is_ma)
 			if(var.type == L"STRING")
 			{
 				// release string
-				_curr_code_sec->add_op(L"LDW X, (" + var.name + L")"); //BE SHORT_ADDRESS, CE LONG_ADDRESS
+				_curr_code_sec->add_op(L"LDW X, (" + v + L")"); //BE SHORT_ADDRESS, CE LONG_ADDRESS
 				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_STR_RLS");
 			}
 			_curr_code_sec->add_op(L"CLRW X"); //5F
-			_curr_code_sec->add_op(L"LDW (" + var.name + L"), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+			_curr_code_sec->add_op(L"LDW (" + v + L"), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
 		}
 	}
 	else
@@ -2231,11 +2281,11 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_st_gf(const B1_CMP_VAR &var, bool is_ma)
 		{
 			if(is_ma)
 			{
-				_curr_code_sec->add_op(L"LDW X, " + std::to_wstring(var.address)); //AE WORD_VALUE
+				_curr_code_sec->add_op(L"LDW X, " + v); //AE WORD_VALUE
 			}
 			else
 			{
-				_curr_code_sec->add_op(L"LDW X, (" + var.name + L")"); //BE SHORT_ADDRESS, CE LONG_ADDRESS
+				_curr_code_sec->add_op(L"LDW X, (" + v + L")"); //BE SHORT_ADDRESS, CE LONG_ADDRESS
 			}
 			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_ARR_DAT_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
 			_req_symbols.insert(L"__LIB_STR_ARR_DAT_RLS");
@@ -2243,23 +2293,26 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_st_gf(const B1_CMP_VAR &var, bool is_ma)
 
 		if(is_ma)
 		{
-			_curr_code_sec->add_op(L"LDW X, " + std::to_wstring(var.address)); //AE WORD_VALUE
-			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_MEM_CLR"); //AD SIGNED_BYTE_OFFSET (CALLR)
-			_req_symbols.insert(L"__LIB_MEM_CLR");
+			_curr_code_sec->add_op(L"LDW X, " + v); //AE WORD_VALUE
+			_curr_code_sec->add_op(L"PUSH 0"); //4B BYTE_VALUE
+			_stack_ptr += 1;
+			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_MEM_SET"); //AD SIGNED_BYTE_OFFSET (CALLR)
+			_req_symbols.insert(L"__LIB_MEM_SET");
+			_curr_code_sec->add_op(L"ADDW SP, 3"); //5B BYTE_VALUE
+			_stack_ptr -= 3;
 		}
 		else
 		{
-			_curr_code_sec->add_op(L"LDW X, (" + var.name + L")"); //BE SHORT_ADDRESS, CE LONG_ADDRESS
+			_curr_code_sec->add_op(L"LDW X, (" + v + L")"); //BE SHORT_ADDRESS, CE LONG_ADDRESS
 			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_MEM_FRE"); //AD SIGNED_BYTE_OFFSET (CALLR)
 			_req_symbols.insert(L"__LIB_MEM_FRE");
 			_curr_code_sec->add_op(L"CLRW X"); //5F
-			_curr_code_sec->add_op(L"LDW (" + var.name + L"), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
-		}
-
-		if(is_ma || var.type == L"STRING")
-		{
-			_curr_code_sec->add_op(L"POPW X"); //85
-			_stack_ptr -= 2;
+			_curr_code_sec->add_op(L"LDW (" + v + L"), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+			if(var.type == L"STRING")
+			{
+				_curr_code_sec->add_op(L"POPW X"); //85
+				_stack_ptr -= 2;
+			}
 		}
 	}
 
@@ -2272,7 +2325,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 	LVT rvt;
 	std::wstring init_type = tv.type;
 
-	if(B1CUtils::is_imm_val(tv.value))
+	if(B1CUtils::is_imm_val(tv.value) || Utils::check_const_name(tv.value))
 	{
 		// imm. value
 		if(init_type == L"BYTE")
@@ -2619,8 +2672,12 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 			bool is_ma = ma != _mem_areas.end();
 			
 			rv = is_ma ?
-				std::to_wstring(ma->second.address + ((init_type == L"INT" || init_type == L"WORD") && req_type == L"BYTE" ? 1 : 0)) :
-				(tv.value + ((init_type == L"INT" || init_type == L"WORD") && req_type == L"BYTE" ? L" + 0x1" : std::wstring()));
+				(ma->second.use_symbol ?
+					(ma->second.symbol + ((init_type == L"INT" || init_type == L"WORD") && req_type == L"BYTE" ? L" + 0x1" : std::wstring())) :
+					std::to_wstring(ma->second.address + ((init_type == L"INT" || init_type == L"WORD") && req_type == L"BYTE" ? 1 : 0))
+				) :
+				(tv.value + ((init_type == L"INT" || init_type == L"WORD") && req_type == L"BYTE" ? L" + 0x1" : std::wstring())
+			);
 
 			if(!is_ma)
 			{
@@ -2813,7 +2870,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arr_alloc_def(const B1_CMP_ARG &arg, const B
 		return static_cast<C1STM8_T_ERROR>(B1_RES_EWSUBSCNT);
 	}
 
-	if((_opt_nocheck && b1_opt_explicit_val != 0) || (!var.volat && _allocated_arrays.find(arg[0].value) != _allocated_arrays.end()))
+	if((_opt_nocheck && b1_opt_explicit_val != 0) || (!var.is_volatile && _allocated_arrays.find(arg[0].value) != _allocated_arrays.end()))
 	{
 		return C1STM8_T_ERROR::C1STM8_RES_OK;
 	}
@@ -2848,7 +2905,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arr_alloc_def(const B1_CMP_ARG &arg, const B
 		_curr_code_sec->add_op(L"LDW (" + arg[0].value + L"), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
 
 		// save array sizes if necessary
-		if(!var.known_size)
+		if(!var.fixed_size)
 		{
 			_curr_code_sec->add_op(L"CLRW X"); //5F
 			if(b1_opt_base_val == 1)
@@ -2891,7 +2948,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_
 	auto ma = _mem_areas.find(arg[0].value);
 	bool is_ma = ma != _mem_areas.end();
 	auto var = is_ma ? ma : _vars.find(arg[0].value);
-	bool known_size = is_ma ? true : var->second.known_size;
+	bool known_size = is_ma ? true : var->second.fixed_size;
 	int32_t dims_size;
 
 	bool imm_args = true;
@@ -3089,7 +3146,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const std::wstri
 
 		if(is_ma)
 		{
-			if(ma->second.dimnum != arg.size() - 1)
+			if(ma->second.dim_num != arg.size() - 1)
 			{
 				return static_cast<C1STM8_T_ERROR>(B1_RES_EWRARGCNT);
 			}
@@ -3098,7 +3155,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const std::wstri
 		{
 			const auto &var = _vars.find(arg[0].value)->second;
 
-			if(var.dimnum != arg.size() - 1)
+			if(var.dim_num != arg.size() - 1)
 			{
 				return static_cast<C1STM8_T_ERROR>(B1_RES_EWRARGCNT);
 			}
@@ -3122,7 +3179,8 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const std::wstri
 			return err;
 		}
 
-		rv = is_ma ? std::to_wstring(ma->second.address) : arg[0].value;
+		rv = is_ma ? (ma->second.use_symbol ? ma->second.symbol : std::to_wstring(ma->second.address)) :
+			arg[0].value;
 
 		// get value
 		if(init_type == L"BYTE")
@@ -3475,7 +3533,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_init_array(const B1_CMP_CMD &cmd, const B1_C
 
 	_req_symbols.insert(var.name);
 
-	if(var.known_size)
+	if(var.fixed_size)
 	{
 		auto err = calc_array_size(var, data_size);
 		if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
@@ -3567,6 +3625,11 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_st_ga(const B1_CMP_CMD &cmd, const B1_CMP_VA
 
 C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_TYPED_VALUE &tv)
 {
+	if(Utils::check_const_name(tv.value))
+	{
+		return static_cast<C1STM8_T_ERROR>(B1_RES_ESYNTAX);
+	}
+
 	if(_locals.find(tv.value) != _locals.end())
 	{
 		// local variable
@@ -3627,7 +3690,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_TYPED_VALUE &tv)
 
 		if(is_ma)
 		{
-			dst = std::to_wstring(ma->second.address);
+			dst = ma->second.use_symbol ? ma->second.symbol : std::to_wstring(ma->second.address);
 		}
 		else
 		{
@@ -3677,16 +3740,16 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 
 	if(is_ma)
 	{
-		if(ma->second.dimnum != arg.size() - 1)
+		if(ma->second.dim_num != arg.size() - 1)
 		{
 			return static_cast<C1STM8_T_ERROR>(B1_RES_EWRARGCNT);
 		}
 
-		dst = std::to_wstring(ma->second.address);
+		dst = ma->second.use_symbol ? ma->second.symbol : std::to_wstring(ma->second.address);
 	}
 	else
 	{
-		if(_vars.find(arg[0].value)->second.dimnum != arg.size() - 1)
+		if(_vars.find(arg[0].value)->second.dim_num != arg.size() - 1)
 		{
 			return static_cast<C1STM8_T_ERROR>(B1_RES_EWRARGCNT);
 		}

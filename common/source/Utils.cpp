@@ -20,6 +20,8 @@
 #include <linux/limits.h>
 #endif
 
+#include "moresym.h"
+
 
 B1_T_ERROR Utils::str2int32(const std::wstring &str, int32_t &num, B1Types *type /*= nullptr*/)
 {
@@ -366,6 +368,76 @@ size_t Utils::str_split(const std::wstring &str, const std::wstring &del, std::v
 	}
 	out_strs.push_back(str.substr(prev));
 	return out_strs.size();
+}
+
+std::wstring Utils::get_type_name(B1Types type)
+{
+	switch(type)
+	{
+		case B1Types::B1T_BYTE:
+			return L"BYTE";
+		case B1Types::B1T_INT:
+			return L"INT";
+		case B1Types::B1T_WORD:
+			return L"WORD";
+		case B1Types::B1T_LONG:
+			return L"LONG";
+		case B1Types::B1T_STRING:
+			return L"STRING";
+	}
+
+	return std::wstring();
+}
+
+bool Utils::check_const_name(const std::wstring& const_name)
+{
+	auto cn = Utils::str_toupper(const_name);
+
+	if(_RTE_errors.find(cn) != _RTE_errors.cend())
+	{
+		return true;
+	}
+
+	if(_B1C_consts.find(cn) != _B1C_consts.cend())
+	{
+		return true;
+	}
+
+	if(_B1AT_consts.find(cn) != _B1AT_consts.cend())
+	{
+		return true;
+	}
+
+	return false;
+}
+
+std::wstring Utils::get_const_type(const std::wstring& const_name)
+{
+	auto cn = Utils::str_toupper(const_name);
+	auto type = B1Types::B1T_UNKNOWN;
+
+	if(_RTE_errors.find(cn) != _RTE_errors.cend())
+	{
+		type = RTE_ERROR_TYPE;
+	}
+	else
+	{
+		const auto bci = _B1C_consts.find(cn);
+		if(bci != _B1C_consts.cend())
+		{
+			type = bci->second.second;
+		}
+		else
+		{
+			const auto bati = _B1AT_consts.find(cn);
+			if(bati != _B1AT_consts.cend())
+			{
+				type = bati->second;
+			}
+		}
+	}
+
+	return get_type_name(type);
 }
 
 

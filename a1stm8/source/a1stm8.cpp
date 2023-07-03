@@ -1290,14 +1290,15 @@ public:
 						if(_RTE_errors.find(tok) != _RTE_errors.end())
 						{
 							n = static_cast<std::underlying_type_t<B1C_T_RTERROR>>(_RTE_errors[tok]);
-							n = EVal::ConvertValue(n, usgn, B1Types::B1T_LONG);
+							n = EVal::ConvertValue(n, usgn, RTE_ERROR_TYPE);
 							exp.AddVal(EVal(n, value, usgn));
 						}
 						else
 						if(_B1C_consts.find(tok) != _B1C_consts.end())
 						{
-							n = _B1C_consts[tok];
-							n = EVal::ConvertValue(n, usgn, B1Types::B1T_LONG);
+							const auto &c = _B1C_consts[tok];
+							n = c.first;
+							n = EVal::ConvertValue(n, usgn, c.second);
 							exp.AddVal(EVal(n, value, usgn));
 						}
 						else

@@ -1,0 +1,77 @@
+IMP,__LIB_STR_SET
+IMP,__LIB_STR_RLS
+
+; converts string to upper case
+; X - string address, returns converted string in X
+:__LIB_STR_UCASE
+ASM
+PUSHW X ; initial string address
+TNZW X
+JRMI ::__LBL_ROM_STR
+; RAM string
+INCW X
+
+:::__LBL_ROM_STR
+LD A, (X) ; init. string length
+JREQ ::__LBL_RET
+
+INCW X
+PUSHW X ; initial string data address
+PUSH A ; initial string length
+
+; check for lower-case chars presence
+:::__LBL_CHK_NEXT
+PUSH A
+LD A, (X)
+SUB A, 97 ; 'a'
+CP A, 26
+POP A
+JRULT ::__LBL_LC_PRESENT
+INCW X
+DEC A
+JRNE ::__LBL_CHK_NEXT
+
+; no lower-case chars in the specified string
+ADDW SP, 3
+JRA ::__LBL_RET
+
+:::__LBL_LC_PRESENT
+CLRW X ; empty string, string length is already in stack
+CALLR __LIB_STR_SET
+POP A
+POPW Y
+TNZW X
+JREQ ::__LBL_RLS_RET
+
+; copy and convert
+PUSHW X
+INCW X
+
+:::__LBL_CPY_NEXT
+INCW X
+PUSH A
+LD A, (Y)
+CP A, 97 ; 'a'
+JRULT ::__LBL_NOT_LC_CHAR
+CP A, 122 ; 'z'
+JRUGT ::__LBL_NOT_LC_CHAR
+SUB A, 32 ; convert to upper case
+
+:::__LBL_NOT_LC_CHAR
+LD (X), A
+POP A
+INCW Y
+DEC A
+JRNE ::__LBL_CPY_NEXT
+POPW X
+
+:::__LBL_RLS_RET
+POPW Y
+PUSHW X
+LDW X, Y
+CALLR __LIB_STR_RLS
+
+:::__LBL_RET
+POPW X
+RET
+ENDASM

@@ -12,6 +12,11 @@
 #include <string>
 #include <map>
 
+#include "Utils.h"
+
+
+#define RTE_ERROR_TYPE (B1Types::B1T_BYTE)
+
 
 // run-time errors
 enum class B1C_T_RTERROR
@@ -33,13 +38,17 @@ extern std::map<B1C_T_RTERROR, std::wstring> _RTE_error_names;
 extern std::map<std::wstring, B1C_T_RTERROR> _RTE_errors;
 
 
-// constants
+// constants and limits
 class B1C_T_CONST
 {
 public:
-	static const int32_t B1C_MAX_STR_LEN = 253;
+	// max. string length
+	static const uint8_t B1C_MAX_STR_LEN = 253;
 };
 
 
-extern std::map<int32_t, std::wstring> _B1C_const_names;
-extern std::map<std::wstring, int32_t> _B1C_consts;
+extern std::map<std::wstring, std::pair<int32_t, B1Types>> _B1C_consts;
+
+
+// assemply-time constant names (their values are computed at assembly time)
+extern std::map<std::wstring, B1Types> _B1AT_consts;

@@ -1,0 +1,54 @@
+IMP,__LIB_MEM_ALC
+IMP,__LIB_MEM_SET
+IMP,__LIB_STR_RLS
+
+; SET$(<string>, <length>): creates a string of length <length> and sets all its characters to the first character of <string>
+; X - string address, stack - new string length (byte), returns resulting string in X
+:__LIB_STR_SET
+ASM
+CLR A
+PUSHW X
+TNZW X
+JREQ ::__LBL_ALLOC
+JRMI ::__LBL_ROM_STR
+INCW X
+
+:::__LBL_ROM_STR
+TNZ (X)
+JREQ ::__LBL_ALLOC
+LD A, (1, X)
+
+:::__LBL_ALLOC
+POPW X
+PUSH A ; save character to fill the string with
+CALLR __LIB_STR_RLS
+
+CLRW X
+LD A, (__RET_ADDR_SIZE + 2, SP) ; new string length
+JREQ ::__LBL_RET
+LD XL, A
+INCW X
+INCW X
+CALLR __LIB_MEM_ALC
+TNZW X
+JREQ ::__LBL_RET
+PUSHW X
+LD A, 1
+LD (X), A
+INCW X
+LD A, (__RET_ADDR_SIZE + 4, SP) ; new string length
+LD (X), A
+INCW X
+; X - address
+PUSH A ; length
+PUSH 0
+LD A, (5, SP) ; character to fill
+PUSH A
+CALLR __LIB_MEM_SET
+ADDW SP, 3
+POPW X
+
+:::__LBL_RET
+POP A
+RET
+ENDASM

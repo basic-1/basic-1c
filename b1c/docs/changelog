@@ -1,3 +1,11 @@
+b1c (1.0.0-4) unstable; urgency=low
+
+  * more string library functions implemented (SET$, UCASE$, LCASE$)
+  * allow using constants computed at assembly time in BASIC code
+  * some minor bug-fixes
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Mon, 03 Jul 2023 18:05:21 +0300
+
 b1c (1.0.0-3) unstable; urgency=low
 
   * more string library functions implemented

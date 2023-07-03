@@ -2100,7 +2100,8 @@ const B1_CMP_FN B1_CMP_FNS::_fns[] =
 	B1_CMP_FN(L"LSET$",		L"STRING",	{ L"STRING", L"BYTE" },	L"__LIB_STR_LSET"),
 	B1_CMP_FN(L"RSET$",		L"STRING",	{ L"STRING", L"BYTE" },	L"__LIB_STR_RSET"),
 	B1_CMP_FN(L"UCASE$",	L"STRING",	{ L"STRING" },			L"__LIB_STR_UCASE"),
-	B1_CMP_FN(L"RCASE$",	L"STRING",	{ L"STRING" },			L"__LIB_STR_LCASE"),
+	B1_CMP_FN(L"LCASE$",	L"STRING",	{ L"STRING" },			L"__LIB_STR_LCASE"),
+	B1_CMP_FN(L"SET$",		L"STRING",	{ L"STRING", L"BYTE" },	L"__LIB_STR_SET"),
 
 	B1_CMP_FN(L"ABS",		L"INT",		{ L"INT" },				L""),
 	B1_CMP_FN(L"ABS",		L"WORD",	{ L"WORD" },			L""),
@@ -2249,11 +2250,12 @@ std::wstring B1_CMP_FNS::get_fn_int_name(const std::wstring &name)
 
 
 B1_CMP_VAR::B1_CMP_VAR()
-: dimnum(-1)
+: dim_num(-1)
 , size(0)
 , address(0)
-, known_size(false)
-, volat(false)
+, use_symbol(false)
+, fixed_size(false)
+, is_volatile(false)
 , src_file_id(-1)
 , src_line_cnt(0)
 {
@@ -2264,8 +2266,8 @@ B1_CMP_VAR::B1_CMP_VAR(const std::wstring &nm, const std::wstring &tp, int32_t d
 {
 	name = nm;
 	type = tp;
-	dimnum = dn;
-	volat = vlt;
+	dim_num = dn;
+	is_volatile = vlt;
 	src_file_id = sfid;
 	src_line_cnt = slc;
 }

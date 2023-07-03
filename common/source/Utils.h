@@ -49,6 +49,11 @@ public:
 	static std::wstring str_tohex16(uint32_t n);
 
 	static size_t str_split(const std::wstring &str, const std::wstring &del, std::vector<std::wstring> &out_strs);
+
+	static std::wstring get_type_name(B1Types type);
+
+	static bool check_const_name(const std::wstring &const_name);
+	static std::wstring get_const_type(const std::wstring &const_name);
 };
 
 

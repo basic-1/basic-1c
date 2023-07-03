@@ -103,7 +103,7 @@ private:
 	B1_T_ERROR st_dim_get_size(bool allow_TO_stop_word, std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE> &res, bool first_run);
 	B1C_T_ERROR st_dim(bool first_run);
 	B1_T_ERROR st_erase();
-	B1_T_ERROR st_get_type_def(bool allow_addr, B1_TOKENDATA &td, B1_T_INDEX &len, uint8_t &type, bool *addr_present = nullptr, int32_t *address = nullptr);
+	B1_T_ERROR st_get_type_def(bool allow_addr, B1_TOKENDATA &td, B1_T_INDEX &len, uint8_t &type, bool *addr_present = nullptr, std::wstring *address = nullptr);
 	B1_T_ERROR st_def(bool first_run);
 
 	B1C_T_ERROR compile_simple_stmt(uint8_t stmt);
