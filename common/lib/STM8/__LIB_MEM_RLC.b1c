@@ -7,54 +7,76 @@ IMP,__LIB_MEM_FRE
 ; X - memory block address, stack1 - new block size, returns new block address in X
 :__LIB_MEM_RLC
 ASM
-PUSHW X ; block address (3)
-; try to increase the memory block size first
+TNZW X
+JRNE ::__LBL_DO_RLC
+LDW X, (__RET_ADDR_SIZE + 1, SP)
+CALLR __LIB_MEM_ALC
+RET
+
+:::__LBL_DO_RLC
+PUSHW X ; curr_blk (1)
+;curr_size = *(((unsigned short *)curr_blk) - 1) & 0x7FFF;
 DECW X
 DECW X
-LDW X, (X) ; the current block header
+LDW X, (X)
 SLLW X
 SRLW X
-PUSHW X ; the current block size (1)
-ADDW X, (3, SP)
+PUSHW X ; curr_size (1), curr_blk (3)
+
+; if(new_size == 0)
+LDW Y, (__RET_ADDR_SIZE + 5, SP)
+JRNE ::__NON_ZERO_NEW_SIZE
+CLRW X
+JRA ::__LBL_FRE_EXIT
+
+:::__NON_ZERO_NEW_SIZE
+SUBW X, (__RET_ADDR_SIZE + 5, SP) ; delta
+JRMI ::__LBL_INC_BLOCK
+; new_size <= curr_size, just reuse the current block
+LDW Y, (1, SP) ; curr_size
+
+; correct existing block(-s)
+:::__LBL_CORRECT_EXISTING
+DECW X
+DECW X
+JRMI ::__LBL_CORRECT_CURR_BLK
+EXGW X, Y ; Y = delta - 2
+LDW X, (3, SP)
+ADDW X, (__RET_ADDR_SIZE + 5, SP) ; curr_blk + new_size
+LDW (X), Y
+LDW Y, (__RET_ADDR_SIZE + 5, SP) ; Y = new_size
+
+:::__LBL_CORRECT_CURR_BLK
+ADDW Y, 0x8000
+LDW X, (3, SP)
+DECW X
+DECW X
+LDW (X), Y
+POPW X
+POPW X
+RET
+
+:::__LBL_INC_BLOCK
+EXGW X, Y ; save delta
+LDW X, (3, SP) ; curr_blk
+ADDW X, (1, SP) ; curr_size
 CPW X, __HEAP_START + __HEAP_SIZE
-JREQ ::__LBL_NEW_ALC
-LDW X, (X) ; the next block header
-JRMI ::__LBL_NEW_ALC
-ADDW X, (1, SP) ; size of two blocks
-CPW X, (__RET_ADDR_SIZE + 5, SP)
-JRUGE ::__LBL_TWO_BLKS
+JREQ ::__LBL_ALLOC_NEW
+LDW X, (X)
+JRMI ::__LBL_ALLOC_NEW
+PUSHW X ; save next_size
+ADDW Y, (1, SP) ; delta += next_size
+LDW X, Y
 INCW X
 INCW X
-CPW X, (__RET_ADDR_SIZE + 5, SP)
-JRULT ::__LBL_NEW_ALC
-JRA ::__LBL_ONE_BLK
+POPW Y ; restore next_size
+JRMI ::__LBL_ALLOC_NEW
+ADDW Y, (1, SP)
+ADDW Y, 2
+JRA ::__LBL_CORRECT_EXISTING
 
-; 1 curr block size, 3 curr block address, 7 new block size, X - size of two blocks
-:::__LBL_TWO_BLKS
-; write the next block header
-SUBW X, (__RET_ADDR_SIZE + 5, SP)
-EXGW X, Y
-LDW X, (3, SP)
-ADDW X, (__RET_ADDR_SIZE + 5, SP)
-LDW (X), Y
-LDW X, (__RET_ADDR_SIZE + 5, SP)
-
-:::__LBL_ONE_BLK
-; correct current block header
-LD A, XH
-OR A, 0x80
-LD XH, A
-EXGW X, Y
-LDW X, (3, SP)
-DECW X
-DECW X
-LDW (X), Y
-INCW X
-INCW X
-JRA ::__LBL_EXIT
-
-:::__LBL_NEW_ALC
-LDW X, (__RET_ADDR_SIZE + 5, SP)
+:::__LBL_ALLOC_NEW
+LDW X, (__RET_ADDR_SIZE + 5, SP) ; new_size
 CALLR __LIB_MEM_ALC
 TNZW X
 JREQ ::__LBL_EXIT
@@ -66,6 +88,8 @@ PUSHW X
 EXGW X, Y
 CALLR __LIB_MEM_CPY
 ADDW SP, 4
+
+:::__LBL_FRE_EXIT
 PUSHW X
 LDW X, (5, SP)
 CALLR __LIB_MEM_FRE

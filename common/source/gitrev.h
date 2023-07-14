@@ -1,1 +1,1 @@
-#define B1_GIT_REVISION "3"
+#define B1_GIT_REVISION "6"

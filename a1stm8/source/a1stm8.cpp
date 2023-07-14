@@ -332,19 +332,6 @@ public:
 	}
 };
 
-// 1) build known addresses table for PAGE0/DATA
-// label address size
-// 2) build PAGE0/DATA table
-// label address size
-// 3) build known addresses table for CODE
-// label address size data (with empty references)
-// 4) build known addresses table for CONST
-// label address size data
-// 5) build CONST table
-// label address size data
-// 6) build CODE table
-// label address size data (with empty references)
-// 7) fill empty references with real addresses
 
 enum class TokType
 {
@@ -3491,7 +3478,7 @@ private:
 		}
 
 		err = expl.Eval(resl, _memrefs);
-		if (err != A1STM8_T_ERROR::A1STM8_RES_OK)
+		if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
 		{
 			return err;
 		}
@@ -3579,23 +3566,49 @@ private:
 				auto token = ti->GetToken();
 				bool dir_proc = false;
 
-				//if(!skip)
+				if(token == L".IF")
 				{
-					if(token == L".IF")
+					dir_proc = true;
+
+					if_state.push_back(std::make_tuple(if_blck, if_skip, if_chck, if_else));
+
+					if_blck = true;
+					if_else = false;
+
+					// higher level skip
+					if(skip || if_skip)
 					{
-						dir_proc = true;
-
-						if_state.push_back(std::make_tuple(if_blck, if_skip, if_chck, if_else));
-
-						if_blck = true;
-						if_else = false;
-
-						// higher level skip
-						if(skip || if_skip)
+						if_chck = false;
+					}
+					else
+					{
+						ti++;
+						auto err = CheckIFDir(ti, tok_file.end(), if_skip);
+						if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
 						{
-							if_chck = false;
+							return err;
 						}
-						else
+
+						if_skip = !if_skip;
+						if_chck = if_skip;
+					}
+				}
+				else
+				if(token == L".ELIF")
+				{
+					dir_proc = true;
+
+					if(!if_blck || if_else)
+					{
+						return A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
+					}
+
+					if_skip = true;
+
+					// check higher level skip
+					if(skip || !std::get<1>(if_state.back()))
+					{
+						if(if_chck)
 						{
 							ti++;
 							auto err = CheckIFDir(ti, tok_file.end(), if_skip);
@@ -3608,81 +3621,52 @@ private:
 							if_chck = if_skip;
 						}
 					}
-					else
-					if(token == L".ELIF")
+				}
+				else
+				if(token == L".ELSE")
+				{
+					dir_proc = true;
+
+					if(!if_blck)
 					{
-						dir_proc = true;
-
-						if(!if_blck || if_else)
-						{
-							return A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
-						}
-
-						if_skip = true;
-
-						// check higher level skip
-						if(skip || !std::get<1>(if_state.back()))
-						{
-							if(if_chck)
-							{
-								ti++;
-								auto err = CheckIFDir(ti, tok_file.end(), if_skip);
-								if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
-								{
-									return err;
-								}
-
-								if_skip = !if_skip;
-								if_chck = if_skip;
-							}
-						}
+						return A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
 					}
-					else
-					if(token == L".ELSE")
+
+					if_skip = true;
+					if_else = true;
+
+					// check higher level skip
+					if(skip || !std::get<1>(if_state.back()))
 					{
-						dir_proc = true;
-
-						if(!if_blck)
-						{
-							return A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
-						}
-
-						if_skip = true;
-						if_else = true;
-
-						// check higher level skip
-						if(skip || !std::get<1>(if_state.back()))
-						{
-							if_skip = !if_chck;
-						}
+						if_skip = !if_chck;
 					}
-					else
-					if(token == L".ENDIF")
+				}
+				else
+				if(token == L".ENDIF")
+				{
+					dir_proc = true;
+
+					if(!if_blck)
 					{
-						dir_proc = true;
-
-						if(!if_blck)
-						{
-							return A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
-						}
-
-						const auto &st = if_state.back();
-						if_blck = std::get<0>(st);
-						if_skip = std::get<1>(st);
-						if_chck = std::get<2>(st);
-						if_else = std::get<3>(st);
-						if_state.pop_back();
+						return A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
 					}
+
+					const auto &st = if_state.back();
+					if_blck = std::get<0>(st);
+					if_skip = std::get<1>(st);
+					if_chck = std::get<2>(st);
+					if_else = std::get<3>(st);
+					if_state.pop_back();
 				}
 
 				// new section declaration
 				if(!dir_proc)
 				{
-					SectType st = token == L".DATA" ? SectType::ST_DATA :
-						token == L".CONST" ? SectType::ST_CONST :
-						token == L".CODE" ? SectType::ST_CODE :
-						token == L".STACK" ? SectType::ST_STACK :
-						token == L".HEAP" ? SectType::ST_HEAP : SectType::ST_NONE;
+					SectType st =	token == L".DATA"	?	SectType::ST_DATA :
+									token == L".CONST"	?	SectType::ST_CONST :
+									token == L".CODE"	?	SectType::ST_CODE :
+									token == L".STACK"	?	SectType::ST_STACK :
+									token == L".HEAP"	?	SectType::ST_HEAP : SectType::ST_NONE;
 
 					if(st == SectType::ST_NONE)
 					{

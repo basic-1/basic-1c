@@ -21,8 +21,11 @@ PUSH 2 ; the next writing position (i) 1
 ; read the next byte
 BTJF (UART1_SR), UART1_SR_RXNE_POS, ::__LBL_READ_LOOP
 LD A, (UART1_DR)
+CP A, 0x8 ; backspace
+JREQ ::__LBL_READ_LOOP
+CP A, 0x7F ; another backspace
+JREQ ::__LBL_READ_LOOP
 LD (3, SP), A
-
 BTJF (__LIB_UART1_OPT), 1, ::__LBL_NO_IN_ECHO
 PUSHW X
 CALLR __LIB_UART1_OUT_CHR
@@ -133,15 +136,6 @@ JRA ::__LBL_CHK_ERR
 :::__LBL_STR_LEN_OK
 ADD A, 16
 LD (7, SP), A
-TNZW X
-JRNE ::__LBL_RLC_MEM
-; allocate new block
-LD XL, A
-CALLR __LIB_MEM_ALC
-TNZW X
-JREQ ::__LBL_EXIT
-
-:::__LBL_RLC_MEM
 PUSHW X ; save prev. block address to free it on reallocation error
 PUSH A
 PUSH 0

@@ -11,28 +11,45 @@
 - Intel HEX output format (.ihx)  
 - licensed under MIT license  
   
-# Program sample  
+# The simplest program sample  
   
 `.CODE INIT`  
 `:__RESET`  
 `INT __START`  
 `:__START`  
-`LDW X, 0x7ff`  
-`LDW SP, X`  
-
+`JRA __START`  
   
-# Syntax  
+# Features  
   
-Any program consists of sections. Assembler generates code for every section to be placed into specific memory area depending on section type. Every section begins with a special keyword and ends with the next section or the end of the file.  
+- takes advantage of short addresses (more compact instructions)  
+- conditional assembling  
+- can fix out-of-range addresses of jump and call instructions, e.g. convert `JRA _label` to `JP _label` or `JPF _label` (depending on memory model)  
   
-## Section keywords  
-`.DATA [PAGE0]` - declares a section for random access data (in RAM memory), assembler tries placing `.DATA PAGE0` sections in the first 256 bytes of RAM (to take advantage of `STM8` short addresses).  
-`.STACK` - a section for stack, assembler does not initialize `SP` register, it just uses stack size when calculating total RAM used by program.  
-`.CONST` - a section for read-only data, placed in first 32kB of flash memory.  
-`.CODE [INIT]` - code, `.CODE INIT` section is placed in flash memory before `.CONST` sections, other `.CODE` sections go after read-only data.  
+# Usage  
   
-`.CODE INIT` section is placed in the beginning of the MCU flash memory (at `0x8000` address for `STM8` MCUs) so executing starts from it. Only one `.CODE INIT` section is allowed.  
-Multiple `.STACK` sections are not combined into one, assembler uses the largest one to calculate total RAM memory usage.  
+Executable file name of the assembler is `a1stm8.exe` or `a1stm8` depending on target platform. Command line syntax:  
+`a1stm8 [options] <filename> [<filename1> .. <filenameN>]`  
+Here `<filename>` .. `<filenameN>` are names of source files. Possible options are listed below.  
   
-assembler statement = label | opcode [operands] | data definition statement  
+## Command-line options  
+  
+`-d` or `/d` - prints error description  
+`-f` or `/f` - fix out-of-range errors in jump and call instructions (replace instructions with relative addresses with absolute ones, e.g. `JRA` -> `JP` or `JPF`, `CALLR` -> `CALL` or `CALLF`)  
+`-l` or `/l` - libraries directory, e.g.: `-l "../lib"`  
+`-m` or `/m` - specifies MCU name, e.g.: `-m STM8S103F3`  
+`-ml` or `/ml` - large memory model (selects extended addresses when used with `-f` option)  
+`-ms` or `/ms` - small memory model (default, selects long addresses when used with `-f` option)  
+`-mu` or `/mu` - prints memory usage  
+`-o` or `/o` - specifies output file name, e.g.: `-o out.ihx`  
+`-ram_size` or `/ram_size` - specifies RAM size, e.g.: `-ram_size 0x400`  
+`-ram_start` or `/ram_start` - specifies RAM starting address, e.g.: `-ram_start 0`  
+`-rom_size` or `/rom_size` - specifies ROM size, e.g.: `-rom_size 0x2000`  
+`-rom_start` or `/rom_start` - specifies ROM starting address, e.g.: `-rom_start 0x8000`  
+`-t` or `/t` - sets target (default STM8), e.g.: `-t STM8`  
+`-v` or `/v` - shows assembler version and terminates  
+  
+**Samples:**  
+`a1stm8.exe -d -mu first.asm`  
+`a1stm8.exe -d -mu blink.asm`  
+`a1stm8.exe -d -mu -m STM8S103F3 blink1.asm`  
   

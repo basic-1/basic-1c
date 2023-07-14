@@ -6355,34 +6355,32 @@ B1C_T_ERROR B1FileCompiler::eval_imm_exps(bool &changed)
 									return static_cast<B1C_T_ERROR>(B1_RES_EINVNUM);
 								}
 
-								if(cmd.cmd == L"-")
+								if(cmd.cmd != cmd1.cmd)
 								{
 									n1 = -n1;
 								}
 
-								switch(cmd1.cmd.front())
+								switch(cmd.cmd.front())
 								{
 									case L'+':
-										n1 += n2;
-										break;
 									case L'-':
-										n1 -= n2;
+										n1 += n2;
 										break;
 									case L'*':
 										n1 *= n2;
 										break;
 								}
 
-								type = cmd.args[2][0].type;
+								if(n1 <= 0 && cmd1.cmd != L"*")
+								{
+									cmd1.cmd = (cmd1.cmd == L"-") ? L"+" : L"-";
+									n1 = -n1;
+								}
 
+								type = cmd.args[2][0].type;
 								correct_int_value(n1, type);
 
 								val = std::to_wstring(n1);
-							}
-
-							if(cmd.cmd == L"-")
-							{
-								cmd1.cmd = L"+";
 							}
 
 							cmd1.args[0] = cmd.args[imm_ind == 0 ? 1 : 0];

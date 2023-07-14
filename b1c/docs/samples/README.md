@@ -9,6 +9,8 @@
 - `uart.bsc` - write a string to default UART (8 data bits, no parity check, 1 stop bit, baudrate: 9600)  
 - `uart1.bsc` - read string from UART (8 data bits, no parity check, 1 stop bit, baudrate: 9600)  
 - `uart2.bsc` - another read/write UART sample (8 data bits, no parity check, 1 stop bit, baudrate: 9600)  
+- `uart3.bsc` - set 57600 baud speed (8 data bits, no parity check, 1 stop bit, baudrate: 57600)  
+- `heap.bsc` - prints heap memory structure (8 data bits, no parity check, 1 stop bit, baudrate: 9600)  
   
 # building the samples from command line  
 `b1c -d -s -m STM8S103F3 samples/blink.bsc`  
@@ -21,4 +23,6 @@ For interrupt handlers specify interrupt name before the source file name separa
 `b1c -d -s -m STM8S103F3 samples/uart.bsc`  
 `b1c -d -s -m STM8S103F3 samples/uart1.bsc`  
 `b1c -d -s -m STM8S103F3 samples/uart2.bsc`  
+`b1c -d -s -m STM8S103F3 samples/uart3.bsc`  
+`b1c -d -s -m STM8S103F3 samples/heap.bsc`  
   

@@ -1,0 +1,93 @@
+DIM VOLATILE HEAP(0 TO 0) AS BYTE AT __HEAP_START
+
+DIM B0 AS BYTE, B1 AS BYTE
+DIM SIZE AS WORD
+
+DIM HEXB AS BYTE, HEXW AS WORD
+DIM HEXD$(0 TO 15)
+
+HEXD$(0) = "0"
+HEXD$(1) = "1"
+HEXD$(2) = "2"
+HEXD$(3) = "3"
+HEXD$(4) = "4"
+HEXD$(5) = "5"
+HEXD$(6) = "6"
+HEXD$(7) = "7"
+HEXD$(8) = "8"
+HEXD$(9) = "9"
+HEXD$(10) = "A"
+HEXD$(11) = "B"
+HEXD$(12) = "C"
+HEXD$(13) = "D"
+HEXD$(14) = "E"
+HEXD$(15) = "F"
+
+IOCTL UART, ENABLE
+IOCTL UART, START
+
+WHILE 1 > 0
+
+PRINT
+PRINT "Address", "Header", "Size", "Status", "Data"
+
+FOR I = 0 TO __HEAP_SIZE - 2
+' read memory block header
+B0 = HEAP(I)
+B1 = HEAP(I + 1)
+' extract block status (the most significant bit)
+STAT$ = IIF$(B0 > 127, "busy", "free")
+' extract block size
+SIZE = B0 AND 0x7F
+SIZE = SIZE * 256 + B1
+' print block data address, data size and status
+HEXW = __HEAP_START + I + 2
+GOSUB 1000
+PRINT ,
+' print header
+PRINT "0x";
+HEXB = B0
+GOSUB 2000
+HEXB = B1
+GOSUB 2000
+PRINT ,
+HEXW = SIZE
+GOSUB 1000
+PRINT , STAT$,
+' print data
+GOSUB 3000
+PRINT
+' correct index variable
+I = I + SIZE + 2 - 1
+NEXT I
+
+
+INPUT S$
+WEND
+
+END
+
+' print word from HEXW variable in hex form
+1000
+PRINT "0x";
+HEXB = HEXW >> 8
+GOSUB 2000
+HEXB = HEXW
+GOSUB 2000
+RETURN
+
+' print byte from HEXB variable in hex form
+2000
+PRINT HEXD$(HEXB >> 4);
+PRINT HEXD$(HEXB AND 0xF);
+RETURN
+
+' print memory block data (16 bytes at most)
+3000
+IF SIZE = 0 THEN RETURN
+FOR J = 0 TO IIF(SIZE >= 16, 16, SIZE) - 1
+HEXB = HEAP(I + J + 2)
+GOSUB 2000
+NEXT J
+IF SIZE > 16 THEN PRINT "...";
+RETURN

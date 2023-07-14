@@ -31,7 +31,7 @@ if not exist ..\..\common\source\gitrev.h (
 ) else (
   set /p build_num=<..\..\common\source\gitrev.h
   set build_num=!build_num:#define=!
-  set build_num=!build_num:B1C_GIT_REVISION=!
+  set build_num=!build_num:B1_GIT_REVISION=!
   set build_num=!build_num:"=!
   set build_num=!build_num: =!
 
@@ -109,3 +109,6 @@ rem move temp. bin, docs and samples directories to the archive
 rem add LICENSE and README.md files to the archive
 %path_to_7z% a -tZIP -- %out_file_path% ..\..\LICENSE
 %path_to_7z% a -tZIP -- %out_file_path% ..\..\README.md
+
+rem add chengelog
+%path_to_7z% a -tZIP -- %out_file_path% ..\..\common\docs\changelog

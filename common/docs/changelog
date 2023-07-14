@@ -1,3 +1,19 @@
+b1c (1.0.0-6) unstable; urgency=low
+
+  * single changelog for b1c, c1stm8 and a1stm8 (common/docs/changelog)
+  * more samples added
+  * a1stm8/README.md updated
+  * a1stm8/docs/reference.md added
+  * some bug-fixes
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Fri, 14 Jul 2023 18:05:37 +0300
+
+b1c (1.0.0-5) unstable; urgency=low
+
+  * updated b1core
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Mon, 03 Jul 2023 18:15:43 +0300
+
 b1c (1.0.0-4) unstable; urgency=low
 
   * more string library functions implemented (SET$, UCASE$, LCASE$)

@@ -2,6 +2,8 @@ rem usage: win_build.bat <root_path> <target_name> <project_name> <platform> <co
 rem sample: win_build.bat "..\.." b1i b1i x86 msvc19 rel "-G ""Visual Studio 16 2019"" "--config Release" ".\Release" "next"
 rem sample: win_build.bat "..\.." b1i b1i x64 mingw dbg "-G ""MinGW Makefiles"" -DCMAKE_BUILD_TYPE=Debug" " " "." " "
 
+@setlocal
+
 if "%~1"=="" goto _invargs
 if "%~2"=="" goto _invargs
 if "%~3"=="" goto _invargs

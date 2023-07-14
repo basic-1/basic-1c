@@ -2,10 +2,13 @@
 ; X - memory block address
 :__LIB_MEM_FRE
 ASM
+TNZW X
+JREQ ::__LBL_EXIT
 DECW X
 DECW X
 LD A, (X)
 AND A, 0x7F
 LD (X), A
+:::__LBL_EXIT
 RET
 ENDASM
