@@ -1,0 +1,21 @@
+IMP,__LIB_UART2_OUT_CHR
+
+; SPC(n) PRINT function
+; A - number of spaces to write
+:__LIB_UART2_SPC
+ASM
+TNZ A
+JREQ ::__LBL_EXIT
+
+:::__LBL_WRITE_SPC
+PUSH A
+LD A, 32
+CALLR __LIB_UART2_OUT_CHR
+POP A
+
+DEC A
+JRNE ::__LBL_WRITE_SPC
+
+:::__LBL_EXIT
+RET
+ENDASM

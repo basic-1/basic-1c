@@ -117,8 +117,9 @@ echo " Type b1c to get usage help" >>$tmp_dir$proj_dir_name/DEBIAN/control
 
 #copy license and changelog, compress changelog with gzip
 cp ../../LICENSE $tmp_dir$proj_dir_name/usr/share/doc/$proj_dir_name/copyright
-cp ../../b1c/docs/changelog $tmp_dir$proj_dir_name/usr/share/doc/$proj_dir_name/
+cp ../../common/docs/changelog $tmp_dir$proj_dir_name/usr/share/doc/$proj_dir_name/
 gzip -9 -n -S.gz $tmp_dir$proj_dir_name/usr/share/doc/$proj_dir_name/changelog
+cp $tmp_dir$proj_dir_name/usr/share/doc/$proj_dir_name/changelog.gz $tmp_dir$proj_dir_name/usr/share/doc/$proj_dir_name/changelog.Debian.gz
 
 #strip copied executables
 strip --strip-all $tmp_dir$proj_dir_name/usr/bin/b1c

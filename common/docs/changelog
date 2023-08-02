@@ -1,3 +1,11 @@
+b1c (1.0.0-7) unstable; urgency=low
+
+  * more MCUs support added (STM8S003F3, STM8S105K4, STM8S105K6)
+  * a1stm8/README.md and other documents updated
+  * some bug-fixes
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Wed, 02 Aug 2023 21:25:15 +0300
+
 b1c (1.0.0-6) unstable; urgency=low
 
   * single changelog for b1c, c1stm8 and a1stm8 (common/docs/changelog)

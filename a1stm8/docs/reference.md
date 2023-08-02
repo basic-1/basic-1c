@@ -19,7 +19,7 @@ A program consists of statements located within special regions called sections.
 `.CODE [INIT]` - code, `.CODE INIT` section is placed in flash memory before `.CONST` sections, other `.CODE` sections go after read-only data.  
   
 `.CODE INIT` section is placed in the beginning of the MCU flash memory (at `0x8000` address for `STM8` MCUs) so executing starts from it. Only one `.CODE INIT` section is allowed.  
-Multiple `.STACK` sections are not combined into one, assembler uses the largest one to calculate total RAM memory usage. Like `.STACK` sections, `.HEAP` ones are not aggregated: the largest section size is used.  
+Multiple `.STACK` sections are not combined into one, assembler uses the largest one to calculate total RAM memory usage. `.HEAP` sections are not aggregated too: the largest section size is used.  
   
 ### Sections layout in memory  
   
@@ -54,8 +54,8 @@ Multiple `.STACK` sections are not combined into one, assembler uses the largest
 Comment is a text used to describe a piece of code. Comments are ignored by assembler. Use semicolon character to start new single line comment (the rest of the string is ignored).  
 **Syntax:** `;<comment text>`  
 **Samples:**  
-`; a comment` - entire line is ignored  
-`.DATA ; this is a .DATA section` - `.DATA` section declaration and a comment to it  
+`; a comment`  
+`.DATA ; this is a .DATA section`  
   
 ## Numeric constants  
   
@@ -92,7 +92,7 @@ Statement is a label, data definition directive or CPU instruction. Every statem
   
 ### Labels  
   
-Labels are used to create symbolic constants to refer specific code or data location (assembler resolves the constants to memory addresses). A label starts with a colon character.  
+Labels are used to create symbolic constants to refer to specific code or data location (assembler resolves the constants to memory addresses). A label starts with a colon character.  
 **Syntax:**: `:<label_name>`  
 **Samples:**  
 `:label1` - a label named `label1`  
@@ -117,7 +117,7 @@ The assembler supports two data definition directives: `DB` to declare 1-byte da
   
 ### CPU instructions  
   
-Refer to STMicroelectronics' "PM0044 Programming Manual" for CPU instructions syntax. The only difference is immediate and direct addressing modes: the assembler requires for parentheses around address constants and no hash character (#) is needed to indicate immediate values. Simple expressions (without parenthesis) can be used instead of address constants and immediate values. Supported operators: `-` (unary minus), `!` (unary bitwise NOT), `*`, `/`, `%` (remainder operator), `+`, `-`, `>>` (bitwise right shift), `<<`  (bitwise left shift), `&` (bitwise AND), `^` (bitwise XOR), `|` (bitwise OR).  
+Refer to STMicroelectronics' "PM0044 Programming Manual" for CPU instructions syntax. The only difference is immediate and direct addressing modes: the assembler requires for parentheses around address constants and no hash character (#) is needed to indicate immediate values. Simple expressions (without parentheses) can be used instead of address constants and immediate values. Supported operators: `-` (unary minus), `!` (unary bitwise NOT), `*`, `/`, `%` (remainder operator), `+`, `-`, `>>` (bitwise right shift), `<<`  (bitwise left shift), `&` (bitwise AND), `^` (bitwise XOR), `|` (bitwise OR).  
   
 #### Operator precedence order:  
   
@@ -130,13 +130,13 @@ Refer to STMicroelectronics' "PM0044 Programming Manual" for CPU instructions sy
 - `|` (bitwise OR)  - lowest precedence
   
 **Samples:**  
-`LD A, #5` -> `LD A, 5`  
-`LD A, 5` -> `LD A, (5)`  
-`LDW X, $5000` -> `LDW X, (0x5000)`  
+`LD A, #5` -> `LD A, 5` - do not use hash character for immediate value  
+`LD A, 5` -> `LD A, (5)` - use parentheses for direct addressing  
+`LDW X, $5000` -> `LDW X, (0x5000)` - use parentheses for direct addressing  
 `LDW X, __HEAP_START` - load immediate value into X  
 `LDW X, (__HEAP_START)` - not the same as previous: load value located at `__HEAP_START` address  
 `LDW X, __HEAP_START + __HEAP_SIZE - 1` - load immediate value  
-`LDW X, (__HEAP_START + __HEAP_SIZE - 1)` - load value located at `__HEAP_START + __HEAP_SIZE - 1`  
+`LDW X, (__HEAP_START + __HEAP_SIZE - 1)` - load value located at `__HEAP_START + __HEAP_SIZE - 1` address  
   
 ## Conditional assembly directives  
   
@@ -180,7 +180,7 @@ Here `<filename>` .. `<filenameN>` are names of source files. Possible options a
 ## Command-line options  
   
 `-d` or `/d` - prints error description  
-`-f` or `/f` - fix out-of-range errors in jump and call instructions (replace instructions with relative addresses with absolute ones, e.g. `JRA` -> `JP` or `JPF`, `CALLR` -> `CALL` or `CALLF`)  
+`-f` or `/f` - fix out-of-range errors caused by relative addressing (replace relative addressing instructions with absolute addressing ones, e.g. `JRA` -> `JP` or `JPF`, `CALLR` -> `CALL` or `CALLF`)  
 `-l` or `/l` - libraries directory, e.g.: `-l "../lib"`  
 `-m` or `/m` - specifies MCU name, e.g.: `-m STM8S103F3`  
 `-ml` or `/ml` - large memory model (selects extended addresses when used with `-f` option)  
@@ -198,4 +198,24 @@ Here `<filename>` .. `<filenameN>` are names of source files. Possible options a
 `a1stm8.exe -d -mu first.asm`  
 `a1stm8.exe -d -mu blink.asm`  
 `a1stm8.exe -d -mu -m STM8S103F3 blink1.asm`  
-    
+  
+### Fixing relative address out of range errors  
+  
+STM8 instruction set includes some relative addressing instructions such as `CALLR`, `JRA`, `JREQ`, `BTJF`, etc. These instructions can modify PC register by adding signed 8-bit offset to its current value. The offset is calculated as a difference between the referenced instruction address and the current instruction address. If the instructions are too far from each other, the offset can exceed 8-bit value: "relative address out of range" error is reported.  
+E.g.:  
+`CP A, 10`  
+`JREQ __LBL_EQUAL` - a relative addressing instruction  
+...  
+...  
+...  
+`:__LBL_EQUAL`  
+`CLR A` - this instruction is referenced by the `JREQ` instruction above  
+  
+Specify `-f` command-line option for the assembler to fix relative addressing out-of-range errors automatically: the problem instructions are replaced with corresponding direct addressing ones. Conditional jumps are replaced with several instructions (there're no direct addressing conditional jumps in STM8 instruction set).  
+E.g.:  
+`JREQ __LBL_EQUAL`  
+->  
+`JRNE __TMP_NOT_EQUAL`  
+`JP __LBL_EQUAL`  
+`:__TMP_NOT_EQUAL`  
+  

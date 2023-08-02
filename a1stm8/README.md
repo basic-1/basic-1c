@@ -23,7 +23,7 @@
   
 - takes advantage of short addresses (more compact instructions)  
 - conditional assembling  
-- can fix out-of-range addresses of jump and call instructions, e.g. convert `JRA _label` to `JP _label` or `JPF _label` (depending on memory model)  
+- fixes relative address out-of-range errors, e.g. replaces `JRA _label` with `JP _label` or `JPF _label` (depending on memory model)  
   
 # Usage  
   
@@ -34,7 +34,7 @@ Here `<filename>` .. `<filenameN>` are names of source files. Possible options a
 ## Command-line options  
   
 `-d` or `/d` - prints error description  
-`-f` or `/f` - fix out-of-range errors in jump and call instructions (replace instructions with relative addresses with absolute ones, e.g. `JRA` -> `JP` or `JPF`, `CALLR` -> `CALL` or `CALLF`)  
+`-f` or `/f` - fix out-of-range errors caused by relative addressing (replace relative addressing instructions with absolute addressing ones, e.g. `JRA` -> `JP` or `JPF`, `CALLR` -> `CALL` or `CALLF`)  
 `-l` or `/l` - libraries directory, e.g.: `-l "../lib"`  
 `-m` or `/m` - specifies MCU name, e.g.: `-m STM8S103F3`  
 `-ml` or `/ml` - large memory model (selects extended addresses when used with `-f` option)  
@@ -52,4 +52,11 @@ Here `<filename>` .. `<filenameN>` are names of source files. Possible options a
 `a1stm8.exe -d -mu first.asm`  
 `a1stm8.exe -d -mu blink.asm`  
 `a1stm8.exe -d -mu -m STM8S103F3 blink1.asm`  
+  
+# More documents  
+  
+[STM8 assembler reference](./docs/reference.md)  
+[BASIC1 compiler for STM8](../README.md)  
+[BASIC1 language reference](../b1c/docs/reference.md)  
+[Change log](../common/docs/changelog)  
   

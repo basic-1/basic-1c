@@ -1,0 +1,68 @@
+INI,__LIB_UART2_MGN
+INI,__LIB_UART2_ZW
+INI,__LIB_UART2_POS
+IMP,__LIB_UART2_SPC
+IMP,__LIB_UART2_NL
+
+; TAB(n) PRINT function
+; A - new print zone number (1-based), 0 stands for the next position
+:__LIB_UART2_TAB
+ASM
+PUSH A ; (3, SP) - new 1-based print zone number
+; calc. current 0-based print zone number
+CLRW X
+LD A, (__LIB_UART2_POS)
+LD XL, A
+LD A, (__LIB_UART2_ZW)
+DIV X, A
+PUSH A ; (2, SP) - current_pos % zone_width
+LD A, XL
+PUSH A ; (1, SP) - current 0-based print zone number
+TNZ (3, SP)
+JRNE ::__LBL_SET_POS
+; 0 value - calc. the next print zone number
+INC A
+; the position should be 1-based
+INC A
+; save calculated print zone number
+LD (3, SP), A
+
+:::__LBL_SET_POS
+; calc. print zones count
+LD A, (__LIB_UART2_MGN)
+LD XL, A
+LD A, (__LIB_UART2_ZW)
+DIV X, A
+; calc. new 0-based print zone number (0 .. zones_count - 1)
+LD A, (3, SP)
+DEC A
+EXG A, XL
+DIV X, A
+; compare new print zone number with the current one
+CP A, (1, SP)
+JRUGT ::__LBL_NO_NL
+JRNE ::__LBL_EMIT_NL
+; new print zone = current print zone
+TNZ (2, SP)
+JREQ ::__LBL_NO_NL ; reuse current print zone
+
+:::__LBL_EMIT_NL
+PUSH A
+CALLR __LIB_UART2_NL
+POP A
+CLR (2, SP)
+JRA ::__LBL_PRN_SPCS
+
+:::__LBL_NO_NL
+SUB A, (1, SP)
+
+:::__LBL_PRN_SPCS
+LD XL, A
+LD A, (__LIB_UART2_ZW)
+MUL X, A
+LD A, XL
+SUB A, (2, SP)
+CALLR __LIB_UART2_SPC
+ADDW SP, 3
+RET
+ENDASM

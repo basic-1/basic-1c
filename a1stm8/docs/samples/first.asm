@@ -1,4 +1,4 @@
-; the simples program: does nothing
+; the simplest program: does nothing
 ; a1stm8 -d first.asm
 ; .CODE INIT section - program execution starts here
 .CODE INIT
@@ -6,5 +6,5 @@
 INT __START
 ; INT instruction passes execution here
 :__START
-; jump on iself (just an infinite loop)
+; jump on itself (just an infinite loop)
 JRA __START

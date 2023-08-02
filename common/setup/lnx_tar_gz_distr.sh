@@ -94,6 +94,7 @@ cp -af ../../a1stm8/docs $tmp_dir$proj_dir_name/local/share/doc/$proj_dir_name/a
 
 cp ../../README.md $tmp_dir$proj_dir_name/local/share/doc/$proj_dir_name
 cp ../../LICENSE $tmp_dir$proj_dir_name/local/share/doc/$proj_dir_name
+cp ../../common/docs/changelog $tmp_dir$proj_dir_name/local/share/doc/$proj_dir_name
 
 cp -af ../../common/lib $tmp_dir$proj_dir_name/local/share/$proj_dir_name
 

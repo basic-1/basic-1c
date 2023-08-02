@@ -1,0 +1,6 @@
+INI,__LIB_UART2_MGN
+
+; configure UART2 margin
+ASM
+LD (__LIB_UART2_MGN), A
+ENDASM

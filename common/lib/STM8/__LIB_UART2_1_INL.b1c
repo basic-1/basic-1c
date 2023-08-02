@@ -1,0 +1,7 @@
+INI,__LIB_UART2_SPEED
+
+; configure UART2 speed
+ASM
+LDW X, {VALUE}
+LDW (__LIB_UART2_SPEED), X
+ENDASM

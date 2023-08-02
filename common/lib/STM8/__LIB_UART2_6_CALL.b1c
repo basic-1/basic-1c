@@ -1,0 +1,46 @@
+INI,__LIB_CPU_OPT
+INI,__LIB_UART2_OPT
+INI,__LIB_UART2_SPEED
+
+; start UART2
+:__LIB_UART2_6_CALL
+ASM
+; START
+; set parity control and word lenth
+; now the only supported mode is 8N1
+CLR (UART2_CR1)
+; set stop bits
+; now the only supported mode is 8N1
+CLR (UART2_CR3)
+; no half duplex mode and other features support at the moment
+CLR (UART2_CR4)
+CLR (UART2_CR5)
+; set baud rate
+LDW X, (__LIB_UART2_SPEED)
+LD A, (__LIB_CPU_OPT)
+CP A, 3
+JRNE ::__LBL_NOT_LSI
+LD A, 125
+DIV X, A
+JRA ::__LBL_SET_SPEED
+:::__LBL_NOT_LSI
+CP A, 1
+JRNE ::__LBL_SET_SPEED
+SRLW X
+:::__LBL_SET_SPEED
+LD A, 16
+DIV X, A
+PUSH A
+LD A, XH
+SWAP A
+OR A, (1, SP)
+LD (UART2_BRR2), A
+POP A
+LD A, XL
+LD (UART2_BRR1), A
+; enable RX/TX
+LD A, (__LIB_UART2_OPT)
+AND A, 0xC
+LD (UART2_CR2), A
+RET
+ENDASM
