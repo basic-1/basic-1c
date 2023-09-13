@@ -1,0 +1,39 @@
+' UART default settings: 9600 baud, 8N1
+10 DIM A1 AS BYTE, B1 AS BYTE, C1 AS BYTE, D1 AS BYTE
+
+20 DATA 10, 20, 256, -1
+30 DATA(BYTE) 10, 20, 256, -1
+40 DATA "10", "20", "256", "abc"
+
+50 IOCTL UART, ENABLE
+60 IOCTL UART, START
+
+70 WHILE 1 > 0
+' read INT values into INT variables
+80 READ A, B, C, D
+90 PRINT A, B, C, D
+' read BYTE values into INT variables
+100 READ A, B, C, D
+110 PRINT A, B, C, D
+120 RESTORE 10
+' read INT values into BYTE variables
+130 READ A1, B1, C1, D1
+140 PRINT A1, B1, C1, D1
+' read BYTE values into BYTE variables
+150 READ A1, B1, C1, D1
+160 PRINT A1, B1, C1, D1
+' read STRING values
+170 READ S1$, S2$, S3$, S4$
+180 PRINT S1$, S2$, S3$, S4$
+190 PRINT
+200 RESTORE
+210 GOSUB 1000
+220 WEND
+230 END
+
+' delay subroutine
+1000 FOR L1 = 0 TO 19
+1010 FOR L2 = -32768 TO 32767
+1020 NEXT L2
+1030 NEXT L1
+1040 RETURN

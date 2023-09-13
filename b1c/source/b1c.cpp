@@ -2593,10 +2593,10 @@ B1C_T_ERROR B1FileCompiler::st_if()
 	}
 	else
 	{
-		if(	stmt == B1_ID_STMT_ABSENT || stmt == B1_ID_STMT_REM || stmt == B1_ID_STMT_IF || stmt == B1_ID_STMT_ELSEIF ||
-			stmt == B1_ID_STMT_ELSE || stmt == B1_ID_STMT_FOR || stmt == B1_ID_STMT_NEXT || stmt == B1_ID_STMT_WHILE ||
-			stmt == B1_ID_STMT_WEND || stmt == B1_ID_STMT_OPTION || stmt == B1_ID_STMT_DEF || stmt == B1_ID_STMT_DIM ||
-			stmt == B1_ID_STMT_DATA || stmt == B1_ID_STMT_END)
+		if(	stmt == B1_ID_STMT_ABSENT || stmt == B1_ID_STMT_IF || stmt == B1_ID_STMT_ELSEIF || stmt == B1_ID_STMT_ELSE ||
+			stmt == B1_ID_STMT_FOR || stmt == B1_ID_STMT_NEXT || stmt == B1_ID_STMT_WHILE || stmt == B1_ID_STMT_WEND ||
+			stmt == B1_ID_STMT_OPTION || stmt == B1_ID_STMT_DEF || stmt == B1_ID_STMT_DIM || stmt == B1_ID_STMT_DATA ||
+			stmt == B1_ID_STMT_END)
 		{
 			return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
 		}

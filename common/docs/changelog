@@ -1,3 +1,11 @@
+b1c (1.0.0-8) unstable; urgency=low
+
+  * INSTR built-in function implemented
+  * documents updated
+  * more samples added
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Wed, 09 Sep 2023 18:10:27 +0300
+
 b1c (1.0.0-7) unstable; urgency=low
 
   * more MCUs support added (STM8S003F3, STM8S105K4, STM8S105K6)

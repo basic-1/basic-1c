@@ -1,0 +1,128 @@
+INI,__LIB_ERR_LAST_ERR
+IMP,__LIB_ERR_HANDLER
+IMP,__LIB_STR_RLS
+
+; returns position of the first occurrence of a string in another string (1-based) or zero if the string is not found
+; A - 1-based starting position, stack1 - string to search in, stack2 - string to search for
+:__LIB_STR_INS
+ASM
+SUBW SP, 3 ; 1 - start_pos, 2 - len1, 3 - len2
+TNZ A
+JRNE ::__LBL_START_POS_OK
+MOV (__LIB_ERR_LAST_ERR), B1C_RTE_STR_WRONG_INDEX
+CALLR __LIB_ERR_HANDLER
+JRA ::__LBL_NOT_FOUND
+
+:::__LBL_START_POS_OK
+LD (1, SP), A ; save start_pos
+LDW X, (__RET_ADDR_SIZE + 6, SP) ; string to search in
+JREQ ::__LBL_NOT_FOUND
+JRMI ::__LBL_SEARCH_IN_ROM
+INCW X
+
+:::__LBL_SEARCH_IN_ROM
+LD A, (X)
+CP A, (1, SP)
+JRULT ::__LBL_NOT_FOUND
+
+:::__LBL_LEN1_OK
+SUB A, (1, SP)
+INC A
+LD (2, SP), A ; save len1
+
+; add start_pos to search_in string data address
+LD A, XL
+ADD A, (1, SP)
+RLWA X
+ADC A, 0
+LD XH, A
+
+EXGW X, Y ; save search_in data address in Y
+
+LDW X, (__RET_ADDR_SIZE + 4, SP) ; string to search for
+JREQ ::__LBL_SEARCH_FOR_EMPTY
+JRMI ::__LBL_SEARCH_FOR_ROM
+INCW X
+
+:::__LBL_SEARCH_FOR_ROM
+LD A, (X)
+JRNE ::__LBL_LEN2_OK
+
+:::__LBL_SEARCH_FOR_EMPTY
+LD A, 1
+JRA ::__LBL_RLS_RET
+
+:::__LBL_LEN2_OK
+INCW X
+LD (3, SP), A ; save len2
+EXGW X, Y ; save search_in data address in X, search_for data address in Y
+LD A, (2, SP)
+SUB A, (3, SP)
+JRMI ::__LBL_NOT_FOUND
+LD (2, SP), A
+
+CLR A
+:::__LBL_SEARCH_IN_LOOP
+PUSH A
+PUSHW X
+PUSHW Y
+
+CLR A
+:::__LBL_CMP_LOOP
+PUSH A
+LD A, (Y)
+CP A, 97 ; 'a'
+JRULT ::__LBL_NOT_SMALL_ALPHA2
+CP A, 122 ; 'z'
+JRUGT ::__LBL_NOT_SMALL_ALPHA2
+SUB A, 32 ; convert to capital letter
+
+:::__LBL_NOT_SMALL_ALPHA2
+PUSH A
+LD A, (X)
+CP A, 97 ; 'a'
+JRULT ::__LBL_NOT_SMALL_ALPHA1
+CP A, 122 ; 'z'
+JRUGT ::__LBL_NOT_SMALL_ALPHA1
+SUB A, 32 ; convert to capital letter
+
+:::__LBL_NOT_SMALL_ALPHA1
+CP A, (1, SP)
+POP A
+POP A
+JRNE ::__LBL_NOT_EQ_CHARS
+
+INCW X
+INCW Y
+INC A
+CP A, (8, SP)
+JRULT ::__LBL_CMP_LOOP
+
+:::__LBL_NOT_EQ_CHARS
+POPW Y
+POPW X
+CP A, (4, SP)
+POP A
+JRNE ::__LBL_CHECK_NEXT_SUBSTR
+ADD A, (1, SP)
+JRA ::__LBL_RLS_RET
+
+:::__LBL_CHECK_NEXT_SUBSTR
+INC A
+INCW X
+CP A, (2, SP)
+JRULE ::__LBL_SEARCH_IN_LOOP
+
+:::__LBL_NOT_FOUND
+CLR A
+
+:::__LBL_RLS_RET
+ADDW SP, 3
+PUSH A
+LDW X, (__RET_ADDR_SIZE + 2, SP)
+CALLR __LIB_STR_RLS
+LDW X, (__RET_ADDR_SIZE + 4, SP)
+CALLR __LIB_STR_RLS
+POP A
+RET
+ENDASM

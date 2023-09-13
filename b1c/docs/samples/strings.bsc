@@ -1,0 +1,12 @@
+' INSTR function usage sample
+10 IOCTL UART, ENABLE
+20 IOCTL UART, START
+30 INPUT "String to search in: ", S1$
+40 INPUT "String to search for: ", S2$
+50 INPUT "Starting position (1-based): ", POS
+60 POS = INSTR(POS, S1$, S2$)
+70 IF POS > 0 THEN PRINT """"; S2$; """ is found in """; S1$; """ at position "; POS
+80 ELSE PRINT "not found"
+90 PRINT
+100 GOTO 30
+110 END

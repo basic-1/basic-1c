@@ -63,11 +63,11 @@ Use CMake 3.1 tools to build **b1c** BASIC to intermediate code compiler, **c1st
 First download source files copy to your local computer from [GitHub](https://github.com/basic-1/basic-1c)  
   
 Commands to get the source files:  
-`git clone https://github.com/basic-1/basic-1ñ`  
-`cd basic-1ñ`  
+`git clone https://github.com/basic-1/basic-1c`  
+`cd basic-1c`  
 `git submodule update --init`  
   
-To build the interpreter under Windows go to `build` subdirectories of every project `b1ñ`, `c1stmp` and `a1stm8` and run corresponding batch file depending on your compiler and target platform, e.g: `b1c_win_x64_mingw_rel.bat`, `c1stm8_win_x64_mingw_rel.bat`, `a1stm8_lnx_x64_gcc_rel.sh`, etc.  
+To build the compiler under Windows go to `build` subdirectories of every project `b1c`, `c1stmp` and `a1stm8` and run corresponding batch file depending on your compiler and target platform, e.g: `b1c_win_x64_mingw_rel.bat`, `c1stm8_win_x64_mingw_rel.bat`, `a1stm8_lnx_x64_gcc_rel.sh`, etc.  
   
 **Important note:** The batch files mentioned above run corresponding `<platform_toolchain_name>_env` scripts from `./env` directory if they exist to set compiler-specific environment variables(PATH, INCLUDE, LIB, etc.). So the file names are: `win_x86_mingw_env.bat`, `win_x64_mingw_env.bat`, `lnx_x64_gcc_env.sh`, etc. Create them if necessary before building the project.  
   
