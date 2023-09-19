@@ -9054,6 +9054,9 @@ int main(int argc, char **argv)
 	std::string MCU_name;
 	// default target name is STM8
 	std::string target_name = "STM8";
+	bool list_devs = false;
+	bool list_cmds = false;
+	std::string dev_name;
 	std::string args;
 	bool args_error = false;
 	std::string args_error_txt;
@@ -9117,6 +9120,36 @@ int main(int argc, char **argv)
 				i++;
 				args = args + " -l " + argv[i];
 				lib_dir = argv[i];
+			}
+
+			continue;
+		}
+
+		if ((argv[i][0] == '-' || argv[i][0] == '/') &&
+			(argv[i][1] == 'L' || argv[i][1] == 'l') &&
+			(argv[i][2] == 'D' || argv[i][2] == 'd') &&
+			argv[i][3] == 0)
+		{
+			list_devs = true;
+			continue;
+		}
+
+		if ((argv[i][0] == '-' || argv[i][0] == '/') &&
+			(argv[i][1] == 'L' || argv[i][1] == 'l') &&
+			(argv[i][2] == 'C' || argv[i][2] == 'c') &&
+			argv[i][3] == 0)
+		{
+			list_cmds = true;
+
+			if(i == argc - 1)
+			{
+				args_error = true;
+				args_error_txt = "missing device name";
+			}
+			else
+			{
+				i++;
+				dev_name = Utils::str_toupper(argv[i]);
 			}
 
 			continue;
@@ -9396,12 +9429,13 @@ int main(int argc, char **argv)
 			argv[i][2] == 0)
 		{
 			print_version = true;
+			continue;
 		}
 
 		break;
 	}
 
-	if(args_error || i == argc)
+	if((args_error || i == argc) && !(print_version || list_devs || list_cmds))
 	{
 		b1c_print_version(stderr);
 		if(args_error)
@@ -9421,6 +9455,8 @@ int main(int argc, char **argv)
 		std::fputs("-d or /d - print error description\n", stderr);
 		std::fputs("-hs or /hs - set heap size (in bytes), e.g. -hs 1024\n", stderr);
 		std::fputs("-l or /l - libraries directory, e.g. -l \"../lib\"\n", stderr);
+		std::fputs("-ld or /ld - print available devices list\n", stderr);
+		std::fputs("-lc or /lc - print available device commands, e.g.: -lc UART\n", stderr);
 		std::fputs("-m or /m - specify MCU name, e.g. -m STM8S103F3\n", stderr);
 		std::fputs("-ml or /ml - set large memory model\n", stderr);
 		std::fputs("-ms or /ms - set small memory model (default)\n", stderr);
@@ -9503,6 +9539,69 @@ int main(int argc, char **argv)
 			//warning: unknown MCU name
 			b1c_print_warnings(std::vector<std::pair<std::string, std::vector<std::pair<int32_t, B1C_T_WARNING>>>>({ std::make_pair(MCU_name, std::vector<std::pair<int32_t, B1C_T_WARNING>>({ std::make_pair(-1, B1C_T_WARNING::B1C_WRN_WUNKNMCU) })) }));
 		}
+	}
+
+
+	if(list_devs)
+	{
+		// print available peripheral devices
+		std::fputs("available devices:\n", stdout);
+		const auto devs = _global_settings.GetDevList();
+		for(const auto &d: devs)
+		{
+			const auto comm_name = _global_settings.GetCommonDeviceName(d);
+			if(!comm_name.empty())
+			{
+				std::fputws((comm_name + L" (" + d + L")\n").c_str(), stdout);
+			}
+			std::fputws((d + L"\n").c_str(), stdout);
+		}
+		return 0;
+	}
+
+	if(list_cmds)
+	{
+		// print available device commands
+		std::fputs((dev_name + " commands:\n").c_str(), stdout);
+		auto d = _global_settings.GetIoDeviceName(Utils::str2wstr(dev_name));
+		const auto cmds = _global_settings.GetDevCmdsList(d);
+		for(const auto &c:cmds)
+		{
+			Settings::IoCmd cmd;
+			if(!_global_settings.GetIoCmd(d, c, cmd))
+			{
+				continue;
+			}
+
+			if(cmd.accepts_data)
+			{
+				if(cmd.predef_only)
+				{
+					std::wstring vals;
+
+					for(const auto &v: cmd.values)
+					{
+						vals += v.first + L", ";
+					}
+					if(!vals.empty())
+					{
+						vals.pop_back();
+						vals.pop_back();
+					}
+
+					std::fputws((c + L" (" + vals + L")\n").c_str(), stdout);
+				}
+				else
+				{
+					std::fputws((c + L" (<" + cmd.data_type + L" VALUE>)\n").c_str(), stdout);
+				}
+			}
+			else
+			{
+				std::fputws((c + L"\n").c_str(), stdout);
+			}
+		}
+		return 0;
 	}
 
 

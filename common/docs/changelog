@@ -1,3 +1,10 @@
+b1c (1.0.0-9) unstable; urgency=low
+
+  * documents updated
+  * GPIO library improved
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Tue, 19 Sep 2023 18:09:47 +0300
+
 b1c (1.0.0-8) unstable; urgency=low
 
   * INSTR built-in function implemented

@@ -35,6 +35,7 @@ class Utils
 public:
 	static B1_T_ERROR str2int32(const std::wstring &str, int32_t &num, B1Types *type = nullptr);
 	static std::string wstr2str(const std::wstring &str);
+	static std::wstring str2wstr(const std::string &str);
 
 	static B1_T_ERROR read_line(std::FILE *fp, std::wstring &str);
 
@@ -71,6 +72,7 @@ public:
 
 		int32_t id;
 		IoCmdCallType call_type;
+		std::wstring file_name;
 		int32_t mask;
 		bool accepts_data;
 		std::wstring data_type;
@@ -205,4 +207,8 @@ public:
 	int GetInterruptIndex(const std::string &int_name) const;
 	// splits source file name to interrupt name and file name itself
 	std::string GetInterruptName(const std::string &file_name, std::string &real_file_name) const;
+
+	std::vector<std::wstring> GetDevList() const;
+	std::wstring GetCommonDeviceName(const std::wstring &real_dev_name) const;
+	std::vector<std::wstring> GetDevCmdsList(const std::wstring &dev_name) const;
 };

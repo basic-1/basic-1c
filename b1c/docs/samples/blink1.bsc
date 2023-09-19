@@ -1,5 +1,5 @@
 ' a LED connected to GPIO PB5 (output, push-pull, fast speed), use IOCTL to configure the pin
-10 IOCTL PB, PIN5, OUT_PUSHPULL_FAST
+10 IOCTL PB, CFGPIN5, OUT_PUSHPULL_FAST
 ' blinking loop
 20 WHILE 1 < 2
 30 PB_ODR = PB_ODR XOR (1 << 5)

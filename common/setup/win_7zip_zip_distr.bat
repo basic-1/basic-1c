@@ -59,10 +59,6 @@ rmdir /s /q docs
 
 rem create docs temp. directory and copy document files there
 mkdir docs
-mkdir docs\b1core
-copy ..\..\b1core\docs\changelog docs\b1core
-copy ..\..\b1core\README.md docs\b1core
-copy ..\..\b1core\LICENSE docs\b1core
 mkdir docs\b1c
 copy ..\..\b1c\docs\*.* docs\b1c
 mkdir docs\c1stm8

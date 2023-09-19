@@ -1,6 +1,6 @@
 ' set timer overflow period in ms, no prescaler/value calculations
 
-10 IOCTL PB, PIN5, OUT_PUSHPULL_FAST
+10 IOCTL PB, CFGPIN5, OUT_PUSHPULL_FAST
 
 20 IOCTL CPU, INTERRUPTS, ON
 30 IOCTL TIMER, ENABLE

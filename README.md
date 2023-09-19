@@ -10,6 +10,15 @@
 - includes STM8 assembler  
 - licensed under MIT license  
   
+# Supported microcontrollers
+  
+Supported STM8 microcontrollers list:  
+  
+- STM8S003F3P6  
+- STM8S103F3P6  
+- STM8S105K4T6  
+- STM8S105K6T6  
+  
 # Data types  
   
 - STRING  
@@ -52,7 +61,7 @@
 - relational operators can be used with strings  
 - automatic numeric to string conversion  
 - functions: ABS, INT, SGN, LEN, ASC, CHR$, STR$, VAL, IIF, IIF$  
-- more functions: MID$, INSTR, LTRIM$, RTRIM$, LEFT$, RIGHT$, LSET$, RSET$, UCASE$, LCASE$  
+- more functions: MID$, INSTR, LTRIM$, RTRIM$, LEFT$, RIGHT$, LSET$, RSET$, SET$, UCASE$, LCASE$  
 
 # Building and usage  
   

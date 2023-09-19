@@ -246,6 +246,14 @@ std::string Utils::wstr2str(const std::wstring &str)
 	return s;
 }
 
+std::wstring Utils::str2wstr(const std::string &str)
+{
+	std::wstring s;
+
+	std::transform(str.cbegin(), str.cend(), std::back_inserter(s), [](char c) { return (wchar_t)c; });
+	return s;
+}
+
 B1_T_ERROR Utils::read_line(std::FILE *fp, std::wstring &str)
 {
 	static char buffer[256];
@@ -672,7 +680,7 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 
 	_io_settings.clear();
 
-	std::wstring dev_name;
+	std::vector<std::wstring> dev_names;
 	std::map<std::wstring, IoCmd> cmds;
 
 	while(true)
@@ -708,7 +716,7 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 				return B1_RES_ESYNTAX;
 			}
 
-			if(!dev_name.empty())
+			if(!dev_names.empty())
 			{
 				if(cmds.empty())
 				{
@@ -716,12 +724,17 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 					return B1_RES_ESYNTAX;
 				}
 
-				_io_settings.emplace(std::make_pair(dev_name, cmds));
+				for(const auto &dn: dev_names)
+				{
+					_io_settings.emplace(std::make_pair(Utils::str_toupper(Utils::str_trim(dn)), cmds));
+				}
 			}
 			
-			dev_name = Utils::str_toupper(Utils::str_trim(line.substr(1, pos - 1)));
+			//dev_name = Utils::str_toupper(Utils::str_trim(line.substr(1, pos - 1)));
+			dev_names.clear();
+			Utils::str_split(line.substr(1, pos - 1), L",", dev_names);
 
-			if(dev_name.empty())
+			if(dev_names.empty())
 			{
 				std::fclose(fp);
 				return B1_RES_ESYNTAX;
@@ -732,7 +745,7 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 			continue;
 		}
 
-		if(dev_name.empty())
+		if(dev_names.empty())
 		{
 			std::fclose(fp);
 			return B1_RES_ESYNTAX;
@@ -777,6 +790,13 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 		{
 			return B1_RES_ESYNTAX;
 		}
+
+		// file name
+		if(!get_field(line, true, value))
+		{
+			return B1_RES_ESYNTAX;
+		}
+		cmd.file_name = value;
 
 		// mask
 		if(!get_field(line, true, value))
@@ -859,14 +879,17 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 
 	std::fclose(fp);
 
-	if(!dev_name.empty())
+	if(!dev_names.empty())
 	{
 		if(cmds.empty())
 		{
 			return B1_RES_ESYNTAX;
 		}
 
-		_io_settings.emplace(std::make_pair(dev_name, cmds));
+		for(const auto &dn: dev_names)
+		{
+			_io_settings.emplace(std::make_pair(Utils::str_toupper(Utils::str_trim(dn)), cmds));
+		}
 	}
 
 	return B1_RES_OK;
@@ -962,4 +985,50 @@ std::string Settings::GetInterruptName(const std::string &file_name, std::string
 
 	real_file_name = file_name.substr(pos + 1);
 	return int_name;
+}
+
+std::vector<std::wstring> Settings::GetDevList() const
+{
+	std::vector<std::wstring> devs;
+
+	for(const auto &d: _io_settings)
+	{
+		devs.push_back(d.first);
+	}
+
+	return devs;
+}
+
+std::wstring Settings::GetCommonDeviceName(const std::wstring &real_dev_name) const
+{
+	std::wstring dev_name;
+	int dev_num = 0;
+
+	while(GetValue(L"REAL_DEVICE_NAME" + std::to_wstring(dev_num), dev_name))
+	{
+		if(dev_name == real_dev_name)
+		{
+			GetValue(L"DEVICE_NAME" + std::to_wstring(dev_num), dev_name);
+			return dev_name;
+		}
+		dev_num++;
+	}
+
+	return std::wstring();
+}
+
+std::vector<std::wstring> Settings::GetDevCmdsList(const std::wstring &dev_name) const
+{
+	std::vector<std::wstring> cmds;
+
+	auto dc = _io_settings.find(dev_name);
+	if(dc != _io_settings.end())
+	{
+		for(const auto &c: dc->second)
+		{
+			cmds.push_back(c.first);
+		}
+	}
+
+	return cmds;
 }

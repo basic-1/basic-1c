@@ -4780,6 +4780,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_ioctl(std::list<B1_CMP_CMD>::const_iterator
 	int32_t values = 0;
 	bool accepts_data = false;
 	Settings::IoCmd::IoCmdCallType call_type = Settings::IoCmd::IoCmdCallType::CT_CALL;
+	std::wstring file_name;
 	int32_t ioctl_num = 1;
 
 	while(true)
@@ -4838,6 +4839,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_ioctl(std::list<B1_CMP_CMD>::const_iterator
 			id = iocmd.id;
 			accepts_data = false;
 			call_type = iocmd.call_type;
+			file_name = iocmd.file_name;
 			break;
 		}
 
@@ -4851,6 +4853,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_ioctl(std::list<B1_CMP_CMD>::const_iterator
 			id = iocmd.id;
 			accepts_data = true;
 			call_type = iocmd.call_type;
+			file_name = iocmd.file_name;
 
 			auto err = stm8_load(cmd_it->args[2], iocmd.data_type, LVT::LVT_REG);
 			if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
@@ -4889,6 +4892,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_ioctl(std::list<B1_CMP_CMD>::const_iterator
 			mask = iocmd.mask;
 			accepts_data = true;
 			call_type = iocmd.call_type;
+			file_name = iocmd.file_name;
 
 			// no mask
 			if(mask == 0)
@@ -4920,6 +4924,11 @@ C1STM8_T_ERROR C1STM8Compiler::write_ioctl(std::list<B1_CMP_CMD>::const_iterator
 
 	if(call_type == Settings::IoCmd::IoCmdCallType::CT_CALL)
 	{
+		if(file_name.empty())
+		{
+			file_name = L"__LIB_" + dev_name + L"_" + std::to_wstring(id) + L"_CALL";
+		}
+
 		if(pre_cmd)
 		{
 			if(data_type == L"STRING")
@@ -4949,8 +4958,8 @@ C1STM8_T_ERROR C1STM8Compiler::write_ioctl(std::list<B1_CMP_CMD>::const_iterator
 			}
 		}
 
-		_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_" + dev_name + L"_" + std::to_wstring(id) + L"_CALL");  //AD SIGNED_BYTE_OFFSET (CALLR)
-		_req_symbols.insert(L"__LIB_" + dev_name + L"_" + std::to_wstring(id) + L"_CALL");
+		_curr_code_sec->add_op(_call_stmt + L" " + file_name);  //AD SIGNED_BYTE_OFFSET (CALLR)
+		_req_symbols.insert(file_name);
 
 		if(pre_cmd && data_type == L"BYTE" && mask != 0)
 		{
@@ -4961,6 +4970,11 @@ C1STM8_T_ERROR C1STM8Compiler::write_ioctl(std::list<B1_CMP_CMD>::const_iterator
 	}
 	else
 	{
+		if(file_name.empty())
+		{
+			file_name = L"__LIB_" + dev_name + L"_" + std::to_wstring(id) + L"_INL";
+		}
+
 		// inline code
 		std::vector<std::pair<std::wstring, std::wstring>> params =
 		{
@@ -4974,7 +4988,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_ioctl(std::list<B1_CMP_CMD>::const_iterator
 		};
 
 		auto saved_it = cmd_it++;
-		auto err = load_inline(0, L"__LIB_" + dev_name + L"_" + std::to_wstring(id) + L"_INL", cmd_it, params);
+		auto err = load_inline(0, file_name, cmd_it, params);
 		if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 		{
 			return err;
@@ -7015,13 +7029,14 @@ int main(int argc, char** argv)
 			argv[i][2] == 0)
 		{
 			print_version = true;
+			continue;
 		}
 
 		break;
 	}
 
 
-	if(args_error || i == argc)
+	if((args_error || i == argc) && !(print_version))
 	{
 		c1stm8_print_version(stderr);
 		if(args_error)

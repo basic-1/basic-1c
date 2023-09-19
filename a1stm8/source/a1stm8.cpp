@@ -4557,14 +4557,14 @@ int main(int argc, char **argv)
 				argv[i][2] == 0)
 			{
 				print_version = true;
-				break;
+				continue;
 			}
 		}
 
 		files.push_back(argv[i]);
 	}
 
-	if(args_error || files.empty())
+	if(args_error || files.empty() && !(print_version))
 	{
 		b1_print_version(stderr);
 

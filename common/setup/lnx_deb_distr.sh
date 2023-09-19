@@ -75,8 +75,6 @@ mkdir -p -m 775 $tmp_dir$proj_dir_name/usr/share
 mkdir -p -m 775 $tmp_dir$proj_dir_name/usr/share/$proj_dir_name
 mkdir -p -m 775 $tmp_dir$proj_dir_name/usr/share/doc
 mkdir -p -m 775 $tmp_dir$proj_dir_name/usr/share/doc/$proj_dir_name
-mkdir -p -m 775 $tmp_dir$proj_dir_name/usr/share/doc/$proj_dir_name/b1core
-mkdir -p -m 775 $tmp_dir$proj_dir_name/usr/share/doc/$proj_dir_name/b1core/docs
 mkdir -p -m 775 $tmp_dir$proj_dir_name/usr/share/doc/$proj_dir_name/b1c
 mkdir -p -m 775 $tmp_dir$proj_dir_name/usr/share/doc/$proj_dir_name/c1stm8
 mkdir -p -m 775 $tmp_dir$proj_dir_name/usr/share/doc/$proj_dir_name/a1stm8
@@ -85,10 +83,6 @@ mkdir -p -m 775 $tmp_dir$proj_dir_name/usr/share/doc/$proj_dir_name/a1stm8
 cp ../../bin/lnx/$platform/$compiler/rel/b1c $tmp_dir$proj_dir_name/usr/bin
 cp ../../bin/lnx/$platform/$compiler/rel/c1stm8 $tmp_dir$proj_dir_name/usr/bin
 cp ../../bin/lnx/$platform/$compiler/rel/a1stm8 $tmp_dir$proj_dir_name/usr/bin
-
-cp ../../b1core/docs/changelog $tmp_dir$proj_dir_name/usr/share/doc/$proj_dir_name/b1core/docs
-cp ../../b1core/LICENSE $tmp_dir$proj_dir_name/usr/share/doc/$proj_dir_name/b1core
-cp ../../b1core/README.md $tmp_dir$proj_dir_name/usr/share/doc/$proj_dir_name/b1core
 
 cp -af ../../b1c/docs $tmp_dir$proj_dir_name/usr/share/doc/$proj_dir_name/b1c
 cp -af ../../c1stm8/docs $tmp_dir$proj_dir_name/usr/share/doc/$proj_dir_name/c1stm8

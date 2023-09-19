@@ -199,7 +199,7 @@ There are two types of functions in BASIC1: built-in functions and user-defined 
   
 ### `DATA`, `READ`, `RESTORE` statements  
   
-`DATA`, `READ` and `RESTORE` statements can be used for storing large number of numeric and textual values in BASIC program code and reading them successively.  
+`DATA`, `READ` and `RESTORE` statements can be used for storing large number of numeric and textual values in program code and reading them successively.  
   
 **Usage:**  
 `DATA [(<type1>[, <type2>, ... <typeM>])] <value1>[, <value2>, ... <valueN>]`  
