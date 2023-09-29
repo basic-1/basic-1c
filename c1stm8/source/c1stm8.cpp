@@ -3356,7 +3356,8 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const std::wstri
 
 				if(imm_offset)
 				{
-					_curr_code_sec->add_op(L"LDW X, (" + rv + L" + " + Utils::str_tohex16(offset) + L")"); //BE SHORT_ADDRESS CE LONG_ADDRESS
+					_curr_code_sec->add_op(L"LDW X, (" + rv + L")"); //BE BYTE_OFFSET CE WORD_OFFSET
+					_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", X)"); //EE BYTE_OFFSET DE WORD_OFFSET
 				}
 				else
 				{
@@ -3835,6 +3836,14 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 		{
 			if(imm_offset)
 			{
+				// release previous string
+				if(arg[0].type == L"STRING")
+				{
+					_curr_code_sec->add_op(L"LDW X, (" + dst + L" + " + Utils::str_tohex16(offset) + L")"); //BE BYTE_OFFSET CE WORD_OFFSET
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_req_symbols.insert(L"__LIB_STR_RLS");
+				}
+
 				_curr_code_sec->add_op(L"POPW X"); //85
 				_stack_ptr -= 2;
 
@@ -3842,6 +3851,18 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 			}
 			else
 			{
+				// release previous string
+				if(arg[0].type == L"STRING")
+				{
+					_curr_code_sec->add_op(L"PUSHW X"); //89
+					_stack_ptr += 2;
+					_curr_code_sec->add_op(L"LDW X, (" + dst + L", X)"); //EE BYTE_OFFSET DE WORD_OFFSET
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_req_symbols.insert(L"__LIB_STR_RLS");
+					_curr_code_sec->add_op(L"POPW X"); //85
+					_stack_ptr -= 2;
+				}
+
 				_curr_code_sec->add_op(L"POPW Y"); //90 85
 				_stack_ptr -= 2;
 
@@ -3850,16 +3871,40 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 		}
 		else
 		{
-			_curr_code_sec->add_op(L"POPW Y"); //90 85
-			_stack_ptr -= 2;
-
 			if(imm_offset)
 			{
+				// release previous string
+				if(arg[0].type == L"STRING")
+				{
+					_curr_code_sec->add_op(L"LDW X, (" + dst + L")"); //BE BYTE_OFFSET CE WORD_OFFSET
+					_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", X)"); //EE BYTE_OFFSET DE WORD_OFFSET
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_req_symbols.insert(L"__LIB_STR_RLS");
+				}
+
+				_curr_code_sec->add_op(L"POPW Y"); //90 85
+				_stack_ptr -= 2;
+
 				_curr_code_sec->add_op(L"LDW X, (" + dst + L")"); //BE BYTE_OFFSET CE WORD_OFFSET
 				_curr_code_sec->add_op(L"LDW (" + Utils::str_tohex16(offset) + L", X), Y"); //EF BYTE_OFFSET DF WORD_OFFSET
 			}
 			else
 			{
+				// release previous string
+				if(arg[0].type == L"STRING")
+				{
+					_curr_code_sec->add_op(L"PUSHW X"); //89
+					_stack_ptr += 2;
+					_curr_code_sec->add_op(L"LDW X, ([" + dst + L"], X)"); //92 DE BYTE_OFFSET 72 DE WORD_OFFSET
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_req_symbols.insert(L"__LIB_STR_RLS");
+					_curr_code_sec->add_op(L"POPW X"); //85
+					_stack_ptr -= 2;
+				}
+
+				_curr_code_sec->add_op(L"POPW Y"); //90 85
+				_stack_ptr -= 2;
+
 				_curr_code_sec->add_op(L"LDW ([" + dst + L"], X), Y"); //92 DF BYTE_OFFSET 72 DF WORD_OFFSET
 			}
 		}

@@ -199,14 +199,14 @@ There are two types of functions in BASIC1: built-in functions and user-defined 
   
 ### `DATA`, `READ`, `RESTORE` statements  
   
-`DATA`, `READ` and `RESTORE` statements can be used for storing large number of numeric and textual values in program code and reading them successively.  
+`DATA`, `READ` and `RESTORE` statements are used for storing large number of numeric and textual values in program code and reading them successively.  
   
 **Usage:**  
 `DATA [(<type1>[, <type2>, ... <typeM>])] <value1>[, <value2>, ... <valueN>]`  
 `READ <var_name1>[, <var_name2>, ... <var_nameM>]`  
 `RESTORE [<line_number>]`  
   
-`DATA` statement specifies a set of comma-delimited constant values. Textual constants have to be enclosed in double-quotes: such values have to meet the rules of BASIC regular string constants definition. Optional data types list can be specified after `DATA` keyword in parentheses: the types are used by the complier to distinguish between values of different numeric types (`INT`, `WORD`, `BYTE`). A program can have multiple `DATA` statements, the order of the statements in the program determines the order of the values. BASIC1 program has internal next value pointer: at the program start it points to the first value defined with `DATA` statements. Every reading operation changes the pointer making it referring the next value. `READ` statement reads values specified with `DATA` statements. `READ` keyword must be followed by either one variable name or comma-separated list of variable names to read the values into. `RESTORE` statement sets the next value pointer to the first value of a `DATA` statement identified with the line number coming after `RESTORE` statement keyword. `RESTORE` statement without line number sets the pointer to the first value in the program (like at the program execution start).  
+`DATA` statement specifies a set of comma-delimited constant values. Textual constants have to be enclosed in double-quotes: such values have to meet the rules of BASIC regular string constants definition. Optional data types list can be specified after `DATA` keyword in parentheses: complier uses them to distinguish between values of different numeric types (`INT`, `WORD`, `BYTE`). A program can have multiple `DATA` statements. The values are read in the same order as they are defined in program. BASIC1 program has internal next value pointer: at the program start it points to the first value defined with `DATA` statements. Every reading operation changes the pointer making it referring the next value. `READ` statement reads values specified with `DATA` statements. `READ` keyword must be followed by comma-separated list of variable names to read values into. `RESTORE` statement sets the next value pointer to the first value of a `DATA` statement identified with the line number coming after `RESTORE` statement keyword. `RESTORE` statement without line number sets the pointer to the first value in the program (like at the program execution start).  
   
 **Examples:**  
 `10 DATA "a", "b", "c"` 'three textual constants consisting of single 'a', 'b' and 'c' letters  
@@ -239,15 +239,15 @@ A user-defined function must be defined before being used. Function arguments ar
   
 ### `DIM` and `ERASE` statements  
   
-`DIM` statement can be used to declare variables' data types and allocate memory for them. `ERASE` statement clears simple variables (initializes them with their initial values: zero or empty string) or frees memory in case of arrays. BASIC1 language allows using variables without declaration: their types are determined by data type specifiers or set as `INT` if specifiers are absent. For arrays default upper subscript value is 10, default lower subscript value is 0 (can be changed with `OPTION BASE` statement). `OPTION EXPLICIT` statement specified in the beginning of a program forbids using undeclared variables. If the explicit variables declaration option is turned on every variable must be created with `DIM` statement before usage.  
+`DIM` statement can be used to declare variables and allocate memory for them. `ERASE` statement clears simple variables (initializes them with their initial values: zero or empty string) or frees memory in case of arrays. BASIC1 language allows using variables without declaration: their types are determined by data type specifiers or set as `INT` if specifiers are absent. For arrays default upper subscript value is 10, default lower subscript value is 0 (can be changed with `OPTION BASE` statement). `OPTION EXPLICIT` statement specified in the beginning of a program forbids using undeclared variables. If the explicit variables declaration option is turned on, every variable must be created with `DIM` statement before usage.  
   
 **Usage:**  
 `<var_decl> = [GLOBAL] [VOLATILE] <var_name>[([<subs1_lower> TO ]<subs1_upper>[, [<subs2_lower> TO ]<subs2_upper>[, [<subs3_lower> TO ]<subs3_upper>]])] [AS <type_name>] [AT <address>]`  
 `DIM <var_decl1>[, <var_decl2>, ... <var_declN>]`  
 `ERASE <var_name1>[, <var_name2>, ... <var_nameM>]`  
   
-If optional `GLOBAL` keyword is specified the variable can be used in other source files. Non-global variables with the same names declared in multiple source files are different variables. Variables decalread using `VOLATILE` keyword are excluded from optimization process: compiler always produces code for reading and writing their values. The keyword should be used for declaring variables which values can change unexpectedly: ones used in interrupt handlers, peripheral registers, etc. `AT <address>` optional clause allows declaring variables addressing specific memory area. Such variables do not reserve memory, they are just aliases for specific memory areas.  
-`<subs1_lower>`, `<subs1_upper>`, `<subs2_lower>`, `<subs2_upper>`, `<subs3_lower>`, `<subs3_upper>` must be numeric expressions to specify lower and upper boundaries of variable subscripts. If a lower boundary of subscript is omitted it is taken equal to zero. The default value of lower boundary of subscripts can be changed with `OPTION BASE` statement. BASIC1 language supports one-, two- and three-dimensional subscripted variables (arrays). Optional variable type `<var_type>` must be one of the types described in the **Data types** chapter above. The type must correspond to the variable's data type specifier if it is present. If both data type specifier and data type name are omitted the statement creates variable of default numeric type (`INT`).  
+If optional `GLOBAL` keyword is specified the variable can be used in other source files. Non-global variables with the same names declared in multiple source files are different variables. Variables declaread using `VOLATILE` keyword are excluded from optimization process: compiler always produces code for reading and writing their values. The keyword should be used with variables which values can change unexpectedly: ones used in interrupt handlers, peripheral registers, etc. `AT <address>` optional clause allows declaring variables addressing specific memory area. Such variables do not reserve memory, they are just aliases for specific memory areas.  
+`<subs1_lower>`, `<subs1_upper>`, `<subs2_lower>`, `<subs2_upper>`, `<subs3_lower>`, `<subs3_upper>` must be numeric expressions to specify lower and upper boundaries of variable subscripts. If a lower boundary of subscript is omitted it is taken equal to zero. The default value of lower boundary of subscripts can be changed with `OPTION BASE` statement. BASIC1 language supports one-, two- and three-dimensional subscripted variables (arrays). Optional variable type `<var_type>` must be one of the types described in the [**Data types**](#Data-types) chapter above. The type must correspond to the variable's data type specifier if it is present. If both data type specifier and data type name are omitted the statement creates variable of default numeric type (`INT`).  
   
 **Examples:**  
 `DIM I%, I AS INT` 'declare two integer variables  
@@ -289,7 +289,7 @@ If optional `GLOBAL` keyword is specified the variable can be used in other sour
   
 ### `FOR`, `NEXT` statements  
   
-`FOR` and `NEXT` statements are used to organize loops allowing statements to be executed repeatedly.  
+`FOR` and `NEXT` statements are used to organize loops, allowing statements to be executed repeatedly.  
   
 **Usage:**  
 `FOR <loop_var_name> = <init_value> TO <end_value> [STEP <incr_value>]`  
@@ -379,12 +379,12 @@ Here `<loop_var_name>` is a loop control numeric variable name, `<init_value>` a
   
 ### `INPUT` statement  
   
-`INPUT` statement reads user input data from input device and stores it in variables. Default input device is UART.  
+`INPUT` statement reads user input data from input device and stores it in variables. Default input/output device is UART.  
   
 **Usage:**  
 `INPUT [<prompt>,] <var_name1>[, <var_name2>, ... <var_nameN>]`  
   
-Here `<prompt>` is an optional string sent to output device before reading input data. Default prompt string is "? ". After displaying the prompt the statement begins reading values from input device and storing them into specified variables one by one. Input values must be separated with commas and their number must be equal to the number of variables. If the statement fails (e.g. due to wrong data format) the input process starts from very beginning.  
+Here `<prompt>` is an optional string sent to the same input/output device before reading data. Default prompt string is "? ". After displaying the prompt the statement reads values from input device and stores them into specified variables one by one. Input values must be separated with commas and the last value must be followed by carriage return character. If the statement fails (e.g. due to wrong data format or wrong values number) the input process repeats from very beginning.  
   
 **Examples:**  
 `INPUT A, B, C` 'input three numeric values  
@@ -400,7 +400,7 @@ Here `<prompt>` is an optional string sent to output device before reading input
 **Usage:**  
 `LET <var_name> = <expression>`  
   
-The expression's result data type must be compatible with the variable data type. BASIC1 compiler implicitly converts any numeric value to string if necessary. Similarly, a numeric value can be converted to another numeric type when assigning to a variable. `LET` statement has a simplified form with omitted `LET` keyword. So a program line without statement keyword is always considered as `LET` statement.  
+The expression's result data type must be compatible with the variable data type. BASIC1 compiler implicitly converts any numeric value to string if necessary. Similarly, a numeric value can be converted to another numeric type when assigning to a variable. The statement has a simplified form with omitted `LET` keyword. So a program line without statement keyword is always considered as a simplified form of `LET` statement.  
   
 **Examples:**  
 `10 LET A = 10` 'assign numeric value 10 to `A` variable  
@@ -447,7 +447,7 @@ The statement writes textual data to an output device. Default output device is 
 **Usage:**  
 `PRINT <expression1> [, | ; <expression2> , | ; ... <expressionN>] [, | ;]`  
   
-`PRINT` statement evaluates expressions specified after the keyword and writes result values to output device one by one. Textual values are written as is and numeric values are first converted to textual representation. Comma expression separator makes the statement write the next value in the next print zone and semicolon separator allows writing values one after another. Finally `PRINT` statement writes end-of-line sequence if the expressions list does not terminate with semicolon. Putting semicolon at the end of the statement leaves cursor on the current line.  Entire print area is assumed to be divided into print zones. `PRINT` statement writes a value starting from the next print zone if the expression is separated from previous one with comma. The statement uses two special values to locate the next print zone: margin and zone width. Margin is the maximum width of output device print area (in characters) and zone width is a width of one print zone. Default values of margin and zone widdth are specific to output device. An output device should provide a way to change margin and zone width values.  
+`PRINT` statement evaluates expressions specified after the keyword and writes result values to output device one by one. Textual values are written as is and numeric values are first converted to textual representation. Comma expression separator makes the statement write the next value in the next print zone and semicolon separator allows writing values one after another. Finally `PRINT` statement writes end-of-line sequence if the expressions list does not terminate with semicolon. Putting semicolon at the end of the statement leaves cursor on the current line.  Entire print area is assumed to be divided into print zones. `PRINT` statement writes a value starting from the next print zone if the expression is separated from previous one with comma. The statement uses two special values to locate the next print zone: margin and zone width. Margin is the maximum width of output device print area (in characters) and zone width is a width of one print zone. Default values of margin and zone width are specific to output device. An output device should provide a way to change margin and zone width values.  
   
 **Examples:**  
 `PRINT` 'just go to the new line  

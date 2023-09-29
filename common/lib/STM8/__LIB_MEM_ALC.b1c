@@ -45,6 +45,17 @@ ADDW Y, (3, SP)
 JRA ::__LBL_IT_BLOCKS
 
 :::__LBL_EMPTY_FND
+LDW X, (5, SP) ; prev_hdr
+JRMI ::__LBL_TEST_EMPTY_BLOCK
+; merge two blocks
+ADDW X, (3, SP)
+INCW X
+INCW X ; X = prev_block_size (prev_hdr) + curr_block_size + hdr_size (2)
+LDW (3, SP), X ; save new curr_block_size
+LDW Y, (7, SP) ; curr_ptr = prev_ptr
+LDW (Y), X ; write merged block header
+
+:::__LBL_TEST_EMPTY_BLOCK
 LDW X, (3, SP)
 SUBW X, (1, SP)
 JRMI ::__LBL_SMALL_BLOCK
@@ -76,23 +87,9 @@ INCW X
 JRA ::__LBL_EXIT
 
 :::__LBL_SMALL_BLOCK
-LDW X, (5, SP) ; prev_hdr
-JRMI ::__LBL_GO_NEXT
-; merge two blocks
-ADDW X, (3, SP)
-INCW X
-INCW X ; X = prev_block_size (prev_hdr) + curr_block_size + hdr_size (2)
-LDW Y, (7, SP) ; curr_ptr = prev_ptr
-LDW (Y), X ; write merged block header
-CLRW X
-DECW X
-LDW (5, SP), X ; prev_hdr = 0xFFFF
-JRA ::__LBL_IT_BLOCKS
-
-:::__LBL_GO_NEXT
-LDW (7, SP), Y ; save prev_ptr
 LDW X, (3, SP)
-LDW (5, SP), X ; save prev_hdr (curr_block_size)
+LDW (5, SP), X ; prev_hdr = merged block size
+LDW (7, SP), Y ; prev_ptr = curr_ptr
 INCW X
 INCW X
 PUSHW X

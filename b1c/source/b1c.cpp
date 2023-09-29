@@ -1920,7 +1920,7 @@ B1_T_ERROR B1FileCompiler::st_erase()
 			return B1_RES_EINVTOK;
 		}
 
-		name = B1CUtils::get_progline_substring(b1_curr_prog_line_offset, b1_curr_prog_line_offset + len);
+		name = Utils::str_toupper(B1CUtils::get_progline_substring(b1_curr_prog_line_offset, b1_curr_prog_line_offset + len));
 
 		if(Utils::check_const_name(name))
 		{
