@@ -333,6 +333,40 @@ std::wstring Utils::str_rtrim(const std::wstring &str, const std::wstring &del)
 	return std::wstring(b, e);
 }
 
+std::string Utils::str_trim(const std::string &str)
+{
+	auto b = str.begin();
+	auto e = str.end();
+
+	// skip leading and trailing spaces
+	while(b != e && std::isspace(*b)) b++;
+	while(b != e && std::isspace(*(e - 1))) e--;
+
+	return std::string(b, e);
+}
+
+std::string Utils::str_ltrim(const std::string &str, const std::string &del)
+{
+	auto b = str.begin();
+	auto e = str.end();
+
+	// skip leading characters
+	while(b != e && del.find(*b) != std::string::npos) b++;
+
+	return std::string(b, e);
+}
+
+std::string Utils::str_rtrim(const std::string &str, const std::string &del)
+{
+	auto b = str.begin();
+	auto e = str.end();
+
+	// skip trailing characters
+	while(b != e && del.find(*(e - 1)) != std::string::npos) e--;
+
+	return std::string(b, e);
+}
+
 std::wstring Utils::str_toupper(const std::wstring &s)
 {
 	std::wstring ostr;
@@ -397,7 +431,7 @@ std::wstring Utils::get_type_name(B1Types type)
 	return std::wstring();
 }
 
-bool Utils::check_const_name(const std::wstring& const_name)
+bool Utils::check_const_name(const std::wstring &const_name)
 {
 	auto cn = Utils::str_toupper(const_name);
 
@@ -419,7 +453,7 @@ bool Utils::check_const_name(const std::wstring& const_name)
 	return false;
 }
 
-std::wstring Utils::get_const_type(const std::wstring& const_name)
+std::wstring Utils::get_const_type(const std::wstring &const_name)
 {
 	auto cn = Utils::str_toupper(const_name);
 	auto type = B1Types::B1T_UNKNOWN;

@@ -82,6 +82,11 @@ To build the compiler under Windows go to `build` subdirectories of every projec
   
 ## Usage  
   
+BASIC1 compiler includes three executable modules: `b1c` - compiler translating BASIC programs to platform independent intermediate code, `c1stm8` - intermediate code compiler, producing STM8 assembly language code and `a1stm8` assembler. By default `b1c` calls intermediate code compiler automatically and `c1stm8` compiler calls `a1stm8` assembler. Run the executable modules without arguments to see available options.  
+  
+**Samples:**  
+`b1c -d -s -m STM8S103F3 samples/blink.bsc` - compile `blink.bsc` program for STM8S103F3P6 MCU  
+`b1c.exe -d -s -mu -m STM8S105K4 -o "E:\Temp\\" samples\heap.bsc` - compile `heap.bsc` program for STM8S105K4T6 MCU, put output files into "E:\Temp\\" directory  
   
 # BASIC1 compiler projects description  
   

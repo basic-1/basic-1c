@@ -6795,8 +6795,8 @@ int main(int argc, char** argv)
 			else
 			{
 				i++;
-				MCU_name = argv[i];
-				args = args + " -m " + argv[i];
+				MCU_name = Utils::str_toupper(argv[i]);
+				args = args + " -m " + MCU_name;
 			}
 
 			continue;
@@ -7190,6 +7190,7 @@ int main(int argc, char** argv)
 	// prepare output file name
 	if(ofn.empty())
 	{
+		// no output file, use input file's directory and name but with asm extension
 		ofn = src_files.front();
 		auto delpos = ofn.find_last_of("\\/");
 		auto pntpos = ofn.find_last_of('.');
@@ -7199,7 +7200,24 @@ int main(int argc, char** argv)
 		}
 		ofn += ".asm";
 	}
-
+	else
+	if(ofn.back() == '\\' || ofn.back() == '/')
+	{
+		// output directory only, use input file name but with asm extension
+		std::string tmp = src_files.front();
+		auto delpos = tmp.find_last_of("\\/");
+		if(delpos != std::string::npos)
+		{
+			tmp.erase(0, delpos + 1);
+		}
+		auto pntpos = tmp.find_last_of('.');
+		if(pntpos != std::string::npos)
+		{
+			tmp.erase(pntpos, std::string::npos);
+		}
+		tmp += ".asm";
+		ofn += tmp;
+	}
 
 	C1STM8Compiler c1stm8(out_src_lines, opt_nocheck, _global_settings.GetMemModelSmall() ? 2 : 3);
 

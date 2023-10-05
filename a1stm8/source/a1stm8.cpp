@@ -2886,28 +2886,28 @@ static void load_extra_instructions_large()
 	// JRX
 	ADD_INST_EX(L"JRAV",			"\xAC", ArgType::AT_3BYTE_ADDR);
 	ADD_INST_EX(L"JRTV",			"\xAC", ArgType::AT_3BYTE_ADDR);
-	ADD_INST_EX(L"JRCV",			"\x24\x03\xAC", ArgType::AT_3BYTE_ADDR);
-	ADD_INST_EX(L"JRULTV",			"\x24\x03\xAC", ArgType::AT_3BYTE_ADDR);
-	ADD_INST_EX(L"JREQV",			"\x26\x03\xAC", ArgType::AT_3BYTE_ADDR);
-	ADD_INST_EX(L"JRHV",			"\x90\x28\x03\xAC", ArgType::AT_3BYTE_ADDR);
-	ADD_INST_EX(L"JRIHV",			"\x90\x2E\x03\xAC", ArgType::AT_3BYTE_ADDR);
-	ADD_INST_EX(L"JRILV",			"\x90\x2F\x03\xAC", ArgType::AT_3BYTE_ADDR);
-	ADD_INST_EX(L"JRMV",			"\x90\x2C\x03\xAC", ArgType::AT_3BYTE_ADDR);
-	ADD_INST_EX(L"JRMIV",			"\x2A\x03\xAC", ArgType::AT_3BYTE_ADDR);
-	ADD_INST_EX(L"JRNCV",			"\x25\x03\xAC", ArgType::AT_3BYTE_ADDR);
-	ADD_INST_EX(L"JRUGEV",			"\x25\x03\xAC", ArgType::AT_3BYTE_ADDR);
-	ADD_INST_EX(L"JRNEV",			"\x27\x03\xAC", ArgType::AT_3BYTE_ADDR);
-	ADD_INST_EX(L"JRNHV",			"\x90\x29\x03\xAC", ArgType::AT_3BYTE_ADDR);
-	ADD_INST_EX(L"JRNMV",			"\x90\x2D\x03\xAC", ArgType::AT_3BYTE_ADDR);
-	ADD_INST_EX(L"JRNVV",			"\x29\x03\xAC", ArgType::AT_3BYTE_ADDR);
-	ADD_INST_EX(L"JRPLV",			"\x2B\x03\xAC", ArgType::AT_3BYTE_ADDR);
-	ADD_INST_EX(L"JRSGEV",			"\x2F\x03\xAC", ArgType::AT_3BYTE_ADDR);
-	ADD_INST_EX(L"JRSGTV",			"\x2D\x03\xAC", ArgType::AT_3BYTE_ADDR);
-	ADD_INST_EX(L"JRSLEV",			"\x2C\x03\xAC", ArgType::AT_3BYTE_ADDR);
-	ADD_INST_EX(L"JRSLTV",			"\x2E\x03\xAC", ArgType::AT_3BYTE_ADDR);
-	ADD_INST_EX(L"JRUGTV",			"\x23\x03\xAC", ArgType::AT_3BYTE_ADDR);
-	ADD_INST_EX(L"JRULEV",			"\x22\x03\xAC", ArgType::AT_3BYTE_ADDR);
-	ADD_INST_EX(L"JRVV",			"\x28\x03\xAC", ArgType::AT_3BYTE_ADDR);
+	ADD_INST_EX(L"JRCV",			"\x24\x04\xAC", ArgType::AT_3BYTE_ADDR);
+	ADD_INST_EX(L"JRULTV",			"\x24\x04\xAC", ArgType::AT_3BYTE_ADDR);
+	ADD_INST_EX(L"JREQV",			"\x26\x04\xAC", ArgType::AT_3BYTE_ADDR);
+	ADD_INST_EX(L"JRHV",			"\x90\x28\x04\xAC", ArgType::AT_3BYTE_ADDR);
+	ADD_INST_EX(L"JRIHV",			"\x90\x2E\x04\xAC", ArgType::AT_3BYTE_ADDR);
+	ADD_INST_EX(L"JRILV",			"\x90\x2F\x04\xAC", ArgType::AT_3BYTE_ADDR);
+	ADD_INST_EX(L"JRMV",			"\x90\x2C\x04\xAC", ArgType::AT_3BYTE_ADDR);
+	ADD_INST_EX(L"JRMIV",			"\x2A\x04\xAC", ArgType::AT_3BYTE_ADDR);
+	ADD_INST_EX(L"JRNCV",			"\x25\x04\xAC", ArgType::AT_3BYTE_ADDR);
+	ADD_INST_EX(L"JRUGEV",			"\x25\x04\xAC", ArgType::AT_3BYTE_ADDR);
+	ADD_INST_EX(L"JRNEV",			"\x27\x04\xAC", ArgType::AT_3BYTE_ADDR);
+	ADD_INST_EX(L"JRNHV",			"\x90\x29\x04\xAC", ArgType::AT_3BYTE_ADDR);
+	ADD_INST_EX(L"JRNMV",			"\x90\x2D\x04\xAC", ArgType::AT_3BYTE_ADDR);
+	ADD_INST_EX(L"JRNVV",			"\x29\x04\xAC", ArgType::AT_3BYTE_ADDR);
+	ADD_INST_EX(L"JRPLV",			"\x2B\x04\xAC", ArgType::AT_3BYTE_ADDR);
+	ADD_INST_EX(L"JRSGEV",			"\x2F\x04\xAC", ArgType::AT_3BYTE_ADDR);
+	ADD_INST_EX(L"JRSGTV",			"\x2D\x04\xAC", ArgType::AT_3BYTE_ADDR);
+	ADD_INST_EX(L"JRSLEV",			"\x2C\x04\xAC", ArgType::AT_3BYTE_ADDR);
+	ADD_INST_EX(L"JRSLTV",			"\x2E\x04\xAC", ArgType::AT_3BYTE_ADDR);
+	ADD_INST_EX(L"JRUGTV",			"\x23\x04\xAC", ArgType::AT_3BYTE_ADDR);
+	ADD_INST_EX(L"JRULEV",			"\x22\x04\xAC", ArgType::AT_3BYTE_ADDR);
+	ADD_INST_EX(L"JRVV",			"\x28\x04\xAC", ArgType::AT_3BYTE_ADDR);
 
 	// RET
 	ADD_INST_EX(L"RET",				"\x87");
@@ -4371,7 +4371,7 @@ int main(int argc, char **argv)
 				else
 				{
 					i++;
-					MCU_name = argv[i];
+					MCU_name = Utils::str_toupper(argv[i]);
 				}
 
 				continue;
@@ -4634,6 +4634,7 @@ int main(int argc, char **argv)
 	// prepare output file name
 	if(ofn.empty())
 	{
+		// no output file, use input file's directory and name but with ihx extension
 		ofn = files.front();
 		auto delpos = ofn.find_last_of("\\/");
 		auto pntpos = ofn.find_last_of('.');
@@ -4643,6 +4644,25 @@ int main(int argc, char **argv)
 		}
 		ofn += ".ihx";
 	}
+	else
+	if(ofn.back() == '\\' || ofn.back() == '/')
+	{
+		// output directory only, use input file name but with ihx extension
+		std::string tmp = files.front();
+		auto delpos = tmp.find_last_of("\\/");
+		if(delpos != std::string::npos)
+		{
+			tmp.erase(0, delpos + 1);
+		}
+		auto pntpos = tmp.find_last_of('.');
+		if(pntpos != std::string::npos)
+		{
+			tmp.erase(pntpos, std::string::npos);
+		}
+		tmp += ".ihx";
+		ofn += tmp;
+	}
+
 
 	// initialize instructions map
 	load_all_instructions();

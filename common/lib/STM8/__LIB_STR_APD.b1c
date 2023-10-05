@@ -19,10 +19,28 @@ PUSHW X ; str1
 CALLR __LIB_STR_CPY
 CALLR __LIB_STR_LEN
 LD (3, SP), A
+JRNE ::__LBL_NEXT_STR
+; the first string is empty: just return the second one
+POPW X
+CALLR __LIB_STR_RLS
+LDW X, (__RET_ADDR_SIZE + 5, SP)
+ADDW SP, 4
+RET
+
+:::__LBL_NEXT_STR
 LDW X, (__RET_ADDR_SIZE + 7, SP)
 CALLR __LIB_STR_CPY
 CALLR __LIB_STR_LEN
 LD (4, SP), A
+JRNE ::__LBL_CHK_SIZES
+; the second string is empty
+LDW X, (__RET_ADDR_SIZE + 7, SP)
+CALLR __LIB_STR_RLS
+POPW X
+ADDW SP, 4
+RET
+
+:::__LBL_CHK_SIZES
 ADD A, (3, SP)
 JRC ::__LBL_NEW_SIZE_WRONG
 ; B1C_MAX_STRING_SIZE

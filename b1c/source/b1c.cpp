@@ -4077,12 +4077,12 @@ B1C_T_ERROR B1FileCompiler::remove_jumps(bool &changed)
 			{
 				auto &cmd1 = *i;
 
-				if(B1CUtils::is_label(cmd1))
+				if(B1CUtils::is_label(cmd1) || cmd1.cmd == L"LA" || cmd1.cmd == L"LF")
 				{
 					break;
 				}
 
-				if(!(cmd1.cmd == L"DAT" || cmd1.cmd == L"DEF" || cmd1.cmd == L"MA" || cmd1.cmd == L"NS" || cmd1.cmd == L"END"))
+				if(!(cmd1.cmd == L"DAT" || cmd1.cmd == L"DEF" || cmd1.cmd == L"MA" || cmd1.cmd == L"NS" || cmd1.cmd == L"END" || B1CUtils::is_log_op(cmd1)))
 				{
 					erase(i--);
 					changed = true;
@@ -9168,8 +9168,8 @@ int main(int argc, char **argv)
 			else
 			{
 				i++;
-				args = args + " -m " + argv[i];
-				MCU_name = argv[i];
+				MCU_name = Utils::str_toupper(argv[i]);
+				args = args + " -m " + MCU_name;
 			}
 
 			continue;
@@ -9410,14 +9410,14 @@ int main(int argc, char **argv)
 			else
 			{
 				i++;
+				target_name = Utils::str_toupper(argv[i]);
 				// now the only supported target is STM8
-				if(Utils::str_toupper(argv[i]) != "STM8")
+				if(target_name != "STM8")
 				{
 					args_error = true;
 					args_error_txt = "invalid target";
 				}
-				args = args + " -t " + argv[i];
-				target_name = argv[i];
+				args = args + " -t " + target_name;
 			}
 
 			continue;
@@ -9627,8 +9627,10 @@ int main(int argc, char **argv)
 	if(retcode == 0)
 	{
 		// prepare output file name
+		ofn = Utils::str_trim(ofn);
 		if(ofn.empty())
 		{
+			// no output file, use input file's directory and name but with b1c extension
 			ofn = argv[i];
 			auto delpos = ofn.find_last_of("\\/");
 			auto pntpos = ofn.find_last_of('.');
@@ -9637,6 +9639,24 @@ int main(int argc, char **argv)
 				ofn.erase(pntpos, std::string::npos);
 			}
 			ofn += ".b1c";
+		}
+		else
+		if(ofn.back() == '\\' || ofn.back() == '/')
+		{
+			// output directory only, use input file name but with b1c extension
+			std::string tmp = argv[i];
+			auto delpos = tmp.find_last_of("\\/");
+			if(delpos != std::string::npos)
+			{
+				tmp.erase(0, delpos + 1);
+			}
+			auto pntpos = tmp.find_last_of('.');
+			if(pntpos != std::string::npos)
+			{
+				tmp.erase(pntpos, std::string::npos);
+			}
+			tmp += ".b1c";
+			ofn += tmp;
 		}
 
 		err = b1c.Write(ofn);
