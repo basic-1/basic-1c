@@ -1,17 +1,23 @@
+b1c (1.0.0-12) unstable; urgency=low
+
+    * distribution packages are built
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Wed, 11 Oct 2023 21:22:25 +0300
+
 b1c (1.0.0-11) unstable; urgency=low
 
   * documents updated
   * some bugfixes and improvements
 
  -- Nikolay Pletnev <b1justomore@gmail.com>  Thu, 05 Oct 2023 18:23:25 +0300
- 
+
 b1c (1.0.0-10) unstable; urgency=low
 
   * documents updated
   * some bugs fixed
 
  -- Nikolay Pletnev <b1justomore@gmail.com>  Fri, 29 Sep 2023 18:20:12 +0300
- 
+
 b1c (1.0.0-9) unstable; urgency=low
 
   * documents updated
