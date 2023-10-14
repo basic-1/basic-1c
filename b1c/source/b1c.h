@@ -59,7 +59,7 @@ private:
 	std::map<int32_t, std::wstring> _src_lines;
 
 	//       gen. name                type          dim  volatile mem
-	std::map<std::wstring, std::tuple<std::wstring, int, bool, bool>> _vars;
+	std::map<std::wstring, std::tuple<B1Types, int, bool, bool>> _vars;
 
 	//       user name     gen. name
 	std::map<std::wstring, std::wstring> _var_names;
@@ -70,15 +70,15 @@ private:
 	B1_CMP_CMDS _DAT_stmts;
 
 
-	B1C_T_ERROR put_var_name(const std::wstring &name, const std::wstring &type, int dims, bool global, bool volat, bool mem_var);
+	B1C_T_ERROR put_var_name(const std::wstring &name, const B1Types type, int dims, bool global, bool volat, bool mem_var);
 	std::wstring get_var_name(const std::wstring &name, bool &expl) const;
 	bool is_mem_var_name(const std::wstring &name) const;
 	bool is_volatile_var(const std::wstring &name) const;
 	int get_var_dim(const std::wstring &name) const;
-	std::wstring get_var_type(const std::wstring &name) const;
+	B1Types get_var_type(const std::wstring &name) const;
 
 	bool fn_exists(const std::wstring &name);
-	bool add_ufn(bool global, const std::wstring &nm, const std::wstring &rt, const std::vector<std::wstring> &arglist);
+	bool add_ufn(bool global, const std::wstring &nm, const B1Types rt, const std::vector<B1Types> &arglist);
 	const B1_CMP_FN *get_fn(const std::wstring &name);
 	const B1_CMP_FN *get_fn(const B1_TYPED_VALUE &val);
 	const B1_CMP_FN *get_fn(const B1_CMP_ARG &arg);
@@ -88,7 +88,7 @@ private:
 	bool correct_rpn(B1_CMP_EXP_TYPE &res_type, B1_CMP_ARG &res, bool get_ref);
 	B1_T_ERROR process_expression(B1_CMP_EXP_TYPE &res_type, B1_CMP_ARG &res, bool get_ref = false);
 	
-	B1_T_ERROR eval_chr(const std::wstring &num_val, const std::wstring &type, std::wstring &res_str);
+	B1_T_ERROR eval_chr(const std::wstring &num_val, const B1Types type, std::wstring &res_str);
 	B1_T_ERROR concat_strings_rpn(std::wstring &res);
 
 	B1_T_ERROR st_option_set(const B1_T_CHAR *s, uint8_t value_type, bool onoff, int *value);
@@ -103,7 +103,7 @@ private:
 	B1_T_ERROR st_dim_get_size(bool allow_TO_stop_word, std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE> &res, bool first_run);
 	B1C_T_ERROR st_dim(bool first_run);
 	B1_T_ERROR st_erase();
-	B1_T_ERROR st_get_type_def(bool allow_addr, B1_TOKENDATA &td, B1_T_INDEX &len, uint8_t &type, bool *addr_present = nullptr, std::wstring *address = nullptr);
+	B1_T_ERROR st_get_type_def(bool allow_addr, B1_TOKENDATA &td, B1_T_INDEX &len, B1Types &type, bool *addr_present = nullptr, std::wstring *address = nullptr);
 	B1_T_ERROR st_def(bool first_run);
 
 	B1C_T_ERROR compile_simple_stmt(uint8_t stmt);
@@ -150,7 +150,7 @@ private:
 	B1C_T_ERROR inline_fns(bool &changed);
 	bool get_LA_LF(iterator s, iterator e, iterator &la, iterator &lf);
 	B1C_T_ERROR reuse_locals(bool &changed);
-	void correct_int_value(int32_t &n, const std::wstring &type);
+	void correct_int_value(int32_t &n, const B1Types type);
 	bool eval_imm_fn_arg(B1_CMP_ARG &a);
 	B1C_T_ERROR eval_imm_exps(bool &changed);
 	B1C_T_ERROR check_MA_stmts();
@@ -225,8 +225,8 @@ class B1Compiler
 	friend class B1FileCompiler;
 
 private:
-	//       gen. name                type          dim  volatile mem
-	std::map<std::wstring, std::tuple<std::wstring, int, bool, bool>> _global_vars;
+	//       gen. name                type     dim  volatile mem
+	std::map<std::wstring, std::tuple<B1Types, int, bool, bool>> _global_vars;
 
 	//       user name     gen. name
 	std::map<std::wstring, std::wstring> _global_var_names;
@@ -253,16 +253,16 @@ protected:
 	mutable std::string _curr_file_name;
 
 
-	B1C_T_ERROR put_global_var_name(const std::wstring &name, const std::wstring &type, int dims, bool volat, bool mem_var);
+	B1C_T_ERROR put_global_var_name(const std::wstring &name, const B1Types type, int dims, bool volat, bool mem_var);
 	bool global_var_check(bool global, bool mem_var, const std::wstring &name) const;
 	std::wstring get_global_var_name(const std::wstring &name) const;
 	bool is_global_mem_var_name(const std::wstring &name) const;
 	bool is_global_volatile_var(const std::wstring &name) const;
 	int get_global_var_dim(const std::wstring &name) const;
-	std::wstring get_global_var_type(const std::wstring &name) const;
+	B1Types get_global_var_type(const std::wstring &name) const;
 
 	bool global_fn_exists(const std::wstring &name);
-	bool add_global_ufn(const std::wstring &nm, const std::wstring &rt, const std::vector<std::wstring> &arglist, const std::wstring &in);
+	bool add_global_ufn(const std::wstring &nm, const B1Types rt, const std::vector<B1Types> &arglist, const std::wstring &in);
 	const B1_CMP_FN *get_global_ufn(const std::wstring &name);
 	const B1_CMP_FN *get_global_ufn(const B1_TYPED_VALUE &val);
 	const B1_CMP_FN *get_global_ufn(const B1_CMP_ARG &arg);

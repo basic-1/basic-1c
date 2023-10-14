@@ -146,10 +146,10 @@ private:
 	// _cmp_active is set to true by a comparison operator, LA, LF, JT and JF operators do not change the variable, other operators set it to false
 	bool _cmp_active;
 	std::wstring _cmp_op;
-	std::wstring _cmp_type;
+	B1Types _cmp_type;
 
 	bool _retval_active;
-	std::wstring _retval_type;
+	B1Types _retval_type;
 
 	// just created local string variables (no need to call __LIB_STR_RLS when assigning a value)
 	std::set<std::wstring> _clear_locals;
@@ -222,16 +222,16 @@ private:
 
 	C1STM8_T_ERROR calc_array_size(const B1_CMP_VAR &var, int32_t size1);
 	C1STM8_T_ERROR stm8_st_gf(const B1_CMP_VAR &var, bool is_ma);
-	C1STM8_T_ERROR stm8_load(const B1_TYPED_VALUE &tv, const std::wstring &req_type, LVT req_valtype, LVT *res_valtype = nullptr, std::wstring *res_val = nullptr);
+	C1STM8_T_ERROR stm8_load(const B1_TYPED_VALUE &tv, const B1Types req_type, LVT req_valtype, LVT *res_valtype = nullptr, std::wstring *res_val = nullptr);
 	C1STM8_T_ERROR stm8_arr_alloc_def(const B1_CMP_ARG &arg, const B1_CMP_VAR &var);
 	C1STM8_T_ERROR stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_offset, int32_t &offset);
-	C1STM8_T_ERROR stm8_load(const B1_CMP_ARG &arg, const std::wstring &req_type, LVT req_valtype, LVT *res_valtype = nullptr, std::wstring *res_val = nullptr);
+	C1STM8_T_ERROR stm8_load(const B1_CMP_ARG &arg, const B1Types req_type, LVT req_valtype, LVT *res_valtype = nullptr, std::wstring *res_val = nullptr);
 	C1STM8_T_ERROR stm8_init_array(const B1_CMP_CMD &cmd, const B1_CMP_VAR &var);
 	C1STM8_T_ERROR stm8_st_ga(const B1_CMP_CMD &cmd, const B1_CMP_VAR &var);
 	C1STM8_T_ERROR stm8_store(const B1_TYPED_VALUE &tv);
 	C1STM8_T_ERROR stm8_store(const B1_CMP_ARG &arg);
 	C1STM8_T_ERROR stm8_un_op(const B1_CMP_CMD &cmd);
-	C1STM8_T_ERROR stm8_arrange_types(const std::wstring &type_from, const std::wstring &type_to);
+	C1STM8_T_ERROR stm8_arrange_types(const B1Types type_from, const B1Types type_to);
 	C1STM8_T_ERROR stm8_add_op(const B1_CMP_CMD &cmd);
 	C1STM8_T_ERROR stm8_mul_op(const B1_CMP_CMD &cmd);
 	C1STM8_T_ERROR stm8_bit_op(const B1_CMP_CMD &cmd);
@@ -245,6 +245,7 @@ private:
 
 
 public:
+	C1STM8Compiler() = delete;
 	C1STM8Compiler(bool out_src_lines, bool opt_nocheck, int32_t ret_addr_size);
 	~C1STM8Compiler();
 

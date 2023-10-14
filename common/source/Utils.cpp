@@ -431,6 +431,68 @@ std::wstring Utils::get_type_name(B1Types type)
 	return std::wstring();
 }
 
+B1Types Utils::get_type_by_name(const std::wstring &type_name)
+{
+	auto type_name_uc = Utils::str_toupper(type_name);
+
+	if(type_name_uc == L"STRING")
+		return B1Types::B1T_STRING;
+	else
+	if(type_name_uc == L"INT")
+		return B1Types::B1T_INT;
+	else
+	if(type_name_uc == L"WORD")
+		return B1Types::B1T_WORD;
+	else
+	if(type_name_uc == L"BYTE")
+		return B1Types::B1T_BYTE;
+	else
+		return B1Types::B1T_UNKNOWN;
+}
+
+B1Types Utils::get_type_by_type_spec(const std::wstring &name, B1Types expl_type)
+{
+	B1Types type = B1Types::B1T_UNKNOWN;
+
+	switch(name.back())
+	{
+		case L'$':
+			type = B1Types::B1T_STRING;
+			break;
+		case L'%':
+			type = B1Types::B1T_INT;
+			break;
+	}
+
+	if(expl_type == B1Types::B1T_UNKNOWN)
+	{
+		if(type == B1Types::B1T_UNKNOWN)
+		{
+			// default type for variabe without type specificator
+			type = B1Types::B1T_INT;
+		}
+	}
+	else
+	{
+		if(type == B1Types::B1T_UNKNOWN)
+		{
+			if(expl_type == B1Types::B1T_STRING)
+			{
+				return B1Types::B1T_UNKNOWN;
+			}
+
+			type = expl_type;
+		}
+
+		if(type != expl_type)
+		{
+			return B1Types::B1T_UNKNOWN;
+		}
+	}
+
+	return type;
+}
+
 bool Utils::check_const_name(const std::wstring &const_name)
 {
 	auto cn = Utils::str_toupper(const_name);
@@ -453,7 +515,7 @@ bool Utils::check_const_name(const std::wstring &const_name)
 	return false;
 }
 
-std::wstring Utils::get_const_type(const std::wstring &const_name)
+B1Types Utils::get_const_type(const std::wstring &const_name)
 {
 	auto cn = Utils::str_toupper(const_name);
 	auto type = B1Types::B1T_UNKNOWN;
@@ -479,7 +541,7 @@ std::wstring Utils::get_const_type(const std::wstring &const_name)
 		}
 	}
 
-	return get_type_name(type);
+	return type;
 }
 
 
@@ -873,7 +935,7 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 		{
 			return B1_RES_ESYNTAX;
 		}
-		cmd.data_type = value;
+		cmd.data_type = Utils::get_type_by_name(value);
 
 		// predefined values only
 		if(!get_field(line, true, value))

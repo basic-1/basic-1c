@@ -70,9 +70,14 @@ public:
 	static std::wstring get_type_name(B1Types type);
 
 	[[nodiscard]]
+	static B1Types get_type_by_name(const std::wstring &type_name);
+	[[nodiscard]]
+	static B1Types get_type_by_type_spec(const std::wstring &name, B1Types expl_type);
+
+	[[nodiscard]]
 	static bool check_const_name(const std::wstring &const_name);
 	[[nodiscard]]
-	static std::wstring get_const_type(const std::wstring &const_name);
+	static B1Types get_const_type(const std::wstring &const_name);
 };
 
 
@@ -93,16 +98,16 @@ public:
 		std::wstring file_name;
 		int32_t mask;
 		bool accepts_data;
-		std::wstring data_type;
+		B1Types data_type;
 		bool predef_only;
 		std::map<std::wstring, std::wstring> values;
-
 
 		IoCmd()
 		: id(-1)
 		, call_type(IoCmdCallType::CT_CALL)
 		, mask(0)
 		, accepts_data(false)
+		, data_type(B1Types::B1T_UNKNOWN)
 		, predef_only(true)
 		{
 		}
@@ -113,7 +118,7 @@ public:
 			call_type = IoCmdCallType::CT_CALL;
 			mask = 0;
 			accepts_data = false;
-			data_type.clear();
+			data_type = B1Types::B1T_UNKNOWN;
 			predef_only = true;
 			values.clear();
 		}

@@ -199,18 +199,23 @@ B1_T_ERROR B1CUtils::get_string_data(const std::wstring &str, std::wstring &data
 	return B1_RES_OK;
 }
 
-B1_T_ERROR B1CUtils::get_type_name(uint8_t type, std::wstring &tname)
+B1Types B1CUtils::get_type(uint8_t b1_type)
 {
-	for(auto i = 0; i < B1_TYPE_COUNT; i++)
+	switch(b1_type)
 	{
-		if(b1_t_types[i] == type)
-		{
-			tname = b1str_to_cstr(b1_t_type_names[i]);
-			return B1_RES_OK;
-		}
+		case B1_TYPE_BYTE:
+			return B1Types::B1T_BYTE;
+		case B1_TYPE_INT:
+			return B1Types::B1T_INT;
+		case B1_TYPE_WORD:
+			return B1Types::B1T_WORD;
+		//case B1_TYPE_LONG:
+		//	return B1Types::B1T_LONG;
+		case B1_TYPE_STRING:
+			return B1Types::B1T_STRING;
 	}
 
-	return B1_RES_ETYPMISM;
+	return B1Types::B1T_UNKNOWN;
 }
 
 bool B1CUtils::is_num_val(const std::wstring &val)
@@ -228,7 +233,7 @@ bool B1CUtils::is_imm_val(const std::wstring &val)
 	return is_num_val(val) || is_str_val(val);
 }
 
-B1_T_ERROR B1CUtils::get_num_min_type(const std::wstring &val, std::wstring &type, std::wstring &mod_val)
+B1_T_ERROR B1CUtils::get_num_min_type(const std::wstring &val, B1Types &type, std::wstring &mod_val)
 {
 	long long ival;
 	std::size_t pos = 0;
@@ -247,7 +252,7 @@ B1_T_ERROR B1CUtils::get_num_min_type(const std::wstring &val, std::wstring &typ
 		return B1_RES_EINVNUM;
 	}
 
-	type = L"INT";
+	type = B1Types::B1T_INT;
 	mod_val = val;
 
 	// the only numeric data type specifier character at the moment
@@ -259,61 +264,61 @@ B1_T_ERROR B1CUtils::get_num_min_type(const std::wstring &val, std::wstring &typ
 
 	if(ival >= 0 && ival <= 255)
 	{
-		type = L"BYTE";
+		type = B1Types::B1T_BYTE;
 	}
 	else
 	if(ival >= -32768 && ival <= 32767)
 	{
-		type = L"INT";
+		type = B1Types::B1T_INT;
 	}
 	else
 	if(ival >= 0 && ival <= 65535)
 	{
-		type = L"WORD";
+		type = B1Types::B1T_WORD;
 	}
 
 	return B1_RES_OK;
 }
 
 // comp_num_types - compatible numeric types (the same size, no need to convert)
-B1_T_ERROR B1CUtils::get_com_type(const std::wstring &type0, const std::wstring &type1, std::wstring &com_type, bool &comp_num_types)
+B1_T_ERROR B1CUtils::get_com_type(const B1Types type0, const B1Types type1, B1Types &com_type, bool &comp_num_types)
 {
 	comp_num_types = false;
 
-	if(type0.empty() || type1.empty())
+	if(type0 == B1Types::B1T_UNKNOWN || type1 == B1Types::B1T_UNKNOWN || type0 == B1Types::B1T_INVALID || type1 == B1Types::B1T_INVALID)
 	{
 		return B1_RES_ETYPMISM;
 	}
 
-	if(type0 == L"STRING" || type1 == L"STRING")
+	if(type0 == B1Types::B1T_STRING || type1 == B1Types::B1T_STRING)
 	{
-		com_type = L"STRING";
+		com_type = B1Types::B1T_STRING;
 	}
 	else
-	if(type0 == L"INT" || type1 == L"INT")
+	if(type0 == B1Types::B1T_INT || type1 == B1Types::B1T_INT)
 	{
-		comp_num_types = (type0 != L"BYTE" && type1 != L"BYTE");
-		com_type = L"INT";
+		comp_num_types = (type0 != B1Types::B1T_BYTE && type1 != B1Types::B1T_BYTE);
+		com_type = B1Types::B1T_INT;
 	}
 	else
-	if(type0 == L"WORD" || type1 == L"WORD")
+	if(type0 == B1Types::B1T_WORD || type1 == B1Types::B1T_WORD)
 	{
-		comp_num_types = (type0 != L"BYTE" && type1 != L"BYTE");
-		com_type = L"WORD";
+		comp_num_types = (type0 != B1Types::B1T_BYTE && type1 != B1Types::B1T_BYTE);
+		com_type = B1Types::B1T_WORD;
 	}
 	else
 	{
 		comp_num_types = true;
-		com_type = L"BYTE";
+		com_type = B1Types::B1T_BYTE;
 	}
 
 	return B1_RES_OK;
 }
 
 // checks if a value of src type can be assigned to a variable of dst type
-bool B1CUtils::are_types_compatible(const std::wstring &src_type, const std::wstring &dst_type)
+bool B1CUtils::are_types_compatible(const B1Types src_type, const B1Types dst_type)
 {
-	return (dst_type == L"STRING") || (src_type != L"STRING");
+	return (dst_type == B1Types::B1T_STRING) || (src_type != B1Types::B1T_STRING);
 }
 
 bool B1CUtils::is_label(const B1_CMP_CMD &cmd)
@@ -1598,9 +1603,10 @@ std::wstring B1CUtils::get_dst_var_name(const B1_CMP_CMD &cmd)
 }
 
 // checks local variable types compatibility, returns true if a local of base_type can be used instead of a local of reuse_type
-bool B1CUtils::local_compat_types(const std::wstring &base_type, const std::wstring &reuse_type)
+bool B1CUtils::local_compat_types(const B1Types base_type, const B1Types reuse_type)
 {
-	if((base_type == reuse_type) || (base_type == L"INT" && reuse_type == L"WORD") || (base_type == L"WORD" && reuse_type == L"INT") || (base_type != L"STRING" && reuse_type == L"BYTE"))
+	if(	(base_type == reuse_type) || (base_type == B1Types::B1T_INT && reuse_type == B1Types::B1T_WORD) ||
+		(base_type == B1Types::B1T_WORD && reuse_type == B1Types::B1T_INT) || (base_type != B1Types::B1T_STRING && reuse_type == B1Types::B1T_BYTE))
 	{
 		return true;
 	}
@@ -1677,7 +1683,7 @@ bool B1CUtils::is_bin_op(const B1_CMP_CMD &cmd)
 	return is_bin_op(cmd.cmd);
 }
 
-bool B1CUtils::get_asm_type(const std::wstring &type, std::wstring *asmtype /*= nullptr*/, int32_t *size /*= nullptr*/, int32_t *rep /*= nullptr*/, int32_t dimnum /*= 0*/)
+bool B1CUtils::get_asm_type(const B1Types type, std::wstring *asmtype /*= nullptr*/, int32_t *size /*= nullptr*/, int32_t *rep /*= nullptr*/, int32_t dimnum /*= 0*/)
 {
 	int32_t s, r;
 	std::wstring at;
@@ -1689,7 +1695,7 @@ bool B1CUtils::get_asm_type(const std::wstring &type, std::wstring *asmtype /*= 
 	else
 	if(dimnum == 0)
 	{
-		if(type == L"STRING")
+		if(type == B1Types::B1T_STRING)
 		{
 			// string is represented as 2-byte pointer
 			s = 2;
@@ -1697,21 +1703,21 @@ bool B1CUtils::get_asm_type(const std::wstring &type, std::wstring *asmtype /*= 
 			r = 1;
 		}
 		else
-		if(type == L"INT")
+		if(type == B1Types::B1T_INT)
 		{
 			s = 2;
 			at = L"DW";
 			r = 1;
 		}
 		else
-		if(type == L"WORD")
+		if(type == B1Types::B1T_WORD)
 		{
 			s = 2;
 			at = L"DW";
 			r = 1;
 		}
 		else
-		if(type == L"BYTE")
+		if(type == B1Types::B1T_BYTE)
 		{
 			s = 1;
 			at = L"DB";
@@ -1775,10 +1781,11 @@ bool B1CUtils::is_num_min_max(const std::wstring &val)
 
 
 B1_TYPED_VALUE::B1_TYPED_VALUE()
+: type(B1Types::B1T_UNKNOWN)
 {
 }
 
-B1_TYPED_VALUE::B1_TYPED_VALUE(const std::wstring &val, const std::wstring &tp /*= std::wstring()*/)
+B1_TYPED_VALUE::B1_TYPED_VALUE(const std::wstring &val, const B1Types tp /*= B1Types::B1T_UNKNOWN*/)
 {
 	value = val;
 	type = tp;
@@ -1791,7 +1798,7 @@ bool B1_TYPED_VALUE::operator!=(const B1_TYPED_VALUE &tv) const
 
 void B1_TYPED_VALUE::clear()
 {
-	type.clear();
+	type = B1Types::B1T_UNKNOWN;
 	value.clear();
 }
 
@@ -1800,7 +1807,7 @@ B1_CMP_ARG::B1_CMP_ARG()
 {
 }
 
-B1_CMP_ARG::B1_CMP_ARG(const std::wstring &val, const std::wstring &tp /*= std::wstring()*/)
+B1_CMP_ARG::B1_CMP_ARG(const std::wstring &val, const B1Types tp /*= B1Types::B1T_UNKNOWN*/)
 {
 	push_back(B1_TYPED_VALUE(val, tp));
 }
@@ -1915,25 +1922,22 @@ std::wstring B1_CMP_CMDS::emit_label(bool gen_name_only /*= false*/)
 	return emit_label(cend(), gen_name_only);
 }
 
-std::wstring B1_CMP_CMDS::emit_local(const std::wstring &type, const_iterator pos)
+std::wstring B1_CMP_CMDS::emit_local(const B1Types type, const_iterator pos)
 {
 	std::wstring name = get_name_space_prefix() + L"__LCL_" + std::to_wstring(_next_local++);
 	B1_CMP_CMD cmd(_curr_line_num, _curr_line_cnt, _curr_src_file_id, _curr_src_line_id);
 
 	cmd.type = B1_CMD_TYPE::B1_CMD_TYPE_COMMAND;
 	cmd.cmd = L"LA";
-	cmd.args.push_back(B1_CMP_ARG(name, L""));
-	if(!type.empty())
-	{
-		cmd.args.push_back(B1_CMP_ARG(type, L""));
-	}
+	cmd.args.push_back(name);
+	cmd.args.push_back(B1_CMP_ARG(Utils::get_type_name(type), type));
 
 	insert(pos, cmd);
 
 	return name;
 }
 
-std::wstring B1_CMP_CMDS::emit_local(const std::wstring &type)
+std::wstring B1_CMP_CMDS::emit_local(const B1Types type)
 {
 	return emit_local(type, cend());
 }
@@ -2037,7 +2041,7 @@ B1_CMP_CMDS::iterator B1_CMP_CMDS::emit_inline_asm(void)
 }
 
 
-B1_CMP_FN_ARG::B1_CMP_FN_ARG(const std::wstring &tp, bool opt /*= false*/, const std::wstring &dv /*= std::wstring()*/)
+B1_CMP_FN_ARG::B1_CMP_FN_ARG(const B1Types tp, bool opt /*= false*/, const std::wstring &dv /*= std::wstring()*/)
 {
 	type = tp;
 	optional = opt;
@@ -2045,7 +2049,7 @@ B1_CMP_FN_ARG::B1_CMP_FN_ARG(const std::wstring &tp, bool opt /*= false*/, const
 }
 
 
-B1_CMP_FN::B1_CMP_FN(const std::wstring &nm, const std::wstring &rt, const std::initializer_list<B1_CMP_FN_ARG> &arglist, const std::wstring &in, bool stdfn /*= true*/)
+B1_CMP_FN::B1_CMP_FN(const std::wstring &nm, const B1Types rt, const std::initializer_list<B1_CMP_FN_ARG> &arglist, const std::wstring &in, bool stdfn /*= true*/)
 {
 	name = nm;
 	rettype = rt;
@@ -2054,7 +2058,7 @@ B1_CMP_FN::B1_CMP_FN(const std::wstring &nm, const std::wstring &rt, const std::
 	isstdfn = stdfn;
 }
 
-B1_CMP_FN::B1_CMP_FN(const std::wstring &nm, const std::wstring &rt, const std::initializer_list<std::wstring> &arglist, const std::wstring &in, bool stdfn /*= true*/)
+B1_CMP_FN::B1_CMP_FN(const std::wstring &nm, const B1Types rt, const std::initializer_list<B1Types> &arglist, const std::wstring &in, bool stdfn /*= true*/)
 {
 	name = nm;
 	rettype = rt;
@@ -2063,7 +2067,7 @@ B1_CMP_FN::B1_CMP_FN(const std::wstring &nm, const std::wstring &rt, const std::
 	isstdfn = stdfn;
 }
 
-B1_CMP_FN::B1_CMP_FN(const std::wstring &nm, const std::wstring &rt, const std::vector<std::wstring> &arglist, const std::wstring &in, bool stdfn /*= true*/)
+B1_CMP_FN::B1_CMP_FN(const std::wstring &nm, const B1Types rt, const std::vector<B1Types> &arglist, const std::wstring &in, bool stdfn /*= true*/)
 {
 	name = nm;
 	rettype = rt;
@@ -2072,7 +2076,7 @@ B1_CMP_FN::B1_CMP_FN(const std::wstring &nm, const std::wstring &rt, const std::
 	isstdfn = stdfn;
 }
 
-B1_CMP_FN::B1_CMP_FN(const std::wstring &nm, const std::wstring &rt, const std::vector<B1_CMP_FN_ARG> &arglist, const std::wstring &in, bool stdfn /*= true*/)
+B1_CMP_FN::B1_CMP_FN(const std::wstring &nm, const B1Types rt, const std::vector<B1_CMP_FN_ARG> &arglist, const std::wstring &in, bool stdfn /*= true*/)
 {
 	name = nm;
 	rettype = rt;
@@ -2085,38 +2089,38 @@ B1_CMP_FN::B1_CMP_FN(const std::wstring &nm, const std::wstring &rt, const std::
 const B1_CMP_FN B1_CMP_FNS::_fns[] =
 {
 //            name,         ret. type   arg. types(def. values) fn. name in std. library
-	B1_CMP_FN(L"LEN",		L"BYTE",	{ L"STRING" },			L"__LIB_STR_LEN"),
-	B1_CMP_FN(L"ASC",		L"BYTE",	{ L"STRING" },			L"__LIB_STR_ASC"),
-	B1_CMP_FN(L"CHR$",		L"STRING",	{ L"BYTE" },			L"__LIB_STR_CHR"),
-	B1_CMP_FN(L"STR$",		L"STRING",	{ L"INT" },				L"__LIB_STR_STR_I"),
-	B1_CMP_FN(L"STR$",		L"STRING",	{ L"WORD" },			L"__LIB_STR_STR_W"),
-	B1_CMP_FN(L"VAL",		L"INT",		{ L"STRING" },			L"__LIB_STR_VAL"),
-	B1_CMP_FN(L"MID$",		L"STRING",	{ B1_CMP_FN_ARG(L"STRING"), B1_CMP_FN_ARG(L"BYTE"), B1_CMP_FN_ARG(L"BYTE", true, std::to_wstring(B1C_T_CONST::B1C_MAX_STR_LEN)) }, L"__LIB_STR_MID"),
-	B1_CMP_FN(L"INSTR",		L"BYTE",	{ B1_CMP_FN_ARG(L"BYTE", true, L"1"), B1_CMP_FN_ARG(L"STRING"), B1_CMP_FN_ARG(L"STRING") }, L"__LIB_STR_INS"),
-	B1_CMP_FN(L"LTRIM$",	L"STRING",	{ L"STRING" },			L"__LIB_STR_LTRIM"),
-	B1_CMP_FN(L"RTRIM$",	L"STRING",	{ L"STRING" },			L"__LIB_STR_RTRIM"),
-	B1_CMP_FN(L"LEFT$",		L"STRING",	{ L"STRING", L"BYTE" },	L"__LIB_STR_LEFT"),
-	B1_CMP_FN(L"RIGHT$",	L"STRING",	{ L"STRING", L"BYTE" },	L"__LIB_STR_RIGHT"),
-	B1_CMP_FN(L"LSET$",		L"STRING",	{ L"STRING", L"BYTE" },	L"__LIB_STR_LSET"),
-	B1_CMP_FN(L"RSET$",		L"STRING",	{ L"STRING", L"BYTE" },	L"__LIB_STR_RSET"),
-	B1_CMP_FN(L"UCASE$",	L"STRING",	{ L"STRING" },			L"__LIB_STR_UCASE"),
-	B1_CMP_FN(L"LCASE$",	L"STRING",	{ L"STRING" },			L"__LIB_STR_LCASE"),
-	B1_CMP_FN(L"SET$",		L"STRING",	{ L"STRING", L"BYTE" },	L"__LIB_STR_SET"),
+	B1_CMP_FN(L"LEN",		B1Types::B1T_BYTE,		{ B1Types::B1T_STRING },			L"__LIB_STR_LEN"),
+	B1_CMP_FN(L"ASC",		B1Types::B1T_BYTE,		{ B1Types::B1T_STRING },			L"__LIB_STR_ASC"),
+	B1_CMP_FN(L"CHR$",		B1Types::B1T_STRING,	{ B1Types::B1T_BYTE },				L"__LIB_STR_CHR"),
+	B1_CMP_FN(L"STR$",		B1Types::B1T_STRING,	{ B1Types::B1T_INT },				L"__LIB_STR_STR_I"),
+	B1_CMP_FN(L"STR$",		B1Types::B1T_STRING,	{ B1Types::B1T_WORD },				L"__LIB_STR_STR_W"),
+	B1_CMP_FN(L"VAL",		B1Types::B1T_INT,		{ B1Types::B1T_STRING },			L"__LIB_STR_VAL"),
+	B1_CMP_FN(L"MID$",		B1Types::B1T_STRING,	{ B1_CMP_FN_ARG(B1Types::B1T_STRING), B1_CMP_FN_ARG(B1Types::B1T_BYTE), B1_CMP_FN_ARG(B1Types::B1T_BYTE, true, std::to_wstring(B1C_T_CONST::B1C_MAX_STR_LEN)) }, L"__LIB_STR_MID"),
+	B1_CMP_FN(L"INSTR",		B1Types::B1T_BYTE,		{ B1_CMP_FN_ARG(B1Types::B1T_BYTE, true, L"1"), B1_CMP_FN_ARG(B1Types::B1T_STRING), B1_CMP_FN_ARG(B1Types::B1T_STRING) }, L"__LIB_STR_INS"),
+	B1_CMP_FN(L"LTRIM$",	B1Types::B1T_STRING,	{ B1Types::B1T_STRING },			L"__LIB_STR_LTRIM"),
+	B1_CMP_FN(L"RTRIM$",	B1Types::B1T_STRING,	{ B1Types::B1T_STRING },			L"__LIB_STR_RTRIM"),
+	B1_CMP_FN(L"LEFT$",		B1Types::B1T_STRING,	{ B1Types::B1T_STRING, B1Types::B1T_BYTE },	L"__LIB_STR_LEFT"),
+	B1_CMP_FN(L"RIGHT$",	B1Types::B1T_STRING,	{ B1Types::B1T_STRING, B1Types::B1T_BYTE },	L"__LIB_STR_RIGHT"),
+	B1_CMP_FN(L"LSET$",		B1Types::B1T_STRING,	{ B1Types::B1T_STRING, B1Types::B1T_BYTE },	L"__LIB_STR_LSET"),
+	B1_CMP_FN(L"RSET$",		B1Types::B1T_STRING,	{ B1Types::B1T_STRING, B1Types::B1T_BYTE },	L"__LIB_STR_RSET"),
+	B1_CMP_FN(L"UCASE$",	B1Types::B1T_STRING,	{ B1Types::B1T_STRING },			L"__LIB_STR_UCASE"),
+	B1_CMP_FN(L"LCASE$",	B1Types::B1T_STRING,	{ B1Types::B1T_STRING },			L"__LIB_STR_LCASE"),
+	B1_CMP_FN(L"SET$",		B1Types::B1T_STRING,	{ B1Types::B1T_STRING, B1Types::B1T_BYTE },	L"__LIB_STR_SET"),
 
-	B1_CMP_FN(L"ABS",		L"INT",		{ L"INT" },				L""),
-	B1_CMP_FN(L"ABS",		L"WORD",	{ L"WORD" },			L""),
-	B1_CMP_FN(L"ABS",		L"BYTE",	{ L"BYTE" },			L""),
-	B1_CMP_FN(L"SGN",		L"INT",		{ L"INT" },				L""),
-	B1_CMP_FN(L"SGN",		L"BYTE",	{ L"WORD" },			L""),
-	B1_CMP_FN(L"SGN",		L"BYTE",	{ L"BYTE" },			L""),
-	B1_CMP_FN(L"STR$",		L"STRING",	{ L"STRING" },			L""),
+	B1_CMP_FN(L"ABS",		B1Types::B1T_INT,		{ B1Types::B1T_INT },				L""),
+	B1_CMP_FN(L"ABS",		B1Types::B1T_WORD,		{ B1Types::B1T_WORD },				L""),
+	B1_CMP_FN(L"ABS",		B1Types::B1T_BYTE,		{ B1Types::B1T_BYTE },				L""),
+	B1_CMP_FN(L"SGN",		B1Types::B1T_INT,		{ B1Types::B1T_INT },				L""),
+	B1_CMP_FN(L"SGN",		B1Types::B1T_BYTE,		{ B1Types::B1T_WORD },				L""),
+	B1_CMP_FN(L"SGN",		B1Types::B1T_BYTE,		{ B1Types::B1T_BYTE },				L""),
+	B1_CMP_FN(L"STR$",		B1Types::B1T_STRING,	{ B1Types::B1T_STRING },			L""),
 
-	B1_CMP_FN(L"TAB",		L"STRING",	{ L"BYTE" },			L""),
-	B1_CMP_FN(L"SPC",		L"STRING",	{ L"BYTE" },			L""),
-	B1_CMP_FN(L"NL",		L"STRING",	std::initializer_list<std::wstring>(),	L""),
+	B1_CMP_FN(L"TAB",		B1Types::B1T_STRING,	{ B1Types::B1T_BYTE },				L""),
+	B1_CMP_FN(L"SPC",		B1Types::B1T_STRING,	{ B1Types::B1T_BYTE },				L""),
+	B1_CMP_FN(L"NL",		B1Types::B1T_STRING,	std::initializer_list<B1Types>(),	L""),
 
 	// the last empty record, used to get records number
-	B1_CMP_FN(L"",			L"",		std::initializer_list<std::wstring>(),	L"")
+	B1_CMP_FN(L"",			B1Types::B1T_UNKNOWN,	std::initializer_list<B1Types>(),	L"")
 };
 
 
@@ -2250,7 +2254,8 @@ std::wstring B1_CMP_FNS::get_fn_int_name(const std::wstring &name)
 
 
 B1_CMP_VAR::B1_CMP_VAR()
-: dim_num(-1)
+: type(B1Types::B1T_UNKNOWN)
+, dim_num(-1)
 , size(0)
 , address(0)
 , use_symbol(false)
@@ -2261,7 +2266,7 @@ B1_CMP_VAR::B1_CMP_VAR()
 {
 }
 
-B1_CMP_VAR::B1_CMP_VAR(const std::wstring &nm, const std::wstring &tp, int32_t dn, bool vlt, int32_t sfid, int32_t slc)
+B1_CMP_VAR::B1_CMP_VAR(const std::wstring &nm, const B1Types tp, int32_t dn, bool vlt, int32_t sfid, int32_t slc)
 : B1_CMP_VAR()
 {
 	name = nm;

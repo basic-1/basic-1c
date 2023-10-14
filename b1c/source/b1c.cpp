@@ -42,7 +42,7 @@ static const B1_T_CHAR _NOCHECK[] = { 7, 'N', 'O', 'C', 'H', 'E', 'C', 'K' };
 Settings _global_settings = { 0x0, 0x0800, 0x8000, 0x4000, 0x100, 0x0 };
 
 
-B1C_T_ERROR B1FileCompiler::put_var_name(const std::wstring &name, const std::wstring &type, int dims, bool global, bool volat, bool mem_var)
+B1C_T_ERROR B1FileCompiler::put_var_name(const std::wstring &name, const B1Types type, int dims, bool global, bool volat, bool mem_var)
 {
 	// checks for global variables
 	if(!_compiler.global_var_check(global, mem_var, name))
@@ -168,7 +168,7 @@ int B1FileCompiler::get_var_dim(const std::wstring &name) const
 	return _compiler.get_global_var_dim(name);
 }
 
-std::wstring B1FileCompiler::get_var_type(const std::wstring &name) const
+B1Types B1FileCompiler::get_var_type(const std::wstring &name) const
 {
 	auto var = _vars.find(name);
 
@@ -199,7 +199,7 @@ bool B1FileCompiler::fn_exists(const std::wstring &name)
 	return _compiler.global_fn_exists(name);
 }
 
-bool B1FileCompiler::add_ufn(bool global, const std::wstring &nm, const std::wstring &rt, const std::vector<std::wstring> &arglist)
+bool B1FileCompiler::add_ufn(bool global, const std::wstring &nm, const B1Types rt, const std::vector<B1Types> &arglist)
 {
 	if(fn_exists(nm))
 	{
@@ -441,7 +441,7 @@ B1_T_ERROR B1FileCompiler::process_expression(B1_CMP_EXP_TYPE &res_type, B1_CMP_
 					std::vector<std::wstring>({
 						emit_label(true),
 						emit_label(true),
-						emit_local(L"")
+						emit_local(B1Types::B1T_UNKNOWN)
 						})
 				);
 
@@ -647,7 +647,7 @@ B1_T_ERROR B1FileCompiler::process_expression(B1_CMP_EXP_TYPE &res_type, B1_CMP_
 
 				if(!log_op)
 				{
-					local = emit_local(L"");
+					local = emit_local(B1Types::B1T_UNKNOWN);
 				}
 
 				std::vector<std::wstring> locals;
@@ -667,7 +667,7 @@ B1_T_ERROR B1FileCompiler::process_expression(B1_CMP_EXP_TYPE &res_type, B1_CMP_
 					}
 					else
 					{
-						args.back().push_back(B1_TYPED_VALUE(v, std::wstring()));
+						args.back().push_back(B1_TYPED_VALUE(v));
 					}
 				}
 
@@ -799,7 +799,7 @@ B1_T_ERROR B1FileCompiler::process_expression(B1_CMP_EXP_TYPE &res_type, B1_CMP_
 	return B1_RES_OK;
 }
 
-B1_T_ERROR B1FileCompiler::eval_chr(const std::wstring &num_val, const std::wstring &type, std::wstring &res_str)
+B1_T_ERROR B1FileCompiler::eval_chr(const std::wstring &num_val, const B1Types type, std::wstring &res_str)
 {
 	int32_t n;
 
@@ -933,7 +933,7 @@ B1_T_ERROR B1FileCompiler::concat_strings_rpn(std::wstring &res)
 				auto op1 = std::prev(op);
 				
 				op->clear();
-				auto err = eval_chr(*op1, L"INT", *op);
+				auto err = eval_chr(*op1, B1Types::B1T_INT, *op);
 				if(err != B1_RES_OK)
 				{
 					return err;
@@ -1364,13 +1364,13 @@ B1C_T_ERROR B1FileCompiler::st_ioctl()
 				return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
 			}
 
-			emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", L"STRING"), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", L"STRING"), B1_TYPED_VALUE(L"\"" + data + L"\"", L"STRING") }));
+			emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + data + L"\"", B1Types::B1T_STRING) }));
 		}
 		else
 		{
-			if(cmd.data_type == L"STRING" && concat_strings_rpn(data) == B1_RES_OK)
+			if(cmd.data_type == B1Types::B1T_STRING && concat_strings_rpn(data) == B1_RES_OK)
 			{
-				emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", L"STRING"), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", L"STRING"), B1_TYPED_VALUE(data, L"STRING") }));
+				emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(data, B1Types::B1T_STRING) }));
 			}
 			else
 			{
@@ -1388,7 +1388,7 @@ B1C_T_ERROR B1FileCompiler::st_ioctl()
 					return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
 				}
 
-				emit_command(L"IOCTL", std::vector<B1_CMP_ARG>({ B1_CMP_ARG(L"\"" + dev_name + L"\"", L"STRING"), B1_CMP_ARG(L"\"" + cmd_name + L"\"", L"STRING"), res }));
+				emit_command(L"IOCTL", std::vector<B1_CMP_ARG>({ B1_CMP_ARG(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_CMP_ARG(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), res }));
 
 				if(exp_type == B1_CMP_EXP_TYPE::B1_CMP_ET_LOCAL)
 				{
@@ -1399,7 +1399,7 @@ B1C_T_ERROR B1FileCompiler::st_ioctl()
 	}
 	else
 	{
-		emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", L"STRING"), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", L"STRING") }));
+		emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING) }));
 	}
 
 	return B1C_T_ERROR::B1C_RES_OK;
@@ -1602,8 +1602,8 @@ B1_T_ERROR B1FileCompiler::st_dim_get_size(bool allow_TO_stop_word, std::pair<B1
 B1C_T_ERROR B1FileCompiler::st_dim(bool first_run)
 {
 	B1_T_ERROR err;
-	B1_T_CHAR c, ts_char;
-	uint8_t type, dimsnum;
+	B1_T_CHAR c;
+	uint8_t dimsnum;
 	bool stop;
 	B1_TOKENDATA td;
 	B1_T_INDEX len;
@@ -1668,8 +1668,6 @@ B1C_T_ERROR B1FileCompiler::st_dim(bool first_run)
 		}
 
 		b1_curr_prog_line_offset += len;
-		type = B1_TYPE_NULL;
-		ts_char = b1_progline[b1_curr_prog_line_offset - 1];
 
 		dimsnum = 0;
 
@@ -1765,6 +1763,8 @@ B1C_T_ERROR B1FileCompiler::st_dim(bool first_run)
 			len = td.length;
 		}
 
+		B1Types type = B1Types::B1T_UNKNOWN;
+
 		if(len == 0)
 		{
 			stop = true;
@@ -1801,29 +1801,16 @@ B1C_T_ERROR B1FileCompiler::st_dim(bool first_run)
 			}
 		}
 
-		err = b1_t_get_type_by_type_spec(ts_char, type, &type);
-		if(err != B1_RES_OK)
+		type = Utils::get_type_by_type_spec(name, type);
+		if(type == B1Types::B1T_UNKNOWN)
 		{
-			return static_cast<B1C_T_ERROR>(err);
-		}
-
-		std::wstring type_name;
-		
-		err = B1CUtils::get_type_name(type, type_name);
-		if(err != B1_RES_OK)
-		{
-			return static_cast<B1C_T_ERROR>(err);
-		}
-
-		if(type_name.empty())
-		{
-			return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+			return static_cast<B1C_T_ERROR>(B1_RES_ETYPMISM);
 		}
 
 		if(first_run)
 		{
 			// do not produce code during the first run
-			auto err1 = put_var_name(name, type_name, dimsnum, global, volat, at);
+			auto err1 = put_var_name(name, type, dimsnum, global, volat, at);
 			if(err1 != B1C_T_ERROR::B1C_RES_OK)
 			{
 				return err1;
@@ -1836,19 +1823,18 @@ B1C_T_ERROR B1FileCompiler::st_dim(bool first_run)
 
 			// name
 			args.push_back(get_var_name(name, expl));
+			
 			// type
-			args.push_back(B1_CMP_ARG(L""));
+			args.push_back(B1_CMP_ARG(Utils::get_type_name(type), type));
+			if(volat)
+			{
+				args[1].push_back(B1_TYPED_VALUE(L"V"));
+			}
+
 			// address
 			if(at)
 			{
 				args.push_back(address);
-			}
-
-			args[1][0].value = type_name;
-
-			if(volat)
-			{
-				args[1].push_back(B1_TYPED_VALUE(L"V"));
 			}
 
 			for(const auto &s: subs)
@@ -1963,13 +1949,13 @@ B1_T_ERROR B1FileCompiler::st_erase()
 }
 
 // get optional "AS <type_name>" clause
-B1_T_ERROR B1FileCompiler::st_get_type_def(bool allow_addr, B1_TOKENDATA &td, B1_T_INDEX &len, uint8_t &type, bool *addr_present /*= nullptr*/, std::wstring *address /*= nullptr*/)
+B1_T_ERROR B1FileCompiler::st_get_type_def(bool allow_addr, B1_TOKENDATA &td, B1_T_INDEX &len, B1Types &type, bool *addr_present /*= nullptr*/, std::wstring *address /*= nullptr*/)
 {
 	B1_T_ERROR err;
 	bool read_type;
 
 	read_type = true;
-	type = B1_TYPE_NULL;
+	type = B1Types::B1T_UNKNOWN;
 
 	if(allow_addr)
 	{
@@ -1991,10 +1977,10 @@ B1_T_ERROR B1FileCompiler::st_get_type_def(bool allow_addr, B1_TOKENDATA &td, B1
 			b1_curr_prog_line_offset = td.offset;
 			len = td.length;
 
-			err = b1_t_get_type_by_name(b1_progline + b1_curr_prog_line_offset, len, &type);
-			if(err != B1_RES_OK)
+			type = Utils::get_type_by_name(B1CUtils::get_progline_substring(b1_curr_prog_line_offset, b1_curr_prog_line_offset + len));
+			if(type == B1Types::B1T_UNKNOWN)
 			{
-				return err;
+				return B1_RES_ESYNTAX;
 			}
 
 			b1_curr_prog_line_offset += len;
@@ -2071,9 +2057,11 @@ B1_T_ERROR B1FileCompiler::st_def(bool first_run)
 	B1_TOKENDATA td;
 	B1_T_INDEX i, len;
 	B1_T_CHAR c;
-	std::wstring name, fn_type_name;
-	std::vector<std::wstring> args, arg_types;
-	uint8_t tflags, type;
+	std::wstring name;
+	B1Types fn_type;
+	std::vector<std::wstring> args;
+	std::vector<B1Types> arg_types;
+	uint8_t tflags;
 	std::vector<B1_RPNREC> defrpn;
 	const B1_RPNREC *prev_rpn;
 	bool global;
@@ -2183,23 +2171,18 @@ B1_T_ERROR B1FileCompiler::st_def(bool first_run)
 			len = td.length;
 
 			// get optional "AS <type_name>" clause
+			B1Types type = B1Types::B1T_UNKNOWN;
 			err = st_get_type_def(false, td, len, type);
 			if(err != B1_RES_OK)
 			{
 				return err;
 			}
 
-			err = b1_t_get_type_by_type_spec((B1_T_CHAR)arg.back(), type, &type);
-			if(err != B1_RES_OK)
+			type = Utils::get_type_by_type_spec(arg, type);
+			arg_types.push_back(type);
+			if(arg_types.back() == B1Types::B1T_UNKNOWN)
 			{
-				return err;
-			}
-
-			arg_types.push_back(L"");
-			err = B1CUtils::get_type_name(type, arg_types.back());
-			if(err != B1_RES_OK)
-			{
-				return err;
+				return B1_RES_ETYPMISM;
 			}
 
 			if(len != 1 || !(td.type & B1_TOKEN_TYPE_OPERATION))
@@ -2231,7 +2214,8 @@ B1_T_ERROR B1FileCompiler::st_def(bool first_run)
 		len = td.length;
 	}
 
-	err = st_get_type_def(false, td, len, type);
+	fn_type = B1Types::B1T_UNKNOWN;
+	err = st_get_type_def(false, td, len, fn_type);
 	if(err != B1_RES_OK)
 	{
 		return err;
@@ -2245,20 +2229,15 @@ B1_T_ERROR B1FileCompiler::st_def(bool first_run)
 	b1_curr_prog_line_offset += len;
 
 	// get function type
-	err = b1_t_get_type_by_type_spec((B1_T_CHAR)name.back(), type, &type);
-	if(err != B1_RES_OK)
+	fn_type = Utils::get_type_by_type_spec(name, fn_type);
+	if(fn_type == B1Types::B1T_UNKNOWN)
 	{
-		return err;
-	}
-	err = B1CUtils::get_type_name(type, fn_type_name);
-	if(err != B1_RES_OK)
-	{
-		return err;
+		return B1_RES_ETYPMISM;
 	}
 
 	if(first_run)
 	{
-		return add_ufn(global, name, fn_type_name, arg_types) ? B1_RES_OK : B1_RES_EIDINUSE;
+		return add_ufn(global, name, fn_type, arg_types) ? B1_RES_OK : B1_RES_EIDINUSE;
 	}
 	else
 	if(!global)
@@ -2343,7 +2322,7 @@ B1_T_ERROR B1FileCompiler::st_def(bool first_run)
 	cmd.type = B1_CMD_TYPE::B1_CMD_TYPE_COMMAND;
 	cmd.cmd = L"RETVAL";
 	cmd.args.push_back(res);
-	cmd.args.push_back(fn_type_name);
+	cmd.args.push_back(B1_CMP_ARG(Utils::get_type_name(fn_type), fn_type));
 	push_back(cmd);
 
 	if(exp_type == B1_CMP_EXP_TYPE::B1_CMP_ET_LOCAL)
@@ -2678,7 +2657,7 @@ B1_T_ERROR B1FileCompiler::st_for()
 
 	if(exp_type != B1_CMP_EXP_TYPE::B1_CMP_ET_IMM_VAL && !is_gen_local(res[0].value))
 	{
-		std::wstring local = emit_local(L"");
+		std::wstring local = emit_local(B1Types::B1T_UNKNOWN);
 		emit_command(L"=", std::vector<std::wstring>({ res[0].value, local }));
 		res[0].value = local;
 	}
@@ -2716,7 +2695,7 @@ B1_T_ERROR B1FileCompiler::st_for()
 
 		if(exp_type != B1_CMP_EXP_TYPE::B1_CMP_ET_IMM_VAL && !is_gen_local(res[0].value))
 		{
-			std::wstring local = emit_local(L"");
+			std::wstring local = emit_local(B1Types::B1T_UNKNOWN);
 			emit_command(L"=", std::vector<std::wstring>({ res[0].value, local }));
 			res[0].value = local;
 		}
@@ -2829,10 +2808,8 @@ B1_T_ERROR B1FileCompiler::st_data()
 	B1_TOKENDATA td;
 	B1_T_INDEX len;
 	B1_T_CHAR c;
-	uint8_t type;
-	std::wstring type_name;
-	std::vector<std::wstring> type_names;
-	std::vector<uint8_t> types;
+	B1Types type;
+	std::vector<B1Types> types;
 	auto init_prog_line_offset = b1_curr_prog_line_offset;
 
 	err = b1_tok_get(b1_curr_prog_line_offset, 0, &td);
@@ -2857,19 +2834,12 @@ B1_T_ERROR B1FileCompiler::st_data()
 			len = td.length;
 
 			// get type
-			type = B1_TYPE_NULL;
-			err = b1_t_get_type_by_name(b1_progline + b1_curr_prog_line_offset, len, &type);
-			if(err != B1_RES_OK)
+			type = Utils::get_type_by_name(B1CUtils::get_progline_substring(b1_curr_prog_line_offset, b1_curr_prog_line_offset + len));
+			if(type == B1Types::B1T_UNKNOWN)
 			{
-				return err;
+				return B1_RES_ESYNTAX;
 			}
 
-			err = B1CUtils::get_type_name(type, type_name);
-			if(err != B1_RES_OK)
-			{
-				return err;
-			}
-			type_names.push_back(type_name);
 			types.push_back(type);
 
 			err = b1_tok_get(b1_curr_prog_line_offset + len, 0, &td);
@@ -2907,7 +2877,7 @@ B1_T_ERROR B1FileCompiler::st_data()
 	std::vector<B1_TYPED_VALUE> args;
 
 	// put namespace name
-	args.push_back(B1_TYPED_VALUE(_curr_name_space, L""));
+	args.push_back(B1_TYPED_VALUE(_curr_name_space));
 
 	// read data
 	int i = 0;
@@ -2936,12 +2906,12 @@ B1_T_ERROR B1FileCompiler::st_data()
 			// get type
 			if(types.size() > 0)
 			{
-				if(types[i] == B1_TYPE_STRING)
+				if(types[i] == B1Types::B1T_STRING)
 				{
 					return B1_RES_ETYPMISM;
 				}
 
-				type_name = type_names[i];
+				type = types[i];
 
 				i++;
 				if(i == types.size())
@@ -2952,20 +2922,14 @@ B1_T_ERROR B1FileCompiler::st_data()
 			else
 			if(const_name)
 			{
-				type_name = Utils::get_const_type(value);
+				type = Utils::get_const_type(value);
 			}
 			else
 			{
-				err = b1_t_get_type_by_type_spec((B1_T_CHAR)value.back(), B1_TYPE_INT, &type);
-				if(err != B1_RES_OK)
+				type = Utils::get_type_by_type_spec(value, B1Types::B1T_INT);
+				if(type == B1Types::B1T_UNKNOWN)
 				{
-					return err;
-				}
-
-				err = B1CUtils::get_type_name(type, type_name);
-				if(err != B1_RES_OK)
-				{
-					return err;
+					return B1_RES_ETYPMISM;
 				}
 			}
 
@@ -2979,7 +2943,7 @@ B1_T_ERROR B1FileCompiler::st_data()
 					return err;
 				}
 
-				correct_int_value(n, type_name);
+				correct_int_value(n, type);
 				value = std::to_wstring(n);
 			}
 		}
@@ -2994,7 +2958,7 @@ B1_T_ERROR B1FileCompiler::st_data()
 
 			if(types.size() > 0)
 			{
-				if(types[i] != B1_TYPE_STRING)
+				if(types[i] != B1Types::B1T_STRING)
 				{
 					return B1_RES_ETYPMISM;
 				}
@@ -3006,10 +2970,10 @@ B1_T_ERROR B1FileCompiler::st_data()
 				}
 			}
 
-			type_name = L"STRING";
+			type = B1Types::B1T_STRING;
 		}
 
-		args.push_back(B1_TYPED_VALUE(value, type_name));
+		args.push_back(B1_TYPED_VALUE(value, type));
 
 		if(b1_curr_prog_line_offset != 0)
 		{
@@ -3066,7 +3030,7 @@ B1_T_ERROR B1FileCompiler::st_read()
 		cmd.type = B1_CMD_TYPE::B1_CMD_TYPE_COMMAND;
 		cmd.cmd = L"READ";
 		// put namespace name
-		cmd.args.push_back(B1_CMP_ARG(_curr_name_space, L""));
+		cmd.args.push_back(B1_CMP_ARG(_curr_name_space));
 		cmd.args.push_back(res);
 		push_back(cmd);
 
@@ -3110,11 +3074,11 @@ B1_T_ERROR B1FileCompiler::st_restore()
 	std::vector<B1_TYPED_VALUE> args;
 
 	// put namespace name
-	args.push_back(B1_TYPED_VALUE(_curr_name_space, L""));
+	args.push_back(B1_TYPED_VALUE(_curr_name_space));
 
 	if(b1_next_line_num != B1_T_LINE_NUM_ABSENT)
 	{
-		args.push_back(B1_TYPED_VALUE(get_name_space_prefix() + L"__ULB_" + std::to_wstring(b1_next_line_num), L""));
+		args.push_back(B1_TYPED_VALUE(get_name_space_prefix() + L"__ULB_" + std::to_wstring(b1_next_line_num)));
 	}
 
 	emit_command(L"RST", args);
@@ -4026,13 +3990,13 @@ B1C_T_ERROR B1FileCompiler::remove_self_assigns(bool &changed)
 			(cmd1.cmd == L"=" && cmd1.args[0].size() == 1 && cmd1.args[1].size() == 1) &&
 			(cmd.args[0][0].value == cmd1.args[1][0].value && cmd.args[1][0].value == cmd1.args[0][0].value))
 		{
-			if(	(cmd.args[0][0].type == L"STRING" && cmd.args[1][0].type != L"STRING") ||
-				(cmd.args[0][0].type != L"STRING" && cmd.args[1][0].type == L"STRING"))
+			if(	(cmd.args[0][0].type == B1Types::B1T_STRING && cmd.args[1][0].type != B1Types::B1T_STRING) ||
+				(cmd.args[0][0].type != B1Types::B1T_STRING && cmd.args[1][0].type == B1Types::B1T_STRING))
 			{
 				continue;
 			}
 
-			if(cmd.args[1][0].type == L"BYTE" && cmd.args[0][0].type != L"BYTE")
+			if(cmd.args[1][0].type == B1Types::B1T_BYTE && cmd.args[0][0].type != B1Types::B1T_BYTE)
 			{
 				continue;
 			}
@@ -4413,11 +4377,11 @@ B1C_T_ERROR B1FileCompiler::remove_redundant_comparisons(bool &changed)
 			int32_t n;
 			// numeric is on the left side of the expression
 			bool lnum = false;
-			std::wstring vtype;
+			B1Types vtype;
 			int32_t min, max;
 			bool proceed = false;
 
-			if(cmd.args[0].size() == 1 && B1CUtils::is_num_val(cmd.args[0][0].value) && Utils::str2int32(cmd.args[0][0].value, n) == B1_RES_OK && !B1CUtils::is_imm_val(cmd.args[1][0].value) && cmd.args[1][0].type != L"STRING")
+			if(cmd.args[0].size() == 1 && B1CUtils::is_num_val(cmd.args[0][0].value) && Utils::str2int32(cmd.args[0][0].value, n) == B1_RES_OK && !B1CUtils::is_imm_val(cmd.args[1][0].value) && cmd.args[1][0].type != B1Types::B1T_STRING)
 			{
 				correct_int_value(n, cmd.args[0][0].type);
 				lnum = true;
@@ -4425,7 +4389,7 @@ B1C_T_ERROR B1FileCompiler::remove_redundant_comparisons(bool &changed)
 				proceed = true;
 			}
 			else
-			if(cmd.args[1].size() == 1 && B1CUtils::is_num_val(cmd.args[1][0].value) && Utils::str2int32(cmd.args[1][0].value, n) == B1_RES_OK && !B1CUtils::is_imm_val(cmd.args[0][0].value) && cmd.args[0][0].type != L"STRING")
+			if(cmd.args[1].size() == 1 && B1CUtils::is_num_val(cmd.args[1][0].value) && Utils::str2int32(cmd.args[1][0].value, n) == B1_RES_OK && !B1CUtils::is_imm_val(cmd.args[0][0].value) && cmd.args[0][0].type != B1Types::B1T_STRING)
 			{
 				correct_int_value(n, cmd.args[1][0].type);
 				vtype = cmd.args[0][0].type;
@@ -4434,13 +4398,13 @@ B1C_T_ERROR B1FileCompiler::remove_redundant_comparisons(bool &changed)
 
 			if(proceed)
 			{
-				if(vtype == L"INT")
+				if(vtype == B1Types::B1T_INT)
 				{
 					min = -32768;
 					max = 32767;
 				}
 				else
-				if(vtype == L"WORD")
+				if(vtype == B1Types::B1T_WORD)
 				{
 					min = 0;
 					max = 65535;
@@ -4627,7 +4591,7 @@ B1C_T_ERROR B1FileCompiler::eval_unary_ops(bool &changed)
 			if(cmd.cmd == L"-")
 			{
 				// if type is absent just change the sign
-				if(cmd.args[0][0].type.empty())
+				if(cmd.args[0][0].type == B1Types::B1T_UNKNOWN)
 				{
 					cmd.cmd = L"=";
 					if(cmd.args[0][0].value.find(L"-") == 0)
@@ -4661,7 +4625,7 @@ B1C_T_ERROR B1FileCompiler::eval_unary_ops(bool &changed)
 			else
 			{
 				// evaluate binary NOT only if value type is specified
-				if(cmd.args[0][0].type.empty())
+				if(cmd.args[0][0].type == B1Types::B1T_UNKNOWN)
 				{
 					continue;
 				}
@@ -4711,7 +4675,7 @@ void B1FileCompiler::set_to_init_value_arg(B1_CMP_ARG &arg, bool is_dst, const s
 			{
 				if(v->second.first)
 				{
-					if(aa->type == L"STRING" && v->second.second.front() != L'\"')
+					if(aa->type == B1Types::B1T_STRING && v->second.second.front() != L'\"')
 					{
 						aa->value = L"\"" + v->second.second + L"\"";
 					}
@@ -4725,9 +4689,9 @@ void B1FileCompiler::set_to_init_value_arg(B1_CMP_ARG &arg, bool is_dst, const s
 			else
 			{
 				auto type = get_var_type(aa->value);
-				if(!type.empty() && !is_mem_var_name(aa->value))
+				if(type != B1Types::B1T_UNKNOWN && !is_mem_var_name(aa->value))
 				{
-					aa->value = (type == L"STRING") ? L"\"\"" : L"0";
+					aa->value = (type == B1Types::B1T_STRING) ? L"\"\"" : L"0";
 					changed = true;
 				}
 			}
@@ -4738,7 +4702,7 @@ void B1FileCompiler::set_to_init_value_arg(B1_CMP_ARG &arg, bool is_dst, const s
 			{
 				if(v->second.first)
 				{
-					if(aa->type == L"STRING" && v->second.second.front() != L'\"')
+					if(aa->type == B1Types::B1T_STRING && v->second.second.front() != L'\"')
 					{
 						aa->value = L"\"" + v->second.second + L"\"";
 					}
@@ -4876,18 +4840,18 @@ B1C_T_ERROR B1FileCompiler::reuse_imm_values(bool init, bool &changed)
 				}
 				else
 				{
-					modified_vars[cmd.args[0][0].value] = std::make_pair(true, type == L"STRING" ? L"\"\"" : L"0");
+					modified_vars[cmd.args[0][0].value] = std::make_pair(true, type == B1Types::B1T_STRING ? L"\"\"" : L"0");
 				}
 			}
 			else
 			{
 				if(modified_vars.find(cmd.args[0][0].value) == modified_vars.end())
 				{
-					modified_vars[cmd.args[0][0].value] = std::make_pair(true, type == L"STRING" ? L"\"\"" : L"0");
+					modified_vars[cmd.args[0][0].value] = std::make_pair(true, type == B1Types::B1T_STRING ? L"\"\"" : L"0");
 				}
 				else
 				{
-					if(modified_vars[cmd.args[0][0].value].second == (type == L"STRING" ? L"\"\"" : L"0"))
+					if(modified_vars[cmd.args[0][0].value].second == (type == B1Types::B1T_STRING ? L"\"\"" : L"0"))
 					{
 						erase(i++);
 						changed = true;
@@ -4895,7 +4859,7 @@ B1C_T_ERROR B1FileCompiler::reuse_imm_values(bool init, bool &changed)
 					}
 					else
 					{
-						modified_vars[cmd.args[0][0].value] = std::make_pair(true, type == L"STRING" ? L"\"\"" : L"0");
+						modified_vars[cmd.args[0][0].value] = std::make_pair(true, type == B1Types::B1T_STRING ? L"\"\"" : L"0");
 					}
 				}
 			}
@@ -4917,8 +4881,8 @@ B1C_T_ERROR B1FileCompiler::reuse_imm_values(bool init, bool &changed)
 				auto mv = modified_vars.find(cmd.args[1][0].value);
 				if(mv == modified_vars.end())
 				{
-					auto type = is_gen_local(cmd.args[1][0].value) ? L"" : get_var_type(cmd.args[1][0].value);
-					if(init && !type.empty() && ((type == L"STRING" && cmd.args[0][0].value == L"\"\"") || type != L"STRING" && cmd.args[0][0].value == L"0"))
+					auto type = is_gen_local(cmd.args[1][0].value) ? B1Types::B1T_UNKNOWN : get_var_type(cmd.args[1][0].value);
+					if(init && type != B1Types::B1T_UNKNOWN && ((type == B1Types::B1T_STRING && cmd.args[0][0].value == L"\"\"") || type != B1Types::B1T_STRING && cmd.args[0][0].value == L"0"))
 					{
 						erase(i++);
 						changed = true;
@@ -5198,7 +5162,7 @@ B1_T_ERROR B1FileCompiler::get_type(B1_TYPED_VALUE &v, bool read)
 	if(B1CUtils::is_str_val(v.value))
 	{
 		// string value
-		v.type = L"STRING";
+		v.type = B1Types::B1T_STRING;
 		return B1_RES_OK;
 	}
 
@@ -5269,18 +5233,11 @@ B1_T_ERROR B1FileCompiler::get_type(B1_TYPED_VALUE &v, bool read)
 		return B1_RES_OK;
 	}
 
-	uint8_t type;
 
-	auto err = b1_t_get_type_by_type_spec((B1_T_CHAR)v.value.back(), B1_TYPE_NULL, &type);
-	if(err != B1_RES_OK)
+	v.type = Utils::get_type_by_type_spec(v.value, B1Types::B1T_UNKNOWN);
+	if(v.type == B1Types::B1T_UNKNOWN)
 	{
-		return err;
-	}
-
-	err = B1CUtils::get_type_name(type, v.type);
-	if(err != B1_RES_OK)
-	{
-		return err;
+		return B1_RES_ETYPMISM;
 	}
 
 	_vars[v.value] = std::make_tuple(v.type, 0, false, false);
@@ -5347,18 +5304,11 @@ B1_T_ERROR B1FileCompiler::get_type(B1_CMP_ARG &a, bool read)
 		return B1_RES_OK;
 	}
 
-	uint8_t type;
 
-	auto err = b1_t_get_type_by_type_spec((B1_T_CHAR)a[0].value.back(), B1_TYPE_NULL, &type);
-	if(err != B1_RES_OK)
+	a[0].type = Utils::get_type_by_type_spec(a[0].value, B1Types::B1T_UNKNOWN);
+	if(a[0].type == B1Types::B1T_UNKNOWN)
 	{
-		return err;
-	}
-
-	err = B1CUtils::get_type_name(type, a[0].type);
-	if(err != B1_RES_OK)
-	{
-		return err;
+		return B1_RES_ETYPMISM;
 	}
 
 	_vars[a[0].value] = std::make_tuple(a[0].type, (int)a.size() - 1, false, false);
@@ -5531,7 +5481,8 @@ B1C_T_ERROR B1FileCompiler::put_types()
 
 			if(vt != _vars.end())
 			{
-				cmd.args.push_back(B1_CMP_ARG(std::get<0>(vt->second)));
+				cmd.args[1][0].value = Utils::get_type_name(std::get<0>(vt->second));
+				cmd.args[1][0].type = std::get<0>(vt->second);
 			}
 			else
 			{
@@ -5561,7 +5512,7 @@ B1C_T_ERROR B1FileCompiler::inline_fns(bool &changed)
 
 		for(auto &a: cmd.args)
 		{
-			if(a.size() == 2 && ((a[0].value == L"VAL" && a[1].type != L"STRING") || (a[0].value == L"STR$" && a[1].type == L"STRING")))
+			if(a.size() == 2 && ((a[0].value == L"VAL" && a[1].type != B1Types::B1T_STRING) || (a[0].value == L"STR$" && a[1].type == B1Types::B1T_STRING)))
 			{
 				a.erase(a.begin());
 				changed = true;
@@ -5632,7 +5583,7 @@ B1C_T_ERROR B1FileCompiler::inline_fns(bool &changed)
 
 				emit_command(L"LF", std::next(i), local);
 
-				if(a1.type == L"BYTE" || a1.type == L"WORD")
+				if(a1.type == B1Types::B1T_BYTE || a1.type == B1Types::B1T_WORD)
 				{
 					emit_command(L"=", i, { B1_TYPED_VALUE(L"0", a1.type), B1_TYPED_VALUE(local, a1.type) });
 					emit_command(L"==", i, { a1, B1_TYPED_VALUE(L"0", a1.type) });
@@ -5666,7 +5617,7 @@ B1C_T_ERROR B1FileCompiler::inline_fns(bool &changed)
 			{
 				const auto a1 = arg[1];
 
-				if(a1.type == L"BYTE" || a1.type == L"WORD")
+				if(a1.type == B1Types::B1T_BYTE || a1.type == B1Types::B1T_WORD)
 				{
 					// unsigned type: just remove ABS call
 					i->args[a][0].type = a1.type;
@@ -5769,8 +5720,8 @@ B1C_T_ERROR B1FileCompiler::reuse_locals(bool &changed)
 				break;
 			}
 
-			auto &t0 = la0->args[1][0].value;
-			auto &t1 = la1->args[1][0].value;
+			auto &t0 = la0->args[1][0].type;
+			auto &t1 = la1->args[1][0].type;
 
 			if(B1CUtils::local_compat_types(t0, t1))
 			{
@@ -5905,9 +5856,9 @@ B1C_T_ERROR B1FileCompiler::reuse_locals(bool &changed)
 			}
 
 			// check types
-			if(B1CUtils::local_compat_types(la0->args[1][0].value, la1->args[1][0].value))
+			if(B1CUtils::local_compat_types(la0->args[1][0].type, la1->args[1][0].type))
 			{
-				B1_TYPED_VALUE tv(la0->args[0][0].value, la1->args[1][0].value);
+				B1_TYPED_VALUE tv(la0->args[0][0].value, la1->args[1][0].type);
 
 				// replace local
 				for(auto i = std::next(la1); i != lf1; i++)
@@ -5947,19 +5898,19 @@ B1C_T_ERROR B1FileCompiler::reuse_locals(bool &changed)
 	return B1C_T_ERROR::B1C_RES_OK;
 }
 
-void B1FileCompiler::correct_int_value(int32_t &n, const std::wstring &type)
+void B1FileCompiler::correct_int_value(int32_t &n, const B1Types type)
 {
-	if(type == L"INT")
+	if(type == B1Types::B1T_INT)
 	{
 		n = (int16_t)n;
 	}
 	else
-	if(type == L"BYTE")
+	if(type == B1Types::B1T_BYTE)
 	{
 		n &= 0xFF;
 	}
 	else
-	if(type == L"WORD")
+	if(type == B1Types::B1T_WORD)
 	{
 		n &= 0xFFFF;
 	}
@@ -5974,21 +5925,21 @@ bool B1FileCompiler::eval_imm_fn_arg(B1_CMP_ARG &a)
 	{
 		for(auto aa = a.begin() + 1; aa != a.end(); aa++)
 		{
-			if(aa->type != L"STRING" && B1CUtils::is_num_val(aa->value) && fn->args[aa - a.begin() - 1].type == L"STRING")
+			if(aa->type != B1Types::B1T_STRING && B1CUtils::is_num_val(aa->value) && fn->args[aa - a.begin() - 1].type == B1Types::B1T_STRING)
 			{
 				int32_t n;
 
 				if(Utils::str2int32(aa->value, n) == B1_RES_OK)
 				{
 					correct_int_value(n, aa->type);
-					aa->type = L"STRING";
+					aa->type = B1Types::B1T_STRING;
 					aa->value = L"\"" + std::to_wstring(n) + L"\"";
 					changed = true;
 				}
 			}
 		}
 
-		if(fn->name == L"LEN" && a[1].type == L"STRING" && B1CUtils::is_str_val(a[1].value))
+		if(fn->name == L"LEN" && a[1].type == B1Types::B1T_STRING && B1CUtils::is_str_val(a[1].value))
 		{
 			std::wstring sval;
 
@@ -6001,7 +5952,7 @@ bool B1FileCompiler::eval_imm_fn_arg(B1_CMP_ARG &a)
 			}
 		}
 		else
-		if(fn->name == L"VAL" && a[1].type == L"STRING" && B1CUtils::is_str_val(a[1].value))
+		if(fn->name == L"VAL" && a[1].type == B1Types::B1T_STRING && B1CUtils::is_str_val(a[1].value))
 		{
 			std::wstring sval;
 
@@ -6020,7 +5971,7 @@ bool B1FileCompiler::eval_imm_fn_arg(B1_CMP_ARG &a)
 			}
 		}
 		else
-		if(fn->name == L"STR$" && (a[1].type == L"INT" || a[1].type == L"WORD" || a[1].type == L"BYTE") && B1CUtils::is_num_val(a[1].value))
+		if(fn->name == L"STR$" && (a[1].type == B1Types::B1T_INT || a[1].type == B1Types::B1T_WORD || a[1].type == B1Types::B1T_BYTE) && B1CUtils::is_num_val(a[1].value))
 		{
 			int32_t n;
 
@@ -6054,7 +6005,7 @@ B1C_T_ERROR B1FileCompiler::eval_imm_exps(bool &changed)
 		}
 
 		// =,<num_val>,<string_var_name>  ->  =,<num_val_converted_to_str>,<string_var_name>
-		if(cmd.cmd == L"=" && B1CUtils::is_num_val(cmd.args[0][0].value) && cmd.args[1][0].type == L"STRING")
+		if(cmd.cmd == L"=" && B1CUtils::is_num_val(cmd.args[0][0].value) && cmd.args[1][0].type == B1Types::B1T_STRING)
 		{
 			// convert integer value to string
 			int32_t n;
@@ -6063,7 +6014,7 @@ B1C_T_ERROR B1FileCompiler::eval_imm_exps(bool &changed)
 			{
 				correct_int_value(n, cmd.args[0][0].type);
 				cmd.args[0][0].value = L"\"" + std::to_wstring(n) + L"\"";
-				cmd.args[0][0].type = L"STRING";
+				cmd.args[0][0].type = B1Types::B1T_STRING;
 				changed = true;
 			}
 			continue;
@@ -6133,15 +6084,15 @@ B1C_T_ERROR B1FileCompiler::eval_imm_exps(bool &changed)
 				}
 
 				
-				std::wstring type = cmd.args[2][0].type;
+				const auto type = cmd.args[2][0].type;
 				B1_TYPED_VALUE tv(L"", type);
 
-				if(type == L"STRING")
+				if(type == B1Types::B1T_STRING)
 				{
 					bool comp_types = false;
-					std::wstring type;
-					B1CUtils::get_com_type(cmd.args[0][0].type, cmd.args[1][0].type, type, comp_types);
-					correct_int_value(n1, type);
+					B1Types com_type = B1Types::B1T_UNKNOWN;
+					B1CUtils::get_com_type(cmd.args[0][0].type, cmd.args[1][0].type, com_type, comp_types);
+					correct_int_value(n1, com_type);
 					tv.value = L"\"" + std::to_wstring(n1) + L"\"";
 				}
 				else
@@ -6188,21 +6139,21 @@ B1C_T_ERROR B1FileCompiler::eval_imm_exps(bool &changed)
 				cmd.cmd = L"=";
 				cmd.args.erase(cmd.args.begin());
 				cmd.args[0].clear();
-				cmd.args[0].push_back(B1_TYPED_VALUE(s1 + s2, L"STRING"));
+				cmd.args[0].push_back(B1_TYPED_VALUE(s1 + s2, B1Types::B1T_STRING));
 
 				changed = true;
 			}
 			else
 			if(cmd.cmd == L"+" &&
-				(is_n1 && cmd.args[1][0].type == L"STRING") ||
-				(is_n2 && cmd.args[0][0].type == L"STRING")
+				(is_n1 && cmd.args[1][0].type == B1Types::B1T_STRING) ||
+				(is_n2 && cmd.args[0][0].type == B1Types::B1T_STRING)
 				)
 			{
 				if(is_n1)
 				{
 					correct_int_value(n1, cmd.args[0][0].type);
 					cmd.args[0][0].value = L"\"" + std::to_wstring(n1) + L"\"";
-					cmd.args[0][0].type = L"STRING";
+					cmd.args[0][0].type = B1Types::B1T_STRING;
 
 					changed = true;
 				}
@@ -6211,7 +6162,7 @@ B1C_T_ERROR B1FileCompiler::eval_imm_exps(bool &changed)
 				{
 					correct_int_value(n2, cmd.args[1][0].type);
 					cmd.args[1][0].value = L"\"" + std::to_wstring(n2) + L"\"";
-					cmd.args[1][0].type = L"STRING";
+					cmd.args[1][0].type = B1Types::B1T_STRING;
 
 					changed = true;
 				}
@@ -6250,9 +6201,9 @@ B1C_T_ERROR B1FileCompiler::eval_imm_exps(bool &changed)
 
 			bool str_op = false;
 
-			if(cmd.args[2][0].type == L"STRING")
+			if(cmd.args[2][0].type == B1Types::B1T_STRING)
 			{
-				if(cmd.cmd == L"+" && imm_ind == 1 && cmd.args[0][0].type == L"STRING")
+				if(cmd.cmd == L"+" && imm_ind == 1 && cmd.args[0][0].type == B1Types::B1T_STRING)
 				{
 					str_op = true;
 				}
@@ -6294,7 +6245,7 @@ B1C_T_ERROR B1FileCompiler::eval_imm_exps(bool &changed)
 						}
 						else
 						{
-							if(cmd1.args[imm_ind1][0].type == L"STRING")
+							if(cmd1.args[imm_ind1][0].type == B1Types::B1T_STRING)
 							{
 								break;
 							}
@@ -6320,7 +6271,7 @@ B1C_T_ERROR B1FileCompiler::eval_imm_exps(bool &changed)
 							}
 
 							std::wstring val;
-							std::wstring type = L"STRING";
+							B1Types type = B1Types::B1T_STRING;
 
 							if(str_op)
 							{
@@ -6503,7 +6454,7 @@ B1C_T_ERROR B1FileCompiler::eval_imm_exps(bool &changed)
 			continue;
 		}
 
-		if(B1CUtils::is_bin_op(cmd) && cmd.args[0][0].type != L"STRING" && cmd.args[1][0].type != L"STRING")
+		if(B1CUtils::is_bin_op(cmd) && cmd.args[0][0].type != B1Types::B1T_STRING && cmd.args[1][0].type != B1Types::B1T_STRING)
 		{
 			int imm_ind =	B1CUtils::is_num_val(cmd.args[0][0].value) ? 0 :
 							B1CUtils::is_num_val(cmd.args[1][0].value) ? 1 : -1;
@@ -6517,7 +6468,7 @@ B1C_T_ERROR B1FileCompiler::eval_imm_exps(bool &changed)
 
 			if(Utils::str2int32(cmd.args[imm_ind][0].value, n) == B1_RES_OK)
 			{
-				correct_int_value(n, cmd.args[imm_ind][0].value);
+				correct_int_value(n, cmd.args[imm_ind][0].type);
 
 				if(n == 0)
 				{
@@ -6536,7 +6487,7 @@ B1C_T_ERROR B1FileCompiler::eval_imm_exps(bool &changed)
 					{
 						cmd.cmd = L"=";
 						cmd.args.erase(cmd.args.begin());
-						cmd.args[0] = B1_CMP_ARG(L"0", L"BYTE");
+						cmd.args[0] = B1_CMP_ARG(L"0", B1Types::B1T_BYTE);
 						changed = true;
 					}
 				}
@@ -6549,7 +6500,7 @@ B1C_T_ERROR B1FileCompiler::eval_imm_exps(bool &changed)
 						cmd.args.erase(cmd.args.begin() + imm_ind);
 						if(cmd.cmd == L"%")
 						{
-							cmd.args[0] = B1_CMP_ARG(L"0", L"BYTE");
+							cmd.args[0] = B1_CMP_ARG(L"0", B1Types::B1T_BYTE);
 						}
 						changed = true;
 					}
@@ -6595,7 +6546,7 @@ B1C_T_ERROR B1FileCompiler::check_MA_stmts()
 			{
 				int32_t n;
 
-				if((*a)[0].type != L"INT" && (*a)[0].type != L"WORD" && (*a)[0].type != L"BYTE")
+				if((*a)[0].type != B1Types::B1T_INT && (*a)[0].type != B1Types::B1T_WORD && (*a)[0].type != B1Types::B1T_BYTE)
 				{
 					return static_cast<B1C_T_ERROR>(B1_RES_ETYPMISM);
 				}
@@ -6707,7 +6658,7 @@ B1C_T_ERROR B1FileCompiler::remove_unused_vars(B1_CMP_ARG &a, bool &changed)
 			}
 			else
 			{
-				aa->value = (aa->type == L"STRING") ? L"\"\"" : L"0";
+				aa->value = (aa->type == B1Types::B1T_STRING) ? L"\"\"" : L"0";
 				changed = true;
 			}
 		}
@@ -6719,7 +6670,7 @@ B1C_T_ERROR B1FileCompiler::remove_unused_vars(B1_CMP_ARG &a, bool &changed)
 
 	if(optimize && _compiler.get_var_used(a[0].value) == 1 && !is_volatile_var(a[0].value) && !is_udef_used(a))
 	{
-		a[0].value = (a[0].type == L"STRING") ? L"\"\"" : L"0";
+		a[0].value = (a[0].type == B1Types::B1T_STRING) ? L"\"\"" : L"0";
 		a.erase(a.begin() + 1, a.end());
 		changed = true;
 	}
@@ -8305,10 +8256,10 @@ B1C_T_ERROR B1FileCompiler::WriteUFns(const std::string &file_name) const
 
 	for(const auto &ufn: _ufns)
 	{
-		std::fwprintf(ofp, L"DEF,%ls,%ls", replace_type_spec(ufn.second.iname).c_str(), ufn.second.rettype.c_str());
+		std::fwprintf(ofp, L"DEF,%ls,%ls", replace_type_spec(ufn.second.iname).c_str(), Utils::get_type_name(ufn.second.rettype).c_str());
 		for(const auto &arg: ufn.second.args)
 		{
-			std::fwprintf(ofp, L",%ls", arg.type.c_str());
+			std::fwprintf(ofp, L",%ls", Utils::get_type_name(arg.type).c_str());
 		}
 		std::fwprintf(ofp, L"\n");
 	}
@@ -8353,26 +8304,26 @@ B1C_T_ERROR B1FileCompiler::WriteStmt(const B1_CMP_CMD &cmd, std::FILE *ofp, int
 			return B1C_T_ERROR::B1C_RES_EFWRITE;
 		}
 
-		for(const auto &a: cmd.args)
+		for(auto arg = cmd.args.cbegin(); arg != cmd.args.cend(); arg++)
 		{
-			for(auto ai = a.cbegin(); ai != a.cend(); ai++)
+			for(auto ai = arg->cbegin(); ai != arg->cend(); ai++)
 			{
-				sep = (ai == std::next(a.begin())) ? L"(" : L",";
+				sep = (ai == std::next(arg->cbegin())) ? L"(" : L",";
 				if(std::fwprintf(ofp, L"%ls%ls", sep.c_str(), replace_type_spec(ai->value).c_str()) < 0)
 				{
 					return B1C_T_ERROR::B1C_RES_EFWRITE;
 				}
 
-				if(!ai->type.empty())
+				if(ai->type != B1Types::B1T_UNKNOWN && !((cmd.cmd == L"LA" && arg == std::next(cmd.args.cbegin())) || ((cmd.cmd == L"GA" || cmd.cmd == L"MA") && arg == std::next(cmd.args.cbegin())) || (cmd.cmd == L"RETVAL" && arg == std::next(cmd.args.cbegin()))))
 				{
-					if(std::fwprintf(ofp, L"<%ls>", ai->type.c_str()) < 0)
+					if(std::fwprintf(ofp, L"<%ls>", Utils::get_type_name(ai->type).c_str()) < 0)
 					{
 						return B1C_T_ERROR::B1C_RES_EFWRITE;
 					}
 				}
 			}
 
-			if(a.size() > 1)
+			if(arg->size() > 1)
 			{
 				if(std::fwprintf(ofp, L")") < 0)
 				{
@@ -8503,7 +8454,7 @@ bool B1Compiler::global_var_check(bool global, bool mem_var, const std::wstring 
 	return true;
 }
 
-B1C_T_ERROR B1Compiler::put_global_var_name(const std::wstring &name, const std::wstring &type, int dims, bool volat, bool mem_var)
+B1C_T_ERROR B1Compiler::put_global_var_name(const std::wstring &name, const B1Types type, int dims, bool volat, bool mem_var)
 {
 	// forbid multiple DIMs for memory variables
 	if(!global_var_check(true, mem_var, name))
@@ -8567,10 +8518,10 @@ int B1Compiler::get_global_var_dim(const std::wstring &name) const
 	return (g == _global_vars.end()) ? -1 : std::get<1>(g->second);
 }
 
-std::wstring B1Compiler::get_global_var_type(const std::wstring &name) const
+B1Types B1Compiler::get_global_var_type(const std::wstring &name) const
 {
 	auto g = _global_vars.find(name);
-	return (g == _global_vars.end()) ? L"" : std::get<0>(g->second);
+	return (g == _global_vars.end()) ? B1Types::B1T_UNKNOWN : std::get<0>(g->second);
 }
 
 // check global user function existence by name
@@ -8579,7 +8530,7 @@ bool B1Compiler::global_fn_exists(const std::wstring &name)
 	return _global_ufns.find(name) != _global_ufns.end();
 }
 
-bool B1Compiler::add_global_ufn(const std::wstring &nm, const std::wstring &rt, const std::vector<std::wstring> &arglist, const std::wstring &in)
+bool B1Compiler::add_global_ufn(const std::wstring &nm, const B1Types rt, const std::vector<B1Types> &arglist, const std::wstring &in)
 {
 	if(global_fn_exists(nm))
 	{
@@ -8924,10 +8875,10 @@ B1C_T_ERROR B1Compiler::WriteUFns(const std::string &file_name) const
 
 	for(const auto &ufn: _global_ufns)
 	{
-		std::fwprintf(ofp, L"DEF,%ls,%ls", ufn.second.iname.c_str(), ufn.second.rettype.c_str());
+		std::fwprintf(ofp, L"DEF,%ls,%ls", ufn.second.iname.c_str(), Utils::get_type_name(ufn.second.rettype).c_str());
 		for(const auto &arg: ufn.second.args)
 		{
-			std::fwprintf(ofp, L",%ls", arg.type.c_str());
+			std::fwprintf(ofp, L",%ls", Utils::get_type_name(arg.type).c_str());
 		}
 		std::fwprintf(ofp, L"\n");
 	}
@@ -9593,7 +9544,7 @@ int main(int argc, char **argv)
 				}
 				else
 				{
-					std::fputws((c + L" (<" + cmd.data_type + L" VALUE>)\n").c_str(), stdout);
+					std::fputws((c + L" (<" + Utils::get_type_name(cmd.data_type) + L" VALUE>)\n").c_str(), stdout);
 				}
 			}
 			else

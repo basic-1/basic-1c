@@ -140,17 +140,7 @@ bool C1STM8Compiler::check_cmd_name(const std::wstring &name) const
 
 bool C1STM8Compiler::check_type_name(const std::wstring &name) const
 {
-	B1_T_CHAR buf[64];
-
-	if(name.length() > sizeof(buf) / sizeof(buf[0]) - 1)
-	{
-		return false;
-	}
-
-	uint8_t type;
-	auto err = b1_t_get_type_by_name(B1CUtils::cstr_to_b1str(name, buf) + 1, name.length(), &type);
-
-	return (err == B1_RES_OK);
+	return (Utils::get_type_by_name(name) != B1Types::B1T_UNKNOWN);
 }
 
 bool C1STM8Compiler::check_namespace_name(const std::wstring &name) const
@@ -186,7 +176,7 @@ C1STM8_T_ERROR C1STM8Compiler::get_simple_arg(const std::wstring &str, B1_TYPED_
 {
 	auto sval = Utils::str_trim(get_next_value(str, L",)", next_off));
 	arg.value = sval;
-	arg.type.clear();
+	arg.type = B1Types::B1T_UNKNOWN;
 	return sval.empty() ? static_cast<C1STM8_T_ERROR>(B1_RES_ESYNTAX) : C1STM8_T_ERROR::C1STM8_RES_OK;
 }
 
@@ -233,7 +223,7 @@ C1STM8_T_ERROR C1STM8Compiler::get_arg(const std::wstring &str, B1_CMP_ARG &arg,
 		return C1STM8_T_ERROR::C1STM8_RES_EINVTYPNAME;
 	}
 
-	arg.push_back(B1_TYPED_VALUE(name, type));
+	arg.push_back(B1_TYPED_VALUE(name, Utils::get_type_by_name(type)));
 
 	name = Utils::str_trim(get_next_value(str, L"(,", next_off));
 	if(!name.empty())
@@ -294,7 +284,7 @@ C1STM8_T_ERROR C1STM8Compiler::get_arg(const std::wstring &str, B1_CMP_ARG &arg,
 				return C1STM8_T_ERROR::C1STM8_RES_EINVTYPNAME;
 			}
 
-			arg.push_back(B1_TYPED_VALUE(name, type));
+			arg.push_back(B1_TYPED_VALUE(name, Utils::get_type_by_name(type)));
 
 			name = Utils::str_trim(get_next_value(str, L",)", next_off));
 			if(!name.empty() || next_off == std::wstring::npos)
@@ -722,7 +712,7 @@ C1STM8_T_ERROR C1STM8Compiler::load_next_command(const std::wstring &line, const
 			{
 				return C1STM8_T_ERROR::C1STM8_RES_EINVTYPNAME;
 			}
-			args.push_back(tv.value);
+			args.push_back(B1_CMP_ARG(tv.value, Utils::get_type_by_name(tv.value)));
 
 			// read fn arguments types
 			while(offset != std::wstring::npos)
@@ -736,7 +726,7 @@ C1STM8_T_ERROR C1STM8Compiler::load_next_command(const std::wstring &line, const
 				{
 					return C1STM8_T_ERROR::C1STM8_RES_EINVTYPNAME;
 				}
-				args.push_back(tv.value);
+				args.push_back(B1_CMP_ARG(tv.value, Utils::get_type_by_name(tv.value)));
 			}
 		}
 		else
@@ -765,7 +755,7 @@ C1STM8_T_ERROR C1STM8Compiler::load_next_command(const std::wstring &line, const
 			{
 				return C1STM8_T_ERROR::C1STM8_RES_EINVTYPNAME;
 			}
-			args.push_back(sval);
+			args.push_back(B1_CMP_ARG(sval, Utils::get_type_by_name(sval)));
 
 			// read optional type modifiers (now the only modifier is V - stands for volatile)
 			if(offset != std::wstring::npos && line[offset - 1] == L'(')
@@ -845,7 +835,7 @@ C1STM8_T_ERROR C1STM8Compiler::load_next_command(const std::wstring &line, const
 			{
 				return C1STM8_T_ERROR::C1STM8_RES_EINVTYPNAME;
 			}
-			args.push_back(tv.value);
+			args.push_back(B1_CMP_ARG(tv.value, Utils::get_type_by_name(tv.value)));
 		}
 		else
 		if(cmd == L"NS")
@@ -1028,7 +1018,7 @@ C1STM8_T_ERROR C1STM8Compiler::load_next_command(const std::wstring &line, const
 			{
 				return C1STM8_T_ERROR::C1STM8_RES_EINVTYPNAME;
 			}
-			args.push_back(tv.value);
+			args.push_back(B1_CMP_ARG(tv.value, Utils::get_type_by_name(tv.value)));
 		}
 		else
 		if(cmd == L"SET")
@@ -1359,7 +1349,7 @@ C1STM8_T_ERROR C1STM8Compiler::check_arg(B1_CMP_ARG &arg)
 			}
 			else
 			// STRING value cannot be passed to a function as non-STRING argument
-			if(fn->args[a].type != L"STRING" && arg[a + 1].type == L"STRING")
+			if(fn->args[a].type != B1Types::B1T_STRING && arg[a + 1].type == B1Types::B1T_STRING)
 			{
 				return static_cast<C1STM8_T_ERROR>(B1_RES_EWARGTYPE);
 			}
@@ -1416,7 +1406,7 @@ C1STM8_T_ERROR C1STM8Compiler::check_arg(B1_CMP_ARG &arg)
 		// check subscript types (should be numeric)
 		for(auto a = arg.begin() + 1; a != arg.end(); a++)
 		{
-			if(a->type == L"STRING")
+			if(a->type == B1Types::B1T_STRING)
 			{
 				return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
 			}
@@ -1455,10 +1445,10 @@ C1STM8_T_ERROR C1STM8Compiler::read_ufns()
 				return C1STM8_T_ERROR::C1STM8_RES_EUFNREDEF;
 			}
 
-			B1_CMP_FN fn(fname, cmd.args[1][0].value, std::vector<std::wstring>(), fname, false);
+			B1_CMP_FN fn(fname, cmd.args[1][0].type, std::vector<B1Types>(), fname, false);
 			for(auto at = cmd.args.begin() + 2; at != cmd.args.end(); at++)
 			{
-				fn.args.push_back(B1_CMP_FN_ARG(at->at(0).value, false, L""));
+				fn.args.push_back(B1_CMP_FN_ARG(at->at(0).type, false, L""));
 			}
 
 			_ufns.emplace(std::make_pair(fname, fn));
@@ -1489,7 +1479,7 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_locals()
 				return C1STM8_T_ERROR::C1STM8_RES_ELCLREDEF;
 			}
 
-			_locals[cmd.args[0][0].value] = B1_CMP_VAR(cmd.args[0][0].value, cmd.args[1][0].value, 0, false, _curr_src_file_id, _curr_line_cnt);
+			_locals[cmd.args[0][0].value] = B1_CMP_VAR(cmd.args[0][0].value, cmd.args[1][0].type, 0, false, _curr_src_file_id, _curr_line_cnt);
 		}
 	}
 
@@ -1547,7 +1537,7 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 				return static_cast<C1STM8_T_ERROR>(B1_RES_EIDINUSE);
 			}
 
-			const auto &vtype = cmd.args[1][0].value;
+			const auto vtype = cmd.args[1][0].type;
 			auto v = vars.find(vname);
 			int32_t dims_off = is_ma ? 3 : 2;
 			int32_t dims = cmd.args.size() - dims_off;
@@ -1621,7 +1611,7 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 			}
 			else
 			{
-				if(!v->second.type.empty() && v->second.type != vtype)
+				if(v->second.type != B1Types::B1T_UNKNOWN && v->second.type != vtype)
 				{
 					return C1STM8_T_ERROR::C1STM8_RES_EVARTYPMIS;
 				}
@@ -1633,7 +1623,7 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 				}
 				v->second.dim_num = dims / 2;
 
-				if(!v->second.type.empty() && v->second.is_volatile != is_volatile)
+				if(v->second.type != B1Types::B1T_UNKNOWN && v->second.is_volatile != is_volatile)
 				{
 					return C1STM8_T_ERROR::C1STM8_RES_EVARTYPMIS;
 				}
@@ -1704,7 +1694,7 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 			if(v == _vars.end())
 			{
 				_vars_order[_vars_order.size()] = vname;
-				_vars[vname] = B1_CMP_VAR(vname, L"", 0, false, _curr_src_file_id, _curr_line_cnt);
+				_vars[vname] = B1_CMP_VAR(vname, B1Types::B1T_UNKNOWN, 0, false, _curr_src_file_id, _curr_line_cnt);
 			}
 			else
 			{
@@ -2032,8 +2022,8 @@ C1STM8_T_ERROR C1STM8Compiler::write_data_sec()
 			label = label.empty() ? std::wstring() : (label + L"::");
 
 			label = label + L"__DAT_PTR";
-			B1_CMP_VAR var(label, L"WORD", 0, false, -1, 0);
-			B1CUtils::get_asm_type(L"WORD", nullptr, &var.size);
+			B1_CMP_VAR var(label, B1Types::B1T_WORD, 0, false, -1, 0);
+			B1CUtils::get_asm_type(B1Types::B1T_WORD, nullptr, &var.size);
 			var.address = _data_size;
 			_vars_order[_vars_order.size()] = label;
 			_vars[label] = var;
@@ -2118,7 +2108,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_const_sec()
 						continue;
 					}
 
-					if(a[0].type == L"STRING")
+					if(a[0].type == B1Types::B1T_STRING)
 					{
 						auto err = process_imm_str_value(a);
 						if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
@@ -2135,7 +2125,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_const_sec()
 						int32_t size;
 
 						// store bytes as words (for all types to be 2 bytes long, to simplify READ statement)
-						if(!B1CUtils::get_asm_type(a[0].type == L"BYTE" ? L"WORD" : a[0].type, &asmtype, &size))
+						if(!B1CUtils::get_asm_type(a[0].type == B1Types::B1T_BYTE ? B1Types::B1T_WORD : a[0].type, &asmtype, &size))
 						{
 							return C1STM8_T_ERROR::C1STM8_RES_EINVTYPNAME;
 						}
@@ -2251,7 +2241,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_st_gf(const B1_CMP_VAR &var, bool is_ma)
 		else
 		{
 			// other types are 2-byte for STM8
-			if(var.type == L"STRING")
+			if(var.type == B1Types::B1T_STRING)
 			{
 				// release string
 				_curr_code_sec->add_op(L"LDW X, (" + v + L")"); //BE SHORT_ADDRESS, CE LONG_ADDRESS
@@ -2265,7 +2255,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_st_gf(const B1_CMP_VAR &var, bool is_ma)
 	else
 	{
 		// array
-		if(is_ma || var.type == L"STRING")
+		if(is_ma || var.type == B1Types::B1T_STRING)
 		{
 			auto err = calc_array_size(var, size1);
 			if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
@@ -2277,7 +2267,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_st_gf(const B1_CMP_VAR &var, bool is_ma)
 			_stack_ptr += 2;
 		}
 
-		if(var.type == L"STRING")
+		if(var.type == B1Types::B1T_STRING)
 		{
 			if(is_ma)
 			{
@@ -2308,7 +2298,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_st_gf(const B1_CMP_VAR &var, bool is_ma)
 			_req_symbols.insert(L"__LIB_MEM_FRE");
 			_curr_code_sec->add_op(L"CLRW X"); //5F
 			_curr_code_sec->add_op(L"LDW (" + v + L"), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
-			if(var.type == L"STRING")
+			if(var.type == B1Types::B1T_STRING)
 			{
 				_curr_code_sec->add_op(L"POPW X"); //85
 				_stack_ptr -= 2;
@@ -2319,18 +2309,18 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_st_gf(const B1_CMP_VAR &var, bool is_ma)
 	return C1STM8_T_ERROR::C1STM8_RES_OK;
 }
 
-C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::wstring &req_type, LVT req_valtype, LVT *res_valtype /*= nullptr*/, std::wstring *res_val /*= nullptr*/)
+C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types req_type, LVT req_valtype, LVT *res_valtype /*= nullptr*/, std::wstring *res_val /*= nullptr*/)
 {
 	std::wstring rv;
 	LVT rvt;
-	std::wstring init_type = tv.type;
+	auto init_type = tv.type;
 
 	if(B1CUtils::is_imm_val(tv.value) || Utils::check_const_name(tv.value))
 	{
 		// imm. value
-		if(init_type == L"BYTE")
+		if(init_type == B1Types::B1T_BYTE)
 		{
-			if((req_valtype & LVT::LVT_IMMVAL) && req_type != L"STRING")
+			if((req_valtype & LVT::LVT_IMMVAL) && req_type != B1Types::B1T_STRING)
 			{
 				rvt = LVT::LVT_IMMVAL;
 				rv = tv.value;
@@ -2339,14 +2329,14 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 			if(req_valtype & LVT::LVT_REG)
 			{
 				rvt = LVT::LVT_REG;
-				rv = req_type == L"BYTE" ? L"A" : L"X";
+				rv = req_type == B1Types::B1T_BYTE ? L"A" : L"X";
 
-				if(req_type == L"BYTE")
+				if(req_type == B1Types::B1T_BYTE)
 				{
 					_curr_code_sec->add_op(L"LD A, " + tv.value); //A6 BYTE_VALUE
 				}
 				else
-				if(req_type == L"INT" || req_type == L"WORD")
+				if(req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD)
 				{
 					_curr_code_sec->add_op(L"LDW X, " + tv.value); //AE WORD_VALUE
 				}
@@ -2363,9 +2353,9 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 			}
 		}
 		else
-		if(init_type == L"INT" || init_type == L"WORD")
+		if(init_type == B1Types::B1T_INT || init_type == B1Types::B1T_WORD)
 		{
-			if((req_valtype & LVT::LVT_IMMVAL) && req_type != L"STRING")
+			if((req_valtype & LVT::LVT_IMMVAL) && req_type != B1Types::B1T_STRING)
 			{
 				rvt = LVT::LVT_IMMVAL;
 				rv = tv.value;
@@ -2374,21 +2364,21 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 			if(req_valtype & LVT::LVT_REG)
 			{
 				rvt = LVT::LVT_REG;
-				rv = req_type == L"BYTE" ? L"A" : L"X";
+				rv = req_type == B1Types::B1T_BYTE ? L"A" : L"X";
 
-				if(req_type == L"BYTE")
+				if(req_type == B1Types::B1T_BYTE)
 				{
 					_curr_code_sec->add_op(L"LD A, " + tv.value); //A6 BYTE_VALUE
 				}
 				else
-				if(req_type == L"INT" || req_type == L"WORD")
+				if(req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD)
 				{
 					_curr_code_sec->add_op(L"LDW X, " + tv.value); //AE WORD_VALUE
 				}
 				else
 				{
 					_curr_code_sec->add_op(L"LDW X, " + tv.value); //AE WORD_VALUE
-					if(init_type == L"INT")
+					if(init_type == B1Types::B1T_INT)
 					{
 						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
 						_req_symbols.insert(L"__LIB_STR_STR_I");
@@ -2406,9 +2396,9 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 			}
 		}
 		else
-		if(init_type == L"STRING")
+		if(init_type == B1Types::B1T_STRING)
 		{
-			if(req_type != L"STRING")
+			if(req_type != B1Types::B1T_STRING)
 			{
 				return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
 			}
@@ -2449,9 +2439,9 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 			return C1STM8_T_ERROR::C1STM8_RES_ESTCKOVF;
 		}
 
-		if(init_type == L"BYTE")
+		if(init_type == B1Types::B1T_BYTE)
 		{
-			if((req_valtype & LVT::LVT_STKREF) && req_type == L"BYTE")
+			if((req_valtype & LVT::LVT_STKREF) && req_type == B1Types::B1T_BYTE)
 			{
 				rvt = LVT::LVT_STKREF;
 				rv = Utils::str_tohex16(offset);
@@ -2460,17 +2450,17 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 			if(req_valtype & LVT::LVT_REG)
 			{
 				rvt = LVT::LVT_REG;
-				rv = req_type == L"BYTE" ? L"A" : L"X";
+				rv = req_type == B1Types::B1T_BYTE ? L"A" : L"X";
 
 				_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset) + L", SP)"); //7B BYTE_OFFSET
 
-				if(req_type != L"BYTE")
+				if(req_type != B1Types::B1T_BYTE)
 				{
 					_curr_code_sec->add_op(L"CLRW X"); //5F
 					_curr_code_sec->add_op(L"LD XL, A"); //97
 				}
 
-				if(req_type == L"STRING")
+				if(req_type == B1Types::B1T_STRING)
 				{
 					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
 					_req_symbols.insert(L"__LIB_STR_STR_I");
@@ -2482,21 +2472,21 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 			}
 		}
 		else
-		if(init_type == L"INT" || init_type == L"WORD")
+		if(init_type == B1Types::B1T_INT || init_type == B1Types::B1T_WORD)
 		{
-			if((req_valtype & LVT::LVT_STKREF) && req_type != L"STRING")
+			if((req_valtype & LVT::LVT_STKREF) && req_type != B1Types::B1T_STRING)
 			{
 				rvt = LVT::LVT_STKREF;
-				offset += req_type == L"BYTE" ? 1 : 0;
+				offset += req_type == B1Types::B1T_BYTE ? 1 : 0;
 				rv = Utils::str_tohex16(offset);
 			}
 			else
 			if(req_valtype & LVT::LVT_REG)
 			{
 				rvt = LVT::LVT_REG;
-				rv = req_type == L"BYTE" ? L"A" : L"X";
+				rv = req_type == B1Types::B1T_BYTE ? L"A" : L"X";
 
-				if(req_type == L"BYTE")
+				if(req_type == B1Types::B1T_BYTE)
 				{
 					_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset + 1) + L", SP)"); //7B BYTE_OFFSET
 				}
@@ -2504,9 +2494,9 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 				{
 					_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
 
-					if(req_type == L"STRING")
+					if(req_type == B1Types::B1T_STRING)
 					{
-						if(init_type == L"INT")
+						if(init_type == B1Types::B1T_INT)
 						{
 							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
 							_req_symbols.insert(L"__LIB_STR_STR_I");
@@ -2526,7 +2516,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 		}
 		else
 		{
-			if(req_type != L"STRING")
+			if(req_type != B1Types::B1T_STRING)
 			{
 				return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
 			}
@@ -2563,9 +2553,9 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 			offset = _stack_ptr + _ret_addr_size + arg_off;
 		}
 
-		if(init_type == L"BYTE")
+		if(init_type == B1Types::B1T_BYTE)
 		{
-			if((req_valtype & LVT::LVT_STKREF) && req_type == L"BYTE")
+			if((req_valtype & LVT::LVT_STKREF) && req_type == B1Types::B1T_BYTE)
 			{
 				rvt = LVT::LVT_STKREF;
 				rv = Utils::str_tohex16(offset);
@@ -2574,17 +2564,17 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 			if(req_valtype & LVT::LVT_REG)
 			{
 				rvt = LVT::LVT_REG;
-				rv = req_type == L"BYTE" ? L"A" : L"X";
+				rv = req_type == B1Types::B1T_BYTE ? L"A" : L"X";
 
 				_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset) + L", SP)"); //7B BYTE_OFFSET
 
-				if(req_type != L"BYTE")
+				if(req_type != B1Types::B1T_BYTE)
 				{
 					_curr_code_sec->add_op(L"CLRW X"); //5F
 					_curr_code_sec->add_op(L"LD XL, A"); //97
 				}
 
-				if(req_type == L"STRING")
+				if(req_type == B1Types::B1T_STRING)
 				{
 					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
 					_req_symbols.insert(L"__LIB_STR_STR_I");
@@ -2596,21 +2586,21 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 			}
 		}
 		else
-		if(init_type == L"INT" || init_type == L"WORD")
+		if(init_type == B1Types::B1T_INT || init_type == B1Types::B1T_WORD)
 		{
-			if((req_valtype & LVT::LVT_STKREF) && req_type != L"STRING")
+			if((req_valtype & LVT::LVT_STKREF) && req_type != B1Types::B1T_STRING)
 			{
 				rvt = LVT::LVT_STKREF;
-				offset += req_type == L"BYTE" ? 1 : 0;
+				offset += req_type == B1Types::B1T_BYTE ? 1 : 0;
 				rv = Utils::str_tohex16(offset);
 			}
 			else
 			if(req_valtype & LVT::LVT_REG)
 			{
 				rvt = LVT::LVT_REG;
-				rv = req_type == L"BYTE" ? L"A" : L"X";
+				rv = req_type == B1Types::B1T_BYTE ? L"A" : L"X";
 
-				if(req_type == L"BYTE")
+				if(req_type == B1Types::B1T_BYTE)
 				{
 					_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset + 1) + L", SP)"); //7B BYTE_OFFSET
 				}
@@ -2618,9 +2608,9 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 				{
 					_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
 
-					if(req_type == L"STRING")
+					if(req_type == B1Types::B1T_STRING)
 					{
-						if(init_type == L"INT")
+						if(init_type == B1Types::B1T_INT)
 						{
 							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
 							_req_symbols.insert(L"__LIB_STR_STR_I");
@@ -2641,7 +2631,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 		else
 		{
 			// string
-			if(req_type != L"STRING")
+			if(req_type != B1Types::B1T_STRING)
 			{
 				return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
 			}
@@ -2673,10 +2663,10 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 			
 			rv = is_ma ?
 				(ma->second.use_symbol ?
-					(ma->second.symbol + ((init_type == L"INT" || init_type == L"WORD") && req_type == L"BYTE" ? L" + 0x1" : std::wstring())) :
-					std::to_wstring(ma->second.address + ((init_type == L"INT" || init_type == L"WORD") && req_type == L"BYTE" ? 1 : 0))
+					(ma->second.symbol + ((init_type == B1Types::B1T_INT || init_type == B1Types::B1T_WORD) && req_type == B1Types::B1T_BYTE ? L" + 0x1" : std::wstring())) :
+					std::to_wstring(ma->second.address + ((init_type == B1Types::B1T_INT || init_type == B1Types::B1T_WORD) && req_type == B1Types::B1T_BYTE ? 1 : 0))
 				) :
-				(tv.value + ((init_type == L"INT" || init_type == L"WORD") && req_type == L"BYTE" ? L" + 0x1" : std::wstring())
+				(tv.value + ((init_type == B1Types::B1T_INT || init_type == B1Types::B1T_WORD) && req_type == B1Types::B1T_BYTE ? L" + 0x1" : std::wstring())
 			);
 
 			if(!is_ma)
@@ -2684,9 +2674,9 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 				_req_symbols.insert(tv.value);
 			}
 
-			if(init_type == L"BYTE")
+			if(init_type == B1Types::B1T_BYTE)
 			{
-				if((req_valtype & LVT::LVT_MEMREF) && req_type == L"BYTE")
+				if((req_valtype & LVT::LVT_MEMREF) && req_type == B1Types::B1T_BYTE)
 				{
 					rvt = LVT::LVT_MEMREF;
 				}
@@ -2697,19 +2687,19 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 
 					_curr_code_sec->add_op(L"LD A, (" + rv + L")"); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
 
-					if(req_type != L"BYTE")
+					if(req_type != B1Types::B1T_BYTE)
 					{
 						_curr_code_sec->add_op(L"CLRW X"); //5F
 						_curr_code_sec->add_op(L"LD XL, A"); //97
 					}
 
-					if(req_type == L"STRING")
+					if(req_type == B1Types::B1T_STRING)
 					{
 						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
 						_req_symbols.insert(L"__LIB_STR_STR_I");
 					}
 
-					rv = req_type == L"BYTE" ? L"A" : L"X";
+					rv = req_type == B1Types::B1T_BYTE ? L"A" : L"X";
 				}
 				else
 				{
@@ -2717,9 +2707,9 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 				}
 			}
 			else
-			if(init_type == L"INT" || init_type == L"WORD")
+			if(init_type == B1Types::B1T_INT || init_type == B1Types::B1T_WORD)
 			{
-				if((req_valtype & LVT::LVT_MEMREF) && req_type != L"STRING")
+				if((req_valtype & LVT::LVT_MEMREF) && req_type != B1Types::B1T_STRING)
 				{
 					rvt = LVT::LVT_MEMREF;
 				}
@@ -2728,7 +2718,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 				{
 					rvt = LVT::LVT_REG;
 
-					if(req_type == L"BYTE")
+					if(req_type == B1Types::B1T_BYTE)
 					{
 						_curr_code_sec->add_op(L"LD A, (" + rv + L")"); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
 					}
@@ -2736,9 +2726,9 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 					{
 						_curr_code_sec->add_op(L"LDW X, (" + rv + L")"); //BE SHORT_ADDRESS CE LONG_ADDRESS
 
-						if(req_type == L"STRING")
+						if(req_type == B1Types::B1T_STRING)
 						{
-							if(init_type == L"INT")
+							if(init_type == B1Types::B1T_INT)
 							{
 								_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
 								_req_symbols.insert(L"__LIB_STR_STR_I");
@@ -2751,7 +2741,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 						}
 					}
 
-					rv = req_type == L"BYTE" ? L"A" : L"X";
+					rv = req_type == B1Types::B1T_BYTE ? L"A" : L"X";
 				}
 				else
 				{
@@ -2760,7 +2750,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 			}
 			else
 			{
-				if(req_type != L"STRING")
+				if(req_type != B1Types::B1T_STRING)
 				{
 					return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
 				}
@@ -2788,36 +2778,36 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 			if(req_valtype & LVT::LVT_REG)
 			{
 				rvt = LVT::LVT_REG;
-				rv = req_type == L"BYTE" ? L"A" : L"X";
+				rv = req_type == B1Types::B1T_BYTE ? L"A" : L"X";
 
 				_curr_code_sec->add_op(_call_stmt + L" " + fn->iname); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(fn->iname);
 
-				if(init_type == L"BYTE")
+				if(init_type == B1Types::B1T_BYTE)
 				{
-					if(req_type != L"BYTE")
+					if(req_type != B1Types::B1T_BYTE)
 					{
 						_curr_code_sec->add_op(L"CLRW X"); //5F
 						_curr_code_sec->add_op(L"LD XL, A"); //97
 					}
 
-					if(req_type == L"STRING")
+					if(req_type == B1Types::B1T_STRING)
 					{
 						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
 						_req_symbols.insert(L"__LIB_STR_STR_I");
 					}
 				}
 				else
-				if(init_type == L"INT" || init_type == L"WORD")
+				if(init_type == B1Types::B1T_INT || init_type == B1Types::B1T_WORD)
 				{
-					if(req_type == L"BYTE")
+					if(req_type == B1Types::B1T_BYTE)
 					{
 						_curr_code_sec->add_op(L"LD A, XL"); //9F
 					}
 					else
-					if(req_type == L"STRING")
+					if(req_type == B1Types::B1T_STRING)
 					{
-						if(init_type == L"INT")
+						if(init_type == B1Types::B1T_INT)
 						{
 							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
 							_req_symbols.insert(L"__LIB_STR_STR_I");
@@ -2831,7 +2821,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const std::ws
 				}
 				else
 				{
-					if(req_type != L"STRING")
+					if(req_type != B1Types::B1T_STRING)
 					{
 						return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
 					}
@@ -2889,7 +2879,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arr_alloc_def(const B1_CMP_ARG &arg, const B
 			size *= size1;
 		}
 
-		if(arg[0].type == L"BYTE")
+		if(arg[0].type == B1Types::B1T_BYTE)
 		{
 			_curr_code_sec->add_op(L"LDW X, " + Utils::str_tohex16(size)); //AE WORD_VALUE
 		}
@@ -3000,7 +2990,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_
 		// one-dimensional array
 		const auto &tv = arg[1];
 
-		auto err = stm8_load(tv, L"INT", LVT::LVT_REG);
+		auto err = stm8_load(tv, B1Types::B1T_INT, LVT::LVT_REG);
 		if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 		{
 			return err;
@@ -3021,7 +3011,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_
 	else
 	if(known_size)
 	{
-		// multidimensional-dimensional array of fixed size
+		// multidimensional array of fixed size
 		dims_size = 1;
 
 		// offset
@@ -3039,7 +3029,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_
 				_stack_ptr += 2;
 			}
 
-			auto err = stm8_load(tv, L"INT", LVT::LVT_REG);
+			auto err = stm8_load(tv, B1Types::B1T_INT, LVT::LVT_REG);
 			if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 			{
 				return err;
@@ -3072,7 +3062,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_
 	}
 	else
 	{
-		// multidimensional-dimensional array of any size
+		// multidimensional array of any size
 		// offset
 		_curr_code_sec->add_op(L"CLRW X"); //5F
 		_curr_code_sec->add_op(L"PUSHW X"); //89
@@ -3087,7 +3077,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_
 		{
 			const auto &tv = arg[i + 1];
 
-			auto err = stm8_load(tv, L"INT", LVT::LVT_REG);
+			auto err = stm8_load(tv, B1Types::B1T_INT, LVT::LVT_REG);
 			if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 			{
 				return err;
@@ -3124,7 +3114,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_
 	return C1STM8_T_ERROR::C1STM8_RES_OK;
 }
 
-C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const std::wstring &req_type, LVT req_valtype, LVT *res_valtype /*= nullptr*/, std::wstring *res_val /*= nullptr*/)
+C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types req_type, LVT req_valtype, LVT *res_valtype /*= nullptr*/, std::wstring *res_val /*= nullptr*/)
 {
 	if(arg.size() == 1)
 	{
@@ -3133,7 +3123,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const std::wstri
 
 	std::wstring rv;
 	LVT rvt;
-	std::wstring init_type = arg[0].type;
+	auto init_type = arg[0].type;
 
 	// subscripted variable or function call
 	auto fn = get_fn(arg);
@@ -3183,7 +3173,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const std::wstri
 			arg[0].value;
 
 		// get value
-		if(init_type == L"BYTE")
+		if(init_type == B1Types::B1T_BYTE)
 		{
 			if(req_valtype & LVT::LVT_REG)
 			{
@@ -3213,14 +3203,14 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const std::wstri
 					}
 				}
 
-				rv = req_type == L"BYTE" ? L"A" : L"X";
+				rv = req_type == B1Types::B1T_BYTE ? L"A" : L"X";
 
-				if(req_type != L"BYTE")
+				if(req_type != B1Types::B1T_BYTE)
 				{
 					_curr_code_sec->add_op(L"CLRW X"); //5F
 					_curr_code_sec->add_op(L"LD XL, A"); //97
 				}
-				if(req_type == L"STRING")
+				if(req_type == B1Types::B1T_STRING)
 				{
 					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
 					_req_symbols.insert(L"__LIB_STR_STR_I");
@@ -3232,7 +3222,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const std::wstri
 			}
 		}
 		else
-		if(init_type == L"INT" || init_type == L"WORD")
+		if(init_type == B1Types::B1T_INT || init_type == B1Types::B1T_WORD)
 		{
 			if(imm_offset)
 			{
@@ -3243,7 +3233,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const std::wstri
 				_curr_code_sec->add_op(L"SLAW X"); //58
 			}
 
-			if(req_type == L"BYTE")
+			if(req_type == B1Types::B1T_BYTE)
 			{
 				if(imm_offset)
 				{
@@ -3259,7 +3249,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const std::wstri
 			{
 				rvt = LVT::LVT_REG;
 
-				if(req_type == L"BYTE")
+				if(req_type == B1Types::B1T_BYTE)
 				{
 					if(is_ma)
 					{
@@ -3311,9 +3301,9 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const std::wstri
 						}
 					}
 
-					if(req_type == L"STRING")
+					if(req_type == B1Types::B1T_STRING)
 					{
-						if(init_type == L"INT")
+						if(init_type == B1Types::B1T_INT)
 						{
 							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
 							_req_symbols.insert(L"__LIB_STR_STR_I");
@@ -3326,7 +3316,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const std::wstri
 					}
 				}
 
-				rv = req_type == L"BYTE" ? L"A" : L"X";
+				rv = req_type == B1Types::B1T_BYTE ? L"A" : L"X";
 			}
 			else
 			{
@@ -3345,7 +3335,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const std::wstri
 				_curr_code_sec->add_op(L"SLAW X"); //58
 			}
 
-			if(req_type != L"STRING")
+			if(req_type != B1Types::B1T_STRING)
 			{
 				return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
 			}
@@ -3404,7 +3394,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const std::wstri
 
 			if(lvt == LVT::LVT_IMMVAL)
 			{
-				if(farg.type == L"BYTE")
+				if(farg.type == B1Types::B1T_BYTE)
 				{
 					_curr_code_sec->add_op(L"PUSH " + res_val); //4B BYTE_VALUE
 					_stack_ptr++;
@@ -3420,7 +3410,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const std::wstri
 			}
 			else
 			{
-				if(farg.type == L"BYTE")
+				if(farg.type == B1Types::B1T_BYTE)
 				{
 					_curr_code_sec->add_op(L"PUSH A"); //88
 					_stack_ptr++;
@@ -3450,7 +3440,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const std::wstri
 		if(req_valtype & LVT::LVT_REG)
 		{
 			rvt = LVT::LVT_REG;
-			rv = req_type == L"BYTE" ? L"A" : L"X";
+			rv = req_type == B1Types::B1T_BYTE ? L"A" : L"X";
 			_curr_code_sec->add_op(_call_stmt + L" " + fn->iname); //AD SIGNED_BYTE_OFFSET (CALLR)
 			_req_symbols.insert(fn->iname);
 
@@ -3461,30 +3451,30 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const std::wstri
 				_stack_ptr -= args_size;
 			}
 
-			if(init_type == L"BYTE")
+			if(init_type == B1Types::B1T_BYTE)
 			{
-				if(req_type != L"BYTE")
+				if(req_type != B1Types::B1T_BYTE)
 				{
 					_curr_code_sec->add_op(L"CLRW X"); //5F
 					_curr_code_sec->add_op(L"LD XL, A"); //97
 				}
-				if(req_type == L"STRING")
+				if(req_type == B1Types::B1T_STRING)
 				{
 					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
 					_req_symbols.insert(L"__LIB_STR_STR_I");
 				}
 			}
 			else
-			if(init_type == L"INT" || init_type == L"WORD")
+			if(init_type == B1Types::B1T_INT || init_type == B1Types::B1T_WORD)
 			{
-				if(req_type == L"BYTE")
+				if(req_type == B1Types::B1T_BYTE)
 				{
 					_curr_code_sec->add_op(L"LD A, XL"); //9F
 				}
 				else
-				if(req_type == L"STRING")
+				if(req_type == B1Types::B1T_STRING)
 				{
-					if(init_type == L"INT")
+					if(init_type == B1Types::B1T_INT)
 					{
 						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
 						_req_symbols.insert(L"__LIB_STR_STR_I");
@@ -3498,7 +3488,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const std::wstri
 			}
 			else
 			{
-				if(req_type != L"STRING")
+				if(req_type != B1Types::B1T_STRING)
 				{
 					return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
 				}
@@ -3527,7 +3517,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_init_array(const B1_CMP_CMD &cmd, const B1_C
 {
 	int32_t data_size;
 
-	if(!B1CUtils::get_asm_type(cmd.args[1][0].value, nullptr, &data_size))
+	if(!B1CUtils::get_asm_type(cmd.args[1][0].type, nullptr, &data_size))
 	{
 		return C1STM8_T_ERROR::C1STM8_RES_EINVTYPNAME;
 	}
@@ -3549,7 +3539,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_init_array(const B1_CMP_CMD &cmd, const B1_C
 		for(int32_t i = 0; i < dims; i++)
 		{
 			// lbound
-			auto err = stm8_load(cmd.args[2 + i * 2], L"INT", LVT::LVT_REG);
+			auto err = stm8_load(cmd.args[2 + i * 2], B1Types::B1T_INT, LVT::LVT_REG);
 			if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 			{
 				return err;
@@ -3558,7 +3548,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_init_array(const B1_CMP_CMD &cmd, const B1_C
 			_curr_code_sec->add_op(L"LDW (" + cmd.args[0][0].value + L" + " + Utils::str_tohex16((i * 2 + 1) * 2) + L"), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
 
 			// ubound
-			err = stm8_load(cmd.args[2 + i * 2 + 1], L"INT", LVT::LVT_REG);
+			err = stm8_load(cmd.args[2 + i * 2 + 1], B1Types::B1T_INT, LVT::LVT_REG);
 			if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 			{
 				return err;
@@ -3649,12 +3639,12 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_TYPED_VALUE &tv)
 			return C1STM8_T_ERROR::C1STM8_RES_ESTCKOVF;
 		}
 
-		if(tv.type == L"BYTE")
+		if(tv.type == B1Types::B1T_BYTE)
 		{
 			_curr_code_sec->add_op(L"LD (" + Utils::str_tohex16(offset) + L", SP), A"); //6B BYTE_OFFSET
 		}
 		else
-		if(tv.type == L"INT" || tv.type == L"WORD")
+		if(tv.type == B1Types::B1T_INT || tv.type == B1Types::B1T_WORD)
 		{
 			_curr_code_sec->add_op(L"LDW (" + Utils::str_tohex16(offset) + L", SP), X"); //1F BYTE_OFFSET
 		}
@@ -3699,12 +3689,12 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_TYPED_VALUE &tv)
 			_req_symbols.insert(dst);
 		}
 
-		if(tv.type == L"BYTE")
+		if(tv.type == B1Types::B1T_BYTE)
 		{
 			_curr_code_sec->add_op(L"LD (" + dst + L"), A"); //B7 SHORT_ADDRESS C7 LONG_ADDRESS
 		}
 		else
-		if(tv.type == L"INT" || tv.type == L"WORD")
+		if(tv.type == B1Types::B1T_INT || tv.type == B1Types::B1T_WORD)
 		{
 			_curr_code_sec->add_op(L"LDW (" + dst + L"), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
 		}
@@ -3759,7 +3749,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 		_req_symbols.insert(dst);
 	}
 
-	if(arg[0].type == L"BYTE")
+	if(arg[0].type == B1Types::B1T_BYTE)
 	{
 		_curr_code_sec->add_op(L"PUSH A"); //88
 		_stack_ptr++;
@@ -3792,7 +3782,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 	}
 
 	// store value
-	if(arg[0].type == L"BYTE")
+	if(arg[0].type == B1Types::B1T_BYTE)
 	{
 		_curr_code_sec->add_op(L"POP A"); //84
 		_stack_ptr--;
@@ -3837,7 +3827,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 			if(imm_offset)
 			{
 				// release previous string
-				if(arg[0].type == L"STRING")
+				if(arg[0].type == B1Types::B1T_STRING)
 				{
 					_curr_code_sec->add_op(L"LDW X, (" + dst + L" + " + Utils::str_tohex16(offset) + L")"); //BE BYTE_OFFSET CE WORD_OFFSET
 					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
@@ -3852,7 +3842,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 			else
 			{
 				// release previous string
-				if(arg[0].type == L"STRING")
+				if(arg[0].type == B1Types::B1T_STRING)
 				{
 					_curr_code_sec->add_op(L"PUSHW X"); //89
 					_stack_ptr += 2;
@@ -3874,7 +3864,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 			if(imm_offset)
 			{
 				// release previous string
-				if(arg[0].type == L"STRING")
+				if(arg[0].type == B1Types::B1T_STRING)
 				{
 					_curr_code_sec->add_op(L"LDW X, (" + dst + L")"); //BE BYTE_OFFSET CE WORD_OFFSET
 					_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", X)"); //EE BYTE_OFFSET DE WORD_OFFSET
@@ -3891,7 +3881,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 			else
 			{
 				// release previous string
-				if(arg[0].type == L"STRING")
+				if(arg[0].type == B1Types::B1T_STRING)
 				{
 					_curr_code_sec->add_op(L"PUSHW X"); //89
 					_stack_ptr += 2;
@@ -3923,12 +3913,12 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_un_op(const B1_CMP_CMD &cmd)
 
 	if(cmd.cmd == L"-")
 	{
-		if(cmd.args[1][0].type == L"BYTE")
+		if(cmd.args[1][0].type == B1Types::B1T_BYTE)
 		{
 			_curr_code_sec->add_op(L"NEG A"); //40
 		}
 		else
-		if(cmd.args[1][0].type == L"INT" || cmd.args[1][0].type == L"WORD")
+		if(cmd.args[1][0].type == B1Types::B1T_INT || cmd.args[1][0].type == B1Types::B1T_WORD)
 		{
 			_curr_code_sec->add_op(L"NEGW X"); //50
 		}
@@ -3941,12 +3931,12 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_un_op(const B1_CMP_CMD &cmd)
 	// bitwise NOT
 	if(cmd.cmd == L"!")
 	{
-		if(cmd.args[1][0].type == L"BYTE")
+		if(cmd.args[1][0].type == B1Types::B1T_BYTE)
 		{
 			_curr_code_sec->add_op(L"CPL A"); //43
 		}
 		else
-		if(cmd.args[1][0].type == L"INT" || cmd.args[1][0].type == L"WORD")
+		if(cmd.args[1][0].type == B1Types::B1T_INT || cmd.args[1][0].type == B1Types::B1T_WORD)
 		{
 			_curr_code_sec->add_op(L"CPLW X"); //53
 		}
@@ -3970,17 +3960,17 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_un_op(const B1_CMP_CMD &cmd)
 	return C1STM8_T_ERROR::C1STM8_RES_OK;
 }
 
-C1STM8_T_ERROR C1STM8Compiler::stm8_arrange_types(const std::wstring &type_from, const std::wstring &type_to)
+C1STM8_T_ERROR C1STM8Compiler::stm8_arrange_types(const B1Types type_from, const B1Types type_to)
 {
 	if(type_from != type_to)
 	{
-		if(type_from == L"BYTE")
+		if(type_from == B1Types::B1T_BYTE)
 		{
 			// A -> X
 			_curr_code_sec->add_op(L"CLRW X"); //5F
 			_curr_code_sec->add_op(L"LD XL, A"); //97
 
-			if(type_to == L"STRING")
+			if(type_to == B1Types::B1T_STRING)
 			{
 				// BYTE to STRING
 				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
@@ -3988,17 +3978,17 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arrange_types(const std::wstring &type_from,
 			}
 		}
 		else
-		if(type_from == L"INT" || type_from == L"WORD")
+		if(type_from == B1Types::B1T_INT || type_from == B1Types::B1T_WORD)
 		{
-			if(type_to == L"BYTE")
+			if(type_to == B1Types::B1T_BYTE)
 			{
 				// X -> A
 				_curr_code_sec->add_op(L"LD A, XL"); //9F
 			}
 			else
-			if(type_to == L"STRING")
+			if(type_to == B1Types::B1T_STRING)
 			{
-				if(type_from == L"INT")
+				if(type_from == B1Types::B1T_INT)
 				{
 					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
 					_req_symbols.insert(L"__LIB_STR_STR_I");
@@ -4023,7 +4013,8 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arrange_types(const std::wstring &type_from,
 // additive operations
 C1STM8_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 {
-	std::wstring inst, com_type, val;
+	B1Types com_type = B1Types::B1T_UNKNOWN;
+	std::wstring inst, val;
 	LVT lvt;
 	bool comp = false;
 	bool imm_val = false;
@@ -4039,7 +4030,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 		return static_cast<C1STM8_T_ERROR>(err);
 	}
 
-	if(	arg1[0].type != L"STRING" && arg2[0].type != L"STRING" &&
+	if(	arg1[0].type != B1Types::B1T_STRING && arg2[0].type != B1Types::B1T_STRING &&
 		(B1CUtils::is_num_val(arg1[0].value) || B1CUtils::is_num_val(arg2[0].value)))
 	{
 		comp = true;
@@ -4047,7 +4038,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 
 	if(cmd.cmd != L"+")
 	{
-		if(arg1[0].type == L"STRING" || arg2[0].type == L"STRING")
+		if(arg1[0].type == B1Types::B1T_STRING || arg2[0].type == B1Types::B1T_STRING)
 		{
 			return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
 		}
@@ -4067,7 +4058,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 		return C1STM8_T_ERROR::C1STM8_RES_EUNKINST;
 	}
 
-	if(com_type == L"INT" || com_type == L"WORD")
+	if(com_type == B1Types::B1T_INT || com_type == B1Types::B1T_WORD)
 	{
 		inst += L"W";
 	}
@@ -4096,7 +4087,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 	else
 	if(lvt == LVT::LVT_REG)
 	{
-		if(com_type == L"BYTE")
+		if(com_type == B1Types::B1T_BYTE)
 		{
 			_curr_code_sec->add_op(L"PUSH A"); //88
 			_stack_ptr++;
@@ -4114,7 +4105,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 		return err1;
 	}
 
-	if(com_type == L"STRING")
+	if(com_type == B1Types::B1T_STRING)
 	{
 		_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_APD"); //AD SIGNED_BYTE_OFFSET (CALLR)
 		_req_symbols.insert(L"__LIB_STR_APD");
@@ -4122,7 +4113,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 		_stack_ptr -= 2;
 	}
 	else
-	if(com_type == L"BYTE")
+	if(com_type == B1Types::B1T_BYTE)
 	{
 		if(imm_val)
 		{
@@ -4187,7 +4178,8 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 // multiplicative operations
 C1STM8_T_ERROR C1STM8Compiler::stm8_mul_op(const B1_CMP_CMD &cmd)
 {
-	std::wstring inst, com_type, val;
+	B1Types com_type;
+	std::wstring inst, val;
 	LVT lvt;
 	bool comp = false;
 	bool imm_val = false;
@@ -4197,9 +4189,9 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_mul_op(const B1_CMP_CMD &cmd)
 	B1_CMP_ARG arg1 = cmd.args[0];
 	B1_CMP_ARG arg2 = cmd.args[1];
 
-	com_type = L"INT";
+	com_type = B1Types::B1T_INT;
 
-	if(arg1[0].type == L"STRING" || arg2[0].type == L"STRING")
+	if(arg1[0].type == B1Types::B1T_STRING || arg2[0].type == B1Types::B1T_STRING)
 	{
 		return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
 	}
@@ -4272,7 +4264,8 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_mul_op(const B1_CMP_CMD &cmd)
 // bitwise AND, OR and XOR operations
 C1STM8_T_ERROR C1STM8Compiler::stm8_bit_op(const B1_CMP_CMD &cmd)
 {
-	std::wstring inst, com_type, val;
+	B1Types com_type = B1Types::B1T_UNKNOWN;
+	std::wstring inst, val;
 	LVT lvt;
 	bool comp = false;
 	bool imm_val = false;
@@ -4282,7 +4275,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_bit_op(const B1_CMP_CMD &cmd)
 	B1_CMP_ARG arg1 = cmd.args[0];
 	B1_CMP_ARG arg2 = cmd.args[1];
 
-	if(arg1[0].type == L"STRING" || arg2[0].type == L"STRING")
+	if(arg1[0].type == B1Types::B1T_STRING || arg2[0].type == B1Types::B1T_STRING)
 	{
 		return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
 	}
@@ -4336,7 +4329,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_bit_op(const B1_CMP_CMD &cmd)
 	else
 	if(lvt == LVT::LVT_REG)
 	{
-		if(com_type == L"BYTE")
+		if(com_type == B1Types::B1T_BYTE)
 		{
 			_curr_code_sec->add_op(L"PUSH A"); //88
 			_stack_ptr++;
@@ -4354,7 +4347,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_bit_op(const B1_CMP_CMD &cmd)
 		return err1;
 	}
 
-	if(com_type == L"BYTE")
+	if(com_type == B1Types::B1T_BYTE)
 	{
 		if(imm_val)
 		{
@@ -4440,17 +4433,17 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_shift_op(const B1_CMP_CMD &cmd)
 	B1_CMP_ARG arg1 = cmd.args[0];
 	B1_CMP_ARG arg2 = cmd.args[1];
 
-	if(arg1[0].type == L"STRING" || arg2[0].type == L"STRING")
+	if(arg1[0].type == B1Types::B1T_STRING || arg2[0].type == B1Types::B1T_STRING)
 	{
 		return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
 	}
 
-	if(arg1[0].type == L"BYTE")
+	if(arg1[0].type == B1Types::B1T_BYTE)
 	{
 		inst = cmd.cmd == L"<<" ? L"SLL A" : L"SRL A";
 	}
 	else
-	if(arg1[0].type == L"WORD")
+	if(arg1[0].type == B1Types::B1T_WORD)
 	{
 		inst = cmd.cmd == L"<<" ? L"SLLW X" : L"SRLW X";
 	}
@@ -4479,7 +4472,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_shift_op(const B1_CMP_CMD &cmd)
 
 	if(use_loop)
 	{
-		if(arg1[0].type == L"BYTE")
+		if(arg1[0].type == B1Types::B1T_BYTE)
 		{
 			_curr_code_sec->add_op(L"PUSH A"); //88
 			_stack_ptr++;
@@ -4490,13 +4483,13 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_shift_op(const B1_CMP_CMD &cmd)
 			_stack_ptr += 2;
 		}
 
-		err = stm8_load(arg2, L"BYTE", LVT::LVT_REG);
+		err = stm8_load(arg2, B1Types::B1T_BYTE, LVT::LVT_REG);
 		if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 		{
 			return err;
 		}
 
-		if(arg1[0].type == L"BYTE")
+		if(arg1[0].type == B1Types::B1T_BYTE)
 		{
 			_curr_code_sec->add_op(L"LD XL, A"); //97
 			_curr_code_sec->add_op(L"POP A"); //84
@@ -4517,12 +4510,12 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_shift_op(const B1_CMP_CMD &cmd)
 		_all_symbols.insert(loop_label);
 		_curr_code_sec->add_op(L"JREQ " + loop_end_label); //27 SIGNED_BYTE_OFFSET
 		_req_symbols.insert(loop_end_label);
-		if(arg1[0].type == L"BYTE")
+		if(arg1[0].type == B1Types::B1T_BYTE)
 		{
 			_curr_code_sec->add_op(L"EXG A, XL"); //41
 		}
 		_curr_code_sec->add_op(inst);
-		if(arg1[0].type == L"BYTE")
+		if(arg1[0].type == B1Types::B1T_BYTE)
 		{
 			_curr_code_sec->add_op(L"EXG A, XL"); //41
 		}
@@ -4531,7 +4524,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_shift_op(const B1_CMP_CMD &cmd)
 		_req_symbols.insert(loop_label);
 		_curr_code_sec->add_lbl(loop_end_label);
 		_all_symbols.insert(loop_end_label);
-		if(arg1[0].type == L"BYTE")
+		if(arg1[0].type == B1Types::B1T_BYTE)
 		{
 			_curr_code_sec->add_op(L"LD A, XL"); //9F
 		}
@@ -4562,7 +4555,8 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_shift_op(const B1_CMP_CMD &cmd)
 // numeric comparison operations
 C1STM8_T_ERROR C1STM8Compiler::stm8_num_cmp_op(const B1_CMP_CMD &cmd)
 {
-	std::wstring com_type, val;
+	B1Types com_type = B1Types::B1T_UNKNOWN;
+	std::wstring val;
 	LVT lvt;
 	bool comp = false;
 	bool imm_val = false;
@@ -4572,7 +4566,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_num_cmp_op(const B1_CMP_CMD &cmd)
 	B1_CMP_ARG arg1 = cmd.args[0];
 	B1_CMP_ARG arg2 = cmd.args[1];
 
-	if(arg1[0].type == L"STRING" || arg2[0].type == L"STRING")
+	if(arg1[0].type == B1Types::B1T_STRING || arg2[0].type == B1Types::B1T_STRING)
 	{
 		return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
 	}
@@ -4607,7 +4601,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_num_cmp_op(const B1_CMP_CMD &cmd)
 	else
 	if(lvt == LVT::LVT_REG)
 	{
-		if(com_type == L"BYTE")
+		if(com_type == B1Types::B1T_BYTE)
 		{
 			_curr_code_sec->add_op(L"PUSH A"); //88
 			_stack_ptr++;
@@ -4625,7 +4619,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_num_cmp_op(const B1_CMP_CMD &cmd)
 		return err1;
 	}
 
-	if(com_type == L"BYTE")
+	if(com_type == B1Types::B1T_BYTE)
 	{
 		if(imm_val)
 		{
@@ -4685,12 +4679,12 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_str_cmp_op(const B1_CMP_CMD &cmd)
 	B1_CMP_ARG arg1 = cmd.args[0];
 	B1_CMP_ARG arg2 = cmd.args[1];
 
-	if(arg1[0].type != L"STRING" && arg2[0].type != L"STRING")
+	if(arg1[0].type != B1Types::B1T_STRING && arg2[0].type != B1Types::B1T_STRING)
 	{
 		return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
 	}
 
-	auto err = stm8_load(arg2, L"STRING", LVT::LVT_REG);
+	auto err = stm8_load(arg2, B1Types::B1T_STRING, LVT::LVT_REG);
 	if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 	{
 		return err;
@@ -4699,7 +4693,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_str_cmp_op(const B1_CMP_CMD &cmd)
 	_curr_code_sec->add_op(L"PUSHW X"); //89
 	_stack_ptr += 2;
 
-	err = stm8_load(arg1, L"STRING", LVT::LVT_REG);
+	err = stm8_load(arg1, B1Types::B1T_STRING, LVT::LVT_REG);
 	if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 	{
 		return err;
@@ -4714,7 +4708,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_str_cmp_op(const B1_CMP_CMD &cmd)
 
 	_cmp_active = true;
 	_cmp_op = cmd.cmd;
-	_cmp_type = L"STRING";
+	_cmp_type = B1Types::B1T_STRING;
 
 	return C1STM8_T_ERROR::C1STM8_RES_OK;
 }
@@ -4819,7 +4813,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_ioctl(std::list<B1_CMP_CMD>::const_iterator
 	std::wstring dev_name;
 	std::wstring cmd_name;
 	int32_t id = -1;
-	std::wstring data_type;
+	B1Types data_type = B1Types::B1T_UNKNOWN;
 	bool pre_cmd = false; // command(-s) with predefined value(-s)
 	int32_t mask = 0;
 	int32_t values = 0;
@@ -4921,7 +4915,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_ioctl(std::list<B1_CMP_CMD>::const_iterator
 			id = iocmd.id;
 
 			// predefined values cannot be strings at the moment
-			if(iocmd.data_type == L"STRING")
+			if(iocmd.data_type == B1Types::B1T_STRING)
 			{
 				return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
 			}
@@ -4976,13 +4970,13 @@ C1STM8_T_ERROR C1STM8Compiler::write_ioctl(std::list<B1_CMP_CMD>::const_iterator
 
 		if(pre_cmd)
 		{
-			if(data_type == L"STRING")
+			if(data_type == B1Types::B1T_STRING)
 			{
 				// predefined values cannot be strings at the moment
 				return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
 			}
 
-			if(data_type == L"BYTE")
+			if(data_type == B1Types::B1T_BYTE)
 			{
 				_curr_code_sec->add_op(L"LD A, " + std::to_wstring(values)); //A6 BYTE_VALUE
 				if(mask != 0)
@@ -4992,12 +4986,12 @@ C1STM8_T_ERROR C1STM8Compiler::write_ioctl(std::list<B1_CMP_CMD>::const_iterator
 				}
 			}
 			else
-			if(data_type == L"INT")
+			if(data_type == B1Types::B1T_INT)
 			{
 				_curr_code_sec->add_op(L"LDW X, " + std::to_wstring(values)); //AE WORD_VALUE
 			}
 			else
-			if(data_type == L"WORD")
+			if(data_type == B1Types::B1T_WORD)
 			{
 				_curr_code_sec->add_op(L"LDW X, " + std::to_wstring(values)); //AE WORD_VALUE
 			}
@@ -5006,7 +5000,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_ioctl(std::list<B1_CMP_CMD>::const_iterator
 		_curr_code_sec->add_op(_call_stmt + L" " + file_name);  //AD SIGNED_BYTE_OFFSET (CALLR)
 		_req_symbols.insert(file_name);
 
-		if(pre_cmd && data_type == L"BYTE" && mask != 0)
+		if(pre_cmd && data_type == B1Types::B1T_BYTE && mask != 0)
 		{
 			_curr_code_sec->add_op(L"POP A"); //84
 			_stack_ptr--;
@@ -5099,7 +5093,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 					}
 
 					_curr_udef_arg_offsets.insert(_curr_udef_arg_offsets.begin(), arg_off);
-					if(arg.type == L"STRING")
+					if(arg.type == B1Types::B1T_STRING)
 					{
 						_curr_udef_str_arg_offsets.push_back(arg_off);
 					}
@@ -5289,7 +5283,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 
 			// get local size
 			int32_t size;
-			if(!B1CUtils::get_asm_type(cmd.args[1][0].value, nullptr, &size))
+			if(!B1CUtils::get_asm_type(cmd.args[1][0].type, nullptr, &size))
 			{
 				return C1STM8_T_ERROR::C1STM8_RES_EINVTYPNAME;
 			}
@@ -5303,7 +5297,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				}
 				else
 				{
-					if(cmd.args[1][0].value == L"STRING")
+					if(cmd.args[1][0].type == B1Types::B1T_STRING)
 					{
 						// string local variable must be emptied right after creation
 						_curr_code_sec->add_op(L"PUSH 0"); //4B BYTE_VALUE
@@ -5319,7 +5313,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			}
 			else
 			{
-				if(cmd.args[1][0].value == L"STRING")
+				if(cmd.args[1][0].type == B1Types::B1T_STRING)
 				{
 					// string local variable must be emptied right after creation
 					_curr_code_sec->add_op(L"CLRW X"); //5F
@@ -5334,7 +5328,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			}
 
 			_stack_ptr += size;
-			_local_offset.push_back(std::pair<B1_TYPED_VALUE, int>(B1_TYPED_VALUE(cmd.args[0][0].value, cmd.args[1][0].value), _stack_ptr - 1));
+			_local_offset.push_back(std::pair<B1_TYPED_VALUE, int>(B1_TYPED_VALUE(cmd.args[0][0].value, cmd.args[1][0].type), _stack_ptr - 1));
 
 			_retval_active = false;
 
@@ -5373,7 +5367,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				}
 				else
 				{
-					if(loc.first.type == L"STRING")
+					if(loc.first.type == B1Types::B1T_STRING)
 					{
 						_curr_code_sec->add_op(L"POPW X"); //85
 						if(!not_used)
@@ -5396,11 +5390,11 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			if(_retval_active)
 			{
 				// after RETVAL command LF should not change registers (to preserve function return value)
-				if(loc.first.type == L"STRING")
+				if(loc.first.type == B1Types::B1T_STRING)
 				{
 					if(!not_used)
 					{
-						if(_retval_type == L"BYTE")
+						if(_retval_type == B1Types::B1T_BYTE)
 						{
 							_curr_code_sec->add_op(L"PUSH A"); //88
 							_stack_ptr += 1;
@@ -5431,7 +5425,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			}
 			else
 			{
-				if(loc.first.type == L"STRING")
+				if(loc.first.type == B1Types::B1T_STRING)
 				{
 					if(!not_used)
 					{
@@ -5492,14 +5486,14 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 
 			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_" + in_dev + L"_IN");  //AD SIGNED_BYTE_OFFSET (CALLR)
 			_req_symbols.insert(L"__LIB_" + in_dev + L"_IN");
-			if(cmd.args[1][0].type == L"BYTE")
+			if(cmd.args[1][0].type == B1Types::B1T_BYTE)
 			{
 				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_VAL"); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_STR_VAL");
 				_curr_code_sec->add_op(L"LD A, XL"); //9F
 			}
 			else
-			if(cmd.args[1][0].type == L"INT" || cmd.args[1][0].type == L"WORD")
+			if(cmd.args[1][0].type == B1Types::B1T_INT || cmd.args[1][0].type == B1Types::B1T_WORD)
 			{
 				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_VAL"); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_STR_VAL");
@@ -5565,7 +5559,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				// PRINT TAB(n) function
 				// TAB(0) is a special case: move to the next print zone
 				// load argument of TAB or SPC function
-				auto err = stm8_load(cmd.args[1][1], L"BYTE", LVT::LVT_REG);
+				auto err = stm8_load(cmd.args[1][1], B1Types::B1T_BYTE, LVT::LVT_REG);
 				if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 				{
 					return err;
@@ -5578,7 +5572,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			{
 				// PRINT SPC(n) function
 				// load argument of TAB or SPC function
-				auto err = stm8_load(cmd.args[1][1], L"BYTE", LVT::LVT_REG);
+				auto err = stm8_load(cmd.args[1][1], B1Types::B1T_BYTE, LVT::LVT_REG);
 				if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 				{
 					return err;
@@ -5588,18 +5582,18 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			}
 			else
 			{
-				if(cmd.args[1][0].type == L"STRING")
+				if(cmd.args[1][0].type == B1Types::B1T_STRING)
 				{
-					auto err = stm8_load(cmd.args[1], L"STRING", LVT::LVT_REG);
+					auto err = stm8_load(cmd.args[1], B1Types::B1T_STRING, LVT::LVT_REG);
 					if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 					{
 						return err;
 					}
 				}
 				else
-				if(cmd.args[1][0].type == L"WORD" || cmd.args[1][0].type == L"BYTE")
+				if(cmd.args[1][0].type == B1Types::B1T_WORD || cmd.args[1][0].type == B1Types::B1T_BYTE)
 				{
-					auto err = stm8_load(cmd.args[1], L"WORD", LVT::LVT_REG);
+					auto err = stm8_load(cmd.args[1], B1Types::B1T_WORD, LVT::LVT_REG);
 					if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 					{
 						return err;
@@ -5613,9 +5607,9 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 					_stack_ptr -= 1;
 				}
 				else
-				if(cmd.args[1][0].type == L"INT")
+				if(cmd.args[1][0].type == B1Types::B1T_INT)
 				{
-					auto err = stm8_load(cmd.args[1], L"INT", LVT::LVT_REG);
+					auto err = stm8_load(cmd.args[1], B1Types::B1T_INT, LVT::LVT_REG);
 					if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 					{
 						return err;
@@ -5696,7 +5690,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			name_space = name_space.empty() ? std::wstring() : (name_space + L"::");
 
 			// load value
-			if(cmd.args[1][0].type == L"BYTE")
+			if(cmd.args[1][0].type == B1Types::B1T_BYTE)
 			{
 				_curr_code_sec->add_op(L"LDW X, (" + name_space + L"__DAT_PTR)"); //BE SHORT_ADDRESS, CE LONG_ADDRESS
 				_curr_code_sec->add_op(L"INCW X"); //5C
@@ -5739,7 +5733,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				_curr_code_sec->add_comment(Utils::str_trim(_src_lines[cmd.src_line_id]));
 			}
 
-			auto err = stm8_load(cmd.args[0], cmd.args[1][0].value, LVT::LVT_REG);
+			auto err = stm8_load(cmd.args[0], cmd.args[1][0].type, LVT::LVT_REG);
 			if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 			{
 				return err;
@@ -5747,7 +5741,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 
 			_cmp_active = false;
 			_retval_active = true;
-			_retval_type = cmd.args[1][0].value;
+			_retval_type = cmd.args[1][0].type;
 
 			continue;
 		}
@@ -5767,7 +5761,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				{
 					int32_t offset;
 
-					if(_retval_type == L"BYTE")
+					if(_retval_type == B1Types::B1T_BYTE)
 					{
 						_curr_code_sec->add_op(L"PUSH A"); //88
 						_stack_ptr += 1;
@@ -5797,7 +5791,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 
 				for(const auto &sa: _curr_udef_str_arg_offsets)
 				{
-					if(_retval_type == L"BYTE")
+					if(_retval_type == B1Types::B1T_BYTE)
 					{
 						_curr_code_sec->add_op(L"PUSH A"); //88
 						_stack_ptr += 1;
@@ -6008,7 +6002,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			else
 			if(_cmp_op == L">")
 			{
-				if(_cmp_type == L"INT" || _cmp_type == L"STRING")
+				if(_cmp_type == B1Types::B1T_INT || _cmp_type == B1Types::B1T_STRING)
 				{
 					// signed comparison
 					if(cmd.cmd == L"JT")
@@ -6036,7 +6030,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			else
 			if(_cmp_op == L">=")
 			{
-				if(_cmp_type == L"INT" || _cmp_type == L"STRING")
+				if(_cmp_type == B1Types::B1T_INT || _cmp_type == B1Types::B1T_STRING)
 				{
 					// signed comparison
 					if(cmd.cmd == L"JT")
@@ -6064,7 +6058,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			else
 			if(_cmp_op == L"<")
 			{
-				if(_cmp_type == L"INT" || _cmp_type == L"STRING")
+				if(_cmp_type == B1Types::B1T_INT || _cmp_type == B1Types::B1T_STRING)
 				{
 					// signed comparison
 					if(cmd.cmd == L"JT")
@@ -6092,7 +6086,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			else
 			if(_cmp_op == L"<=")
 			{
-				if(_cmp_type == L"INT" || _cmp_type == L"STRING")
+				if(_cmp_type == B1Types::B1T_INT || _cmp_type == B1Types::B1T_STRING)
 				{
 					// signed comparison
 					if(cmd.cmd == L"JT")
@@ -6204,7 +6198,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 
 		if(B1CUtils::is_log_op(cmd))
 		{
-			if(cmd.args[0][0].type == L"STRING" || cmd.args[1][0].type == L"STRING")
+			if(cmd.args[0][0].type == B1Types::B1T_STRING || cmd.args[1][0].type == B1Types::B1T_STRING)
 			{
 				// string comparison
 				auto err = stm8_str_cmp_op(cmd);
@@ -6245,7 +6239,9 @@ C1STM8Compiler::C1STM8Compiler(bool out_src_lines, bool opt_nocheck, int32_t ret
 , _out_src_lines(out_src_lines)
 , _opt_nocheck(opt_nocheck)
 , _cmp_active(false)
+, _cmp_type(B1Types::B1T_UNKNOWN)
 , _retval_active(false)
+, _retval_type(B1Types::B1T_UNKNOWN)
 , _inline_asm(false)
 , _page0(true)
 , _next_temp_namespace_id(32768)
