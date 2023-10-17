@@ -69,6 +69,9 @@ private:
 	B1_CMP_CMDS _MA_stmts;
 	B1_CMP_CMDS _DAT_stmts;
 
+	// labels that should not be removed (used indirectly)
+	std::set<std::wstring> _req_labels;
+
 
 	B1C_T_ERROR put_var_name(const std::wstring &name, const B1Types type, int dims, bool global, bool volat, bool mem_var);
 	std::wstring get_var_name(const std::wstring &name, bool &expl) const;
@@ -95,7 +98,7 @@ private:
 	B1_T_ERROR st_option_set_expr(const B1_T_CHAR *s, B1_CMP_EXP_TYPE &exp_type, B1_CMP_ARG &res);
 	bool st_option_check(bool first_run, bool& opt, bool& opt_def, bool val);
 	B1C_T_ERROR st_option(bool first_run);
-	B1C_T_ERROR st_ioctl_get_predef_value(std::wstring &value);
+	B1C_T_ERROR st_ioctl_get_symbolic_value(std::wstring &value);
 	B1C_T_ERROR st_ioctl();
 	B1_T_ERROR st_let(const B1_T_CHAR **stop_tokens, B1_CMP_ARG *var_ref = nullptr);
 	B1_T_ERROR st_goto();

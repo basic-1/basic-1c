@@ -28,6 +28,9 @@ enum class B1Types
 	B1T_WORD,
 	B1T_LONG,
 	B1T_STRING,
+
+	// special types
+	B1T_LABEL = 1000,
 };
 
 
@@ -93,8 +96,15 @@ public:
 			CT_INL,
 		};
 
+		enum class IoCmdCodePlacement
+		{
+			CP_CURR_POS,
+			CP_END,
+		};
+
 		int32_t id;
 		IoCmdCallType call_type;
+		IoCmdCodePlacement code_place;
 		std::wstring file_name;
 		int32_t mask;
 		bool accepts_data;
@@ -105,6 +115,7 @@ public:
 		IoCmd()
 		: id(-1)
 		, call_type(IoCmdCallType::CT_CALL)
+		, code_place(IoCmdCodePlacement::CP_CURR_POS)
 		, mask(0)
 		, accepts_data(false)
 		, data_type(B1Types::B1T_UNKNOWN)
@@ -116,6 +127,7 @@ public:
 		{
 			id = -1;
 			call_type = IoCmdCallType::CT_CALL;
+			code_place = IoCmdCodePlacement::CP_CURR_POS;
 			mask = 0;
 			accepts_data = false;
 			data_type = B1Types::B1T_UNKNOWN;
@@ -145,6 +157,8 @@ protected:
 
 	bool _fix_addresses;
 
+	bool _fix_ret_stk_ptr;
+
 	int32_t _RAM_start;
 	int32_t _RAM_size;
 
@@ -172,6 +186,7 @@ public:
 
 	, _mem_model_small(true)
 	, _fix_addresses(false)
+	, _fix_ret_stk_ptr(false)
 
 	, _RAM_start(RAM_start)
 	, _RAM_size(RAM_size)
@@ -207,8 +222,10 @@ public:
 	bool GetMemModelLarge() { return !_mem_model_small; }
 
 	void SetFixAddresses() { _fix_addresses = true; }
-
 	bool GetFixAddresses() { return _fix_addresses; }
+
+	void SetFixRetStackPtr() { _fix_ret_stk_ptr = true; }
+	bool GetFixRetStackPtr() { return _fix_ret_stk_ptr; }
 
 	bool GetPrintWarnings() const { return _print_warnings; }
 	bool GetPrintWarningDesc() const { return _print_warning_desc; }

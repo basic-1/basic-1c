@@ -447,6 +447,9 @@ B1Types Utils::get_type_by_name(const std::wstring &type_name)
 	if(type_name_uc == L"BYTE")
 		return B1Types::B1T_BYTE;
 	else
+	if(type_name_uc == L"LABEL")
+		return B1Types::B1T_LABEL;
+	else
 		return B1Types::B1T_UNKNOWN;
 }
 
@@ -881,6 +884,25 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 		if(Utils::str_toupper(value) == L"INL")
 		{
 			cmd.call_type = IoCmd::IoCmdCallType::CT_INL;
+		}
+		else
+		{
+			return B1_RES_ESYNTAX;
+		}
+
+		// code placement
+		if(!get_field(line, true, value))
+		{
+			return B1_RES_ESYNTAX;
+		}
+		if(Utils::str_toupper(value) == L"END")
+		{
+			cmd.code_place = IoCmd::IoCmdCodePlacement::CP_END;
+		}
+		else
+		if (Utils::str_toupper(value).empty())
+		{
+			cmd.code_place = IoCmd::IoCmdCodePlacement::CP_CURR_POS;
 		}
 		else
 		{

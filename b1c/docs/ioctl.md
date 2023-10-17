@@ -61,6 +61,7 @@ Here `PX` stands for GPIO port name (e.g. `PA` for port A) and command names sho
 - `IOCTL TIMER, PERIODMS, <numeric_value>` - set timer period in ms (tries setting prescaler and value automatically)  
 - `IOCTL TIMER, INTERRUPT, ON | OFF` - enable or disable timer update interrupt (disabled by default)  
 - `IOCTL TIMER, CLRINTFLAG` - clear update interrupt flag  
+- `IOCTL TIMER, ONUPDOVF, <line_number>` - use BASIC subroutine starting from the specifide line number as a handler for timer's update/overflow interrupt, the handler automatically clears update interrupt flag (see previous command description)  
 - `IOCTL TIMER, START` - start timer  
 - `IOCTL TIMER, STOP` - stop timer  
 - `IOCTL TIMER, ENABLE` - enable timer  
@@ -70,6 +71,12 @@ Here `PX` stands for GPIO port name (e.g. `PA` for port A) and command names sho
 `IOCTL CPU, INTERRUPTS, ON`  
 `IOCTL TIMER, ENABLE`  
 `IOCTL TIMER, PERIODMS, 100`  
+`IOCTL TIMER, ONUPDOVF, 1000`  
 `IOCTL TIMER, INTERRUPT, ENABLE`  
 `IOCTL TIMER, START`  
+`...`  
+`END`  
   
+`1000 REM timer's update interrupt handler`  
+`...`  
+`RET`  

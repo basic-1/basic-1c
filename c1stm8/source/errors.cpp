@@ -84,6 +84,8 @@ static const std::string c1stm8_err_msgs[] =
 	"recursive inline",
 	"no default IO device specified",
 	"unknown IO device",
+	"unknown interrupt name",
+	"multiple handlers for a single interrupt",
 
 	"the last message"
 };
@@ -92,7 +94,7 @@ static const std::string c1stm8_wrn_msgs[] =
 {
 	"possible wrong heap size",
 	"possible wrong stack size",
-	"",
+	"possible stack overflow",
 	"",
 	"unknown MCU name",
 

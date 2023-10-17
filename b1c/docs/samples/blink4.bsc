@@ -1,0 +1,19 @@
+' use internal subroutine as interrupt handler
+
+  10 IOCTL PB, CFGPIN5, OUT_PUSHPULL_FAST
+  20 IOCTL CPU, INTERRUPTS, ON
+  30 IOCTL TIMER, ENABLE
+' set 1000 ms time interval
+  40 IOCTL TIMER, PERIODMS, 1000
+' set subroutine starting from line number 1000 as the timer update/overflow interrupt handler
+  50 IOCTL TIMER, ONUPDOVF, 1000
+  60 IOCTL TIMER, INTERRUPT, ENABLE
+  70 IOCTL TIMER, START
+  80 WHILE 1 > 0
+  90 IOCTL CPU, WAIT, INTERRUPT
+ 100 WEND
+ 110 END
+
+' this subroutine inverts value of pin 5 of port B
+1000 IOCTL PB, INVPIN5
+1010 RETURN

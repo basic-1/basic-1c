@@ -447,7 +447,7 @@ C1STM8_T_ERROR C1STM8Compiler::process_asm_cmd(const std::wstring &line)
 	return C1STM8_T_ERROR::C1STM8_RES_OK;
 }
 
-C1STM8_T_ERROR C1STM8Compiler::replace_inline(std::wstring &line, const std::vector<std::pair<std::wstring, std::wstring>> &inl_params)
+C1STM8_T_ERROR C1STM8Compiler::replace_inline(std::wstring &line, const std::map<std::wstring, std::wstring> &inl_params)
 {
 	for(const auto &ip: inl_params)
 	{
@@ -516,7 +516,7 @@ C1STM8_T_ERROR C1STM8Compiler::replace_inline(std::wstring &line, const std::vec
 	return C1STM8_T_ERROR::C1STM8_RES_OK;
 }
 
-C1STM8_T_ERROR C1STM8Compiler::load_inline(size_t offset, const std::wstring &line, const_iterator pos, const std::vector<std::pair<std::wstring, std::wstring>> &inl_params)
+C1STM8_T_ERROR C1STM8Compiler::load_inline(size_t offset, const std::wstring &line, const_iterator pos, const std::map<std::wstring, std::wstring> &inl_params)
 {
 	B1_TYPED_VALUE tv;
 
@@ -934,7 +934,6 @@ C1STM8_T_ERROR C1STM8Compiler::load_next_command(const std::wstring &line, const
 				{
 					return err;
 				}
-				args.push_back(arg);
 
 				if(iocmd.predef_only)
 				{
@@ -951,11 +950,25 @@ C1STM8_T_ERROR C1STM8Compiler::load_next_command(const std::wstring &line, const
 				}
 				else
 				{
+					if(iocmd.data_type == B1Types::B1T_LABEL)
+					{
+						const auto label = (arg[0].value.length() >= 3 && arg[0].value[0] == L'\"') ? arg[0].value.substr(1, arg[0].value.length() - 2) : arg[0].value;
+						
+						if(!check_label_name(label))
+						{
+							return C1STM8_T_ERROR::C1STM8_RES_EINVLBNAME;
+						}
+						_req_symbols.insert(label);
+						arg[0].value = label;
+					}
+					else
 					if(!B1CUtils::are_types_compatible(arg[0].type, iocmd.data_type))
 					{
 						return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
 					}
 				}
+
+				args.push_back(arg);
 			}
 		}
 		else
@@ -1763,10 +1776,21 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 		{
 			if(cmd.args.size() > 2)
 			{
-				auto err = check_arg(cmd.args[2]);
-				if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+				auto dev_name = _global_settings.GetIoDeviceName(cmd.args[0][0].value.substr(1, cmd.args[0][0].value.length() - 2));
+				auto cmd_name = cmd.args[1][0].value.substr(1, cmd.args[1][0].value.length() - 2);
+				Settings::IoCmd iocmd;
+				if(!_global_settings.GetIoCmd(dev_name, cmd_name, iocmd))
 				{
-					return err;
+					return static_cast<C1STM8_T_ERROR>(B1_RES_ESYNTAX);
+				}
+
+				if(iocmd.data_type != B1Types::B1T_LABEL)
+				{
+					auto err = check_arg(cmd.args[2]);
+					if (err != C1STM8_T_ERROR::C1STM8_RES_OK)
+					{
+						return err;
+					}
 				}
 			}
 
@@ -1925,7 +1949,7 @@ C1STM8_T_ERROR C1STM8Compiler::process_imm_str_values()
 					return static_cast<C1STM8_T_ERROR>(B1_RES_ESYNTAX);
 				}
 
-				if(!iocmd.predef_only)
+				if(!iocmd.predef_only && iocmd.data_type != B1Types::B1T_LABEL)
 				{
 					auto err = process_imm_str_value(cmd.args[2]);
 					if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
@@ -4813,12 +4837,14 @@ C1STM8_T_ERROR C1STM8Compiler::write_ioctl(std::list<B1_CMP_CMD>::const_iterator
 	std::wstring dev_name;
 	std::wstring cmd_name;
 	int32_t id = -1;
-	B1Types data_type = B1Types::B1T_UNKNOWN;
+	auto data_type = B1Types::B1T_UNKNOWN;
 	bool pre_cmd = false; // command(-s) with predefined value(-s)
 	int32_t mask = 0;
 	int32_t values = 0;
+	std::wstring label_value;
 	bool accepts_data = false;
-	Settings::IoCmd::IoCmdCallType call_type = Settings::IoCmd::IoCmdCallType::CT_CALL;
+	auto call_type = Settings::IoCmd::IoCmdCallType::CT_CALL;
+	auto code_place = Settings::IoCmd::IoCmdCodePlacement::CP_CURR_POS;
 	std::wstring file_name;
 	int32_t ioctl_num = 1;
 
@@ -4879,6 +4905,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_ioctl(std::list<B1_CMP_CMD>::const_iterator
 			accepts_data = false;
 			call_type = iocmd.call_type;
 			file_name = iocmd.file_name;
+			code_place = iocmd.code_place;
 			break;
 		}
 
@@ -4891,13 +4918,22 @@ C1STM8_T_ERROR C1STM8Compiler::write_ioctl(std::list<B1_CMP_CMD>::const_iterator
 		{
 			id = iocmd.id;
 			accepts_data = true;
+			data_type = iocmd.data_type;
 			call_type = iocmd.call_type;
+			code_place = iocmd.code_place;
 			file_name = iocmd.file_name;
 
-			auto err = stm8_load(cmd_it->args[2], iocmd.data_type, LVT::LVT_REG);
-			if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+			if(iocmd.data_type == B1Types::B1T_LABEL)
 			{
-				return err;
+				label_value = cmd->args[2][0].value;
+			}
+			else
+			{
+				auto err = stm8_load(cmd_it->args[2], iocmd.data_type, LVT::LVT_REG);
+				if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+				{
+					return err;
+				}
 			}
 
 			break;
@@ -4931,6 +4967,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_ioctl(std::list<B1_CMP_CMD>::const_iterator
 			mask = iocmd.mask;
 			accepts_data = true;
 			call_type = iocmd.call_type;
+			code_place = iocmd.code_place;
 			file_name = iocmd.file_name;
 
 			// no mask
@@ -5015,24 +5052,33 @@ C1STM8_T_ERROR C1STM8Compiler::write_ioctl(std::list<B1_CMP_CMD>::const_iterator
 		}
 
 		// inline code
-		std::vector<std::pair<std::wstring, std::wstring>> params =
+		std::map<std::wstring, std::wstring> params =
 		{
-			{ L"VALUE", std::to_wstring(values) },
+			{ L"VALUE", (data_type == B1Types::B1T_LABEL) ? label_value : std::to_wstring(values) },
 			{ L"MASK", std::to_wstring(mask) },
 			{ L"DEV_NAME", dev_name },
 			{ L"ID", std::to_wstring(id) },
 			{ L"CALL_TYPE", L"INL"},
 			{ L"IOCTL_NUM", std::to_wstring(ioctl_num) },
-			{ L"CMD_NAME", cmd_name }
+			{ L"CMD_NAME", cmd_name },
+			{ L"FILE_NAME", file_name }
 		};
 
-		auto saved_it = cmd_it++;
-		auto err = load_inline(0, file_name, cmd_it, params);
-		if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+		if(code_place == Settings::IoCmd::IoCmdCodePlacement::CP_CURR_POS)
 		{
-			return err;
+			auto saved_it = cmd_it++;
+			auto err = load_inline(0, file_name, cmd_it, params);
+			if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+			{
+				return err;
+			}
+			cmd_it = saved_it;
 		}
-		cmd_it = saved_it;
+		else
+		{
+			// Settings::IoCmd::IoCmdCodePlacement::CP_END: placement after END statement
+			_end_placement.push_back(std::make_pair(cmd_it, params));
+		}
 	}
 
 	return C1STM8_T_ERROR::C1STM8_RES_OK;
@@ -5831,6 +5877,19 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				}
 			}
 
+			if(_stack_ptr != 0)
+			{
+				// probably some local variables are not released
+				if(_global_settings.GetFixRetStackPtr())
+				{
+					_curr_code_sec->add_op(L"ADDW SP, " + std::to_wstring(_stack_ptr)); //5B BYTE_VALUE
+				}
+				else
+				{
+					_warnings.push_back(std::make_tuple(GetCurrLineNum(), GetCurrFileName(), C1STM8_T_WARNING::C1STM8_WRN_WRETSTKOVF));
+				}
+			}
+
 			if(int_handler)
 			{
 				_curr_code_sec->add_op(L"IRET"); //80
@@ -5901,6 +5960,16 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			_curr_udef_arg_offsets.clear();
 			_curr_udef_str_arg_offsets.clear();
 
+			for(const auto &epc: _end_placement)
+			{
+				auto err = load_inline(0, epc.second.at(L"FILE_NAME"), std::next(ci), epc.second);
+				if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+				{
+					return err;
+				}
+			}
+			_end_placement.clear();
+
 			continue;
 		}
 
@@ -5944,8 +6013,15 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			
 			if(int_ind < 0)
 			{
-				// wrong interrupt name
-				return static_cast<C1STM8_T_ERROR>(B1_RES_ESYNTAX);
+				// unknown interrupt name
+				return C1STM8_T_ERROR::C1STM8_RES_EUNKINT;
+			}
+
+ 			auto int_hnd = _irq_handlers.find(int_ind);
+			if(int_hnd != _irq_handlers.end() && !int_hnd->second.empty())
+			{
+				// multiple handlers are defined for the same interrupt
+				return C1STM8_T_ERROR::C1STM8_RES_EMULTINTHND;
 			}
 
 			const auto int_lbl_name = L"__" + cmd.args[0][0].value;
@@ -6726,6 +6802,16 @@ int main(int argc, char** argv)
 			print_err_desc = true;
 			args = args + " -d";
 
+			continue;
+		}
+
+		// fix stack pointer on RET statement (possible non-released local variables)
+		if ((argv[i][0] == '-' || argv[i][0] == '/') &&
+			(argv[i][1] == 'F' || argv[i][1] == 'f') &&
+			(argv[i][2] == 'R' || argv[i][2] == 'r') &&
+			argv[i][3] == 0)
+		{
+			_global_settings.SetFixRetStackPtr();
 			continue;
 		}
 

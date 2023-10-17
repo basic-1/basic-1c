@@ -185,6 +185,8 @@ private:
 
 	std::map<int, std::wstring> _irq_handlers;
 
+	std::vector<std::pair<const_iterator, std::map<std::wstring, std::wstring>>> _end_placement;
+
 	std::vector<std::tuple<int32_t, std::string, C1STM8_T_WARNING>> _warnings;
 
 
@@ -204,8 +206,8 @@ private:
 	std::wstring add_namespace(const std::wstring &name) const;
 	C1STM8_T_ERROR get_arg(const std::wstring &str, B1_CMP_ARG &arg, size_t &next_off) const;
 	C1STM8_T_ERROR process_asm_cmd(const std::wstring &line);
-	C1STM8_T_ERROR replace_inline(std::wstring &line, const std::vector<std::pair<std::wstring, std::wstring>> &inl_params);
-	C1STM8_T_ERROR load_inline(size_t offset, const std::wstring &line, const_iterator pos, const std::vector<std::pair<std::wstring, std::wstring>> &inl_params = std::vector<std::pair<std::wstring, std::wstring>>());
+	C1STM8_T_ERROR replace_inline(std::wstring &line, const std::map<std::wstring, std::wstring> &inl_params);
+	C1STM8_T_ERROR load_inline(size_t offset, const std::wstring &line, const_iterator pos, const std::map<std::wstring, std::wstring> &inl_params = std::map<std::wstring, std::wstring>());
 	C1STM8_T_ERROR load_next_command(const std::wstring &line, const_iterator pos);
 
 	const B1_CMP_FN *get_fn(const B1_TYPED_VALUE &val) const;

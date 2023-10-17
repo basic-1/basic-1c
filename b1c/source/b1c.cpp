@@ -1211,7 +1211,7 @@ B1C_T_ERROR B1FileCompiler::st_option(bool first_run)
 	return B1C_T_ERROR::B1C_RES_OK;
 }
 
-B1C_T_ERROR B1FileCompiler::st_ioctl_get_predef_value(std::wstring &value)
+B1C_T_ERROR B1FileCompiler::st_ioctl_get_symbolic_value(std::wstring &value)
 {
 	if(b1_rpn[1].flags == 0)
 	{
@@ -1285,7 +1285,7 @@ B1C_T_ERROR B1FileCompiler::st_ioctl()
 	{
 		return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
 	}
-	auto err1 = st_ioctl_get_predef_value(dev_name);
+	auto err1 = st_ioctl_get_symbolic_value(dev_name);
 	if(err1 != B1C_T_ERROR::B1C_RES_OK)
 	{
 		return err1;
@@ -1302,7 +1302,7 @@ B1C_T_ERROR B1FileCompiler::st_ioctl()
 		// no command
 		return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
 	}
-	err1 = st_ioctl_get_predef_value(cmd_name);
+	err1 = st_ioctl_get_symbolic_value(cmd_name);
 	if(err1 != B1C_T_ERROR::B1C_RES_OK)
 	{
 		return err1;
@@ -1352,7 +1352,7 @@ B1C_T_ERROR B1FileCompiler::st_ioctl()
 
 		if(cmd.predef_only)
 		{
-			err1 = st_ioctl_get_predef_value(data);
+			err1 = st_ioctl_get_symbolic_value(data);
 			if(err1 != B1C_T_ERROR::B1C_RES_OK)
 			{
 				return err1;
@@ -1371,6 +1371,19 @@ B1C_T_ERROR B1FileCompiler::st_ioctl()
 			if(cmd.data_type == B1Types::B1T_STRING && concat_strings_rpn(data) == B1_RES_OK)
 			{
 				emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(data, B1Types::B1T_STRING) }));
+			}
+			else
+			if(cmd.data_type == B1Types::B1T_LABEL)
+			{
+				err1 = st_ioctl_get_symbolic_value(data);
+				if(err1 != B1C_T_ERROR::B1C_RES_OK)
+				{
+					return err1;
+				}
+
+				const auto lbl_name = get_name_space_prefix() + L"__ULB_" + data;
+				_req_labels.insert(lbl_name);
+				emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + lbl_name + L"\"", B1Types::B1T_STRING) }));
 			}
 			else
 			{
@@ -3479,6 +3492,8 @@ B1C_T_ERROR B1FileCompiler::remove_unused_labels(bool &changed)
 		}
 	}
 
+	used_labels.insert(_req_labels.cbegin(), _req_labels.cend());
+
 	for(auto l = labels.rbegin(); l != labels.rend(); l++)
 	{
 		if(used_labels.find(l->second) == used_labels.end())
@@ -3494,18 +3509,18 @@ B1C_T_ERROR B1FileCompiler::remove_unused_labels(bool &changed)
 B1C_T_ERROR B1FileCompiler::remove_duplicate_labels(bool &changed)
 {
 	// find and remove duplicates
-	std::vector<std::vector<const_iterator>> label_ranges;
+	std::vector<std::vector<std::pair<const_iterator, bool>>> label_ranges;
 
 	changed = false;
 
-	std::vector<const_iterator> range;
+	decltype(label_ranges)::value_type range;
 
 	for(auto cmdi = cbegin(); cmdi != cend(); cmdi++)
 	{
 		// do not take into account functions
 		if(B1CUtils::is_label(*cmdi) && !B1CUtils::is_def_fn(*cmdi))
 		{
-			range.push_back(cmdi);
+			range.push_back(std::make_pair(cmdi, (_req_labels.find(cmdi->cmd) != _req_labels.end())));
 		}
 		else
 		{
@@ -3529,15 +3544,36 @@ B1C_T_ERROR B1FileCompiler::remove_duplicate_labels(bool &changed)
 		// build list of labels to replace
 		for(const auto &lr: label_ranges)
 		{
-			for(const auto &l: lr)
+			// find label to keep
+			bool keep_all = true;
+			auto lk = lr.cend();
+
+			for(auto l = lr.cbegin(); l != lr.cend(); l++)
 			{
-				if(l == lr.back())
+				if(l->second && lk == lr.cend())
 				{
-					break;
+					lk = l;
 				}
-				toreplace[l->cmd] = lr.back()->cmd;
-				// delete useless label
-				erase(l);
+				if(!l->second)
+				{
+					keep_all = false;
+				}
+			}
+			if(lk == lr.cend())
+			{
+				lk = std::prev(lr.cend());
+			}
+
+			if(!keep_all)
+			{
+				for(auto l = lr.cbegin(); l != lr.cend(); l++)
+				{
+					if(l == lk || l->second)
+					{
+						continue;
+					}
+					toreplace[l->first->cmd] = lk->first->cmd;
+				}
 			}
 		}
 
@@ -9653,7 +9689,7 @@ int main(int argc, char **argv)
 			}
 
 			// now the only supported target is STM8
-			int sc = std::system((cwd + "c1stm8" + args + " " + ofn).c_str());
+			int sc = std::system((cwd + "c1stm8 -fr" + args + " " + ofn).c_str());
 			if(sc == -1)
 			{
 				std::perror("fail");
