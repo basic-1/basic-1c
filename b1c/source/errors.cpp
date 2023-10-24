@@ -79,6 +79,7 @@ static const std::string b1c_wrn_msgs[] =
 	"option BASE1 is enabled for all source files",
 	"option NOCHECK is enabled for all source files",
 	"unknown MCU name",
+	"non-subscripted variables are already static",
 
 	"the last message"
 };

@@ -117,9 +117,13 @@ private:
 	std::set<std::wstring> _data_stmts_init;
 	
 	std::map<std::wstring, B1_CMP_VAR> _locals;
+	
 	std::map<std::wstring, B1_CMP_VAR> _vars;
-	std::map<int, std::wstring> _vars_order;
 	std::map<std::wstring, B1_CMP_VAR> _mem_areas;
+	
+	std::vector<std::wstring> _vars_order;
+	std::set<std::wstring> _vars_order_set;
+
 	//       data                     label       written file_id  line cnt
 	std::map<std::wstring, std::tuple<std::wstring, bool, int32_t, int32_t>> _str_labels;
 	std::map<std::wstring, std::wstring> _dat_rst_labels;

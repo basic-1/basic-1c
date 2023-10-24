@@ -58,8 +58,8 @@ private:
 	std::pair<B1_CMP_STATE, std::vector<std::wstring>> _state;
 	std::map<int32_t, std::wstring> _src_lines;
 
-	//       gen. name                type          dim  volatile mem
-	std::map<std::wstring, std::tuple<B1Types, int, bool, bool>> _vars;
+	//       gen. name                type     dim  volatile mem   static
+	std::map<std::wstring, std::tuple<B1Types, int, bool,    bool, bool>> _vars;
 
 	//       user name     gen. name
 	std::map<std::wstring, std::wstring> _var_names;
@@ -73,7 +73,7 @@ private:
 	std::set<std::wstring> _req_labels;
 
 
-	B1C_T_ERROR put_var_name(const std::wstring &name, const B1Types type, int dims, bool global, bool volat, bool mem_var);
+	B1C_T_ERROR put_var_name(const std::wstring &name, const B1Types type, int dims, bool global, bool volat, bool mem_var, bool stat);
 	std::wstring get_var_name(const std::wstring &name, bool &expl) const;
 	bool is_mem_var_name(const std::wstring &name) const;
 	bool is_volatile_var(const std::wstring &name) const;
@@ -228,8 +228,8 @@ class B1Compiler
 	friend class B1FileCompiler;
 
 private:
-	//       gen. name                type     dim  volatile mem
-	std::map<std::wstring, std::tuple<B1Types, int, bool, bool>> _global_vars;
+	//       gen. name                type     dim  volatile mem   stat
+	std::map<std::wstring, std::tuple<B1Types, int, bool,    bool, bool>> _global_vars;
 
 	//       user name     gen. name
 	std::map<std::wstring, std::wstring> _global_var_names;
@@ -256,8 +256,8 @@ protected:
 	mutable std::string _curr_file_name;
 
 
-	B1C_T_ERROR put_global_var_name(const std::wstring &name, const B1Types type, int dims, bool volat, bool mem_var);
-	bool global_var_check(bool global, bool mem_var, const std::wstring &name) const;
+	B1C_T_ERROR put_global_var_name(const std::wstring &name, const B1Types type, int dims, bool volat, bool mem_var, bool stat);
+	bool global_var_check(bool global, bool mem_var, bool stat, const std::wstring &name) const;
 	std::wstring get_global_var_name(const std::wstring &name) const;
 	bool is_global_mem_var_name(const std::wstring &name) const;
 	bool is_global_volatile_var(const std::wstring &name) const;

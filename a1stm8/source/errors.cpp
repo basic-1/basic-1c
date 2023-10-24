@@ -80,6 +80,7 @@ static const std::string err_msgs[] =
 	"invalid instruction",
 	"wrong data block size",
 	"file close error",
+	".ERROR: ",
 
 	"the last message"
 };
@@ -100,7 +101,7 @@ static const std::string wrn_msgs[] =
 };
 
 
-void a1stm8_print_error(A1STM8_T_ERROR err_code, int line_cnt, const std::string &file_name, bool print_err_desc)
+void a1stm8_print_error(A1STM8_T_ERROR err_code, int line_cnt, const std::string &file_name, bool print_err_desc, const std::string &custom_err_msg)
 {
 	if(!file_name.empty())
 	{
@@ -121,7 +122,8 @@ void a1stm8_print_error(A1STM8_T_ERROR err_code, int line_cnt, const std::string
 
 	if(print_err_desc && err_ind >= err_fst && err_ind < err_lst)
 	{
-		fprintf(stderr, " (%s)", err_msgs[err_ind - err_fst].c_str());
+		const std::string msg = err_msgs[err_ind - err_fst].c_str() + ((err_code == A1STM8_T_ERROR::A1STM8_RES_EERRDIR) ? custom_err_msg : "");
+		fprintf(stderr, " (%s)", msg.c_str());
 	}
 
 	fputs("\n", stderr);

@@ -420,6 +420,16 @@ public:
 		return (_toktype != token._toktype) || (_token != token._token);
 	}
 
+	bool operator==(const Token &&token) const
+	{
+		return (_toktype == token._toktype) && (_token == token._token);
+	}
+
+	bool operator!=(const Token &&token) const
+	{
+		return (_toktype != token._toktype) || (_token != token._token);
+	}
+
 	TokType GetType() const
 	{
 		return _toktype;
@@ -433,6 +443,60 @@ public:
 	int32_t GetLineNum() const
 	{
 		return _line_num;
+	}
+
+	static A1STM8_T_ERROR QStringToString(const std::wstring &qstr, std::wstring &str)
+	{
+		str.empty();
+
+		for(auto ci = qstr.begin() + 1; ci != qstr.end() - 1; ci++)
+		{
+			auto c = *ci;
+
+			if(c == L'\"')
+			{
+				ci++;
+			}
+			else
+			if(c == L'\\')
+			{
+				ci++;
+				c = *ci;
+
+				if(c == L'0')
+				{
+					c = L'\0';
+				}
+				else
+				if(c == L't')
+				{
+					c = L'\t';
+				}
+				else
+				if(c == L'n')
+				{
+					c = L'\n';
+				}
+				else
+				if(c == L'r')
+				{
+					c = L'\r';
+				}
+				else
+				if(c == L'\\')
+				{
+					c = L'\\';
+				}
+				else
+				{
+					return A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
+				}
+			}
+
+			str += c;
+		}
+
+		return A1STM8_T_ERROR::A1STM8_RES_OK;
 	}
 };
 
@@ -473,6 +537,20 @@ private:
 	}
 
 public:
+	static const Token DATA_DIR;
+	static const Token CONST_DIR;
+	static const Token CODE_DIR;
+	static const Token STACK_DIR;
+	static const Token HEAP_DIR;
+
+	static const Token IF_DIR;
+	static const Token ELIF_DIR;
+	static const Token ELSE_DIR;
+	static const Token ENDIF_DIR;
+
+	static const Token ERROR_DIR;
+
+
 	SrcFile() = delete;
 
 	SrcFile(const std::string &file_name)
@@ -757,6 +835,19 @@ public:
 		return _line_num;
 	}
 };
+
+const Token SrcFile::DATA_DIR = Token(TokType::TT_DIR, L".DATA", -1);
+const Token SrcFile::CONST_DIR = Token(TokType::TT_DIR, L".CONST", -1);
+const Token SrcFile::CODE_DIR = Token(TokType::TT_DIR, L".CODE", -1);
+const Token SrcFile::STACK_DIR = Token(TokType::TT_DIR, L".STACK", -1);
+const Token SrcFile::HEAP_DIR = Token(TokType::TT_DIR, L".HEAP", -1);
+
+const Token SrcFile::IF_DIR = Token(TokType::TT_DIR, L".IF", -1);
+const Token SrcFile::ELIF_DIR = Token(TokType::TT_DIR, L".ELIF", -1);
+const Token SrcFile::ELSE_DIR = Token(TokType::TT_DIR, L".ELSE", -1);
+const Token SrcFile::ENDIF_DIR = Token(TokType::TT_DIR, L".ENDIF", -1);
+
+const Token SrcFile::ERROR_DIR = Token(TokType::TT_DIR, L".ERROR", -1);
 
 enum class SectType
 {
@@ -1721,52 +1812,15 @@ public:
 			if(start->GetType() == TokType::TT_QSTRING)
 			{
 				// put string
-				auto tok = start->GetToken();
-
-				for(auto ci = tok.begin() + 1; ci != tok.end() - 1; ci++)
+				std::wstring str;
+				err = Token::QStringToString(start->GetToken(), str);
+				if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
 				{
-					auto c = *ci;
+					return err;
+				}
 
-					if(c == L'\"')
-					{
-						ci++;
-					}
-					else
-					if(c == L'\\')
-					{
-						ci++;
-						c = *ci;
-
-						if(c == L'0')
-						{
-							c = L'\0';
-						}
-						else
-						if(c == L't')
-						{
-							c = L'\t';
-						}
-						else
-						if(c == L'n')
-						{
-							c = L'\n';
-						}
-						else
-						if(c == L'r')
-						{
-							c = L'\r';
-						}
-						else
-						if(c == L'\\')
-						{
-							c = L'\\';
-						}
-						else
-						{
-							return A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
-						}
-					}
-
+				for(const auto c: str)
+				{
 					if(_size1 == 2)
 					{
 						_data.push_back(((uint16_t)c) >> 8);
@@ -2917,6 +2971,7 @@ class CodeStmt: public ConstStmt
 {
 protected:
 	bool _revorder;
+	bool _is_inst; // true stands for instruction, false - data definition
 	std::vector<std::pair<ArgType, Exp>> _refs;
 
 	A1STM8_T_ERROR WriteRef(IhxWriter *writer, const std::pair<ArgType, Exp> &ref, const std::map<std::wstring, MemRef> &memrefs)
@@ -3102,6 +3157,7 @@ public:
 	CodeStmt()
 	: ConstStmt()
 	, _revorder(false)
+	, _is_inst(false)
 	{
 	}
 
@@ -3305,7 +3361,7 @@ public:
 		}
 
 		_revorder = inst->_revorder;
-
+		_is_inst = true;
 		_line_num = line_num;
 
 		return A1STM8_T_ERROR::A1STM8_RES_OK;
@@ -3313,6 +3369,11 @@ public:
 
 	A1STM8_T_ERROR Write(IhxWriter *writer, const std::map<std::wstring, MemRef> &memrefs) override
 	{
+		if(!_is_inst)
+		{
+			return ConstStmt::Write(writer, memrefs);
+		}
+
 		auto err = writer->Write(_data.data(), _data.size());
 		if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
 		{
@@ -3358,13 +3419,17 @@ private:
 
 	std::map<std::wstring, MemRef> _memrefs;
 
+	std::string _custom_err_msg;
+
 	int32_t _data_size;
 	int32_t _init_size;
 	int32_t _const_size;
 	int32_t _code_size;
 
+	static const std::vector<std::reference_wrapper<const Token>> ALL_DIRS;
 
-	A1STM8_T_ERROR ReadStmt(int32_t file_num, std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end)
+
+	A1STM8_T_ERROR ReadStmt(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end)
 	{
 		auto stype = back().GetType();
 
@@ -3432,7 +3497,7 @@ private:
 					return A1STM8_T_ERROR::A1STM8_RES_ENOSEC;
 			}
 
-			auto err = stmt->Read(start, end, _memrefs, _src_files[file_num]);
+			auto err = stmt->Read(start, end, _memrefs, _curr_file_name);
 			if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
 			{
 				return err;
@@ -3470,6 +3535,8 @@ private:
 		terms.push_back(Token(TokType::TT_OPER, L"<", -1));
 		terms.push_back(Token(TokType::TT_OPER, L">=", -1));
 		terms.push_back(Token(TokType::TT_OPER, L"<=", -1));
+
+		start++;
 
 		auto err = Exp::BuildExp(start, end, expl, terms);
 		if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
@@ -3534,16 +3601,246 @@ private:
 		return A1STM8_T_ERROR::A1STM8_RES_OK;
 	}
 
+	A1STM8_T_ERROR ReadUntil(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, std::vector<std::reference_wrapper<const Token>>::const_iterator stop_dirs_start, std::vector<std::reference_wrapper<const Token>>::const_iterator stop_dirs_end)
+	{
+		while(start != end)
+		{
+			if(start->IsEOL())
+			{
+				start++;
+				continue;
+			}
+
+			_curr_line_num = start->GetLineNum();
+
+			if(start->IsDir())
+			{
+				for(auto sdi = stop_dirs_start; sdi != stop_dirs_end; sdi++)
+				{
+					if(sdi->get() == *start)
+					{
+						return A1STM8_T_ERROR::A1STM8_RES_OK;
+					}
+				}
+
+				if(*start == SrcFile::ERROR_DIR)
+				{
+					start++;
+					if(start != end || start->GetType() != TokType::TT_QSTRING)
+					{
+						A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
+					}
+
+					std::wstring str;
+					auto err = Token::QStringToString(start->GetToken(), str);
+					if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
+					{
+						return err;
+					}
+					_custom_err_msg = Utils::wstr2str(str);
+
+					start++;
+					if(start != end && start->IsEOL())
+					{
+						start++;
+					}
+
+					return A1STM8_T_ERROR::A1STM8_RES_EERRDIR;
+				}
+			}
+
+			auto err = ReadStmt(start, end);
+			if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
+			{
+				return err;
+			}
+
+			if(start != end)
+			{
+				start++;
+			}
+		}
+
+		return A1STM8_T_ERROR::A1STM8_RES_OK;
+	}
+
+	A1STM8_T_ERROR SkipUntil(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, std::vector<std::reference_wrapper<const Token>>::const_iterator stop_dirs_start, std::vector<std::reference_wrapper<const Token>>::const_iterator stop_dirs_end)
+	{
+		while(start != end)
+		{
+			if(start->IsEOL())
+			{
+				start++;
+				continue;
+			}
+
+			_curr_line_num = start->GetLineNum();
+
+			if(start->IsDir())
+			{
+				for(auto sdi = stop_dirs_start; sdi != stop_dirs_end; sdi++)
+				{
+					if(sdi->get() == *start)
+					{
+						return A1STM8_T_ERROR::A1STM8_RES_OK;
+					}
+				}
+			}
+
+			start++;
+		}
+
+		return A1STM8_T_ERROR::A1STM8_RES_OK;
+	}
+
+	A1STM8_T_ERROR ReadSingleIFDir(bool is_else, std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, bool &skip)
+	{
+		bool if_res = false;
+
+		if(!skip)
+		{
+			if(is_else)
+			{
+				if_res = true;
+				start++;
+			}
+			else
+			{
+				auto err = CheckIFDir(start, end, if_res);
+				if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
+				{
+					return err;
+				}
+			}
+		}
+		else
+		{
+			for(; start != end && !start->IsEOL(); start++);
+		}
+
+		while(start != end)
+		{
+			auto err = skip || !if_res ?
+				SkipUntil(start, end, std::next(Sections::ALL_DIRS.cbegin(), 5), std::next(Sections::ALL_DIRS.cbegin(), 9)) :
+				ReadUntil(start, end, std::next(Sections::ALL_DIRS.cbegin(), 5), std::next(Sections::ALL_DIRS.cbegin(), 9));
+			if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
+			{
+				return err;
+			}
+			if(start == end)
+			{
+				return A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
+			}
+
+			if(*start == SrcFile::IF_DIR)
+			{
+				err = ReadIFDir(start, end, skip || !if_res);
+				if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
+				{
+					return err;
+				}
+			}
+
+			if(is_else)
+			{
+				if(*start == SrcFile::ELIF_DIR || *start == SrcFile::ELSE_DIR)
+				{
+					return A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
+				}
+			}
+
+			if(*start == SrcFile::ENDIF_DIR || *start == SrcFile::ELIF_DIR || *start == SrcFile::ELSE_DIR)
+			{
+				break;
+			}
+		}
+
+		if(start == end)
+		{
+			return A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
+		}
+
+		if(if_res)
+		{
+			skip = true;
+		}
+
+		return A1STM8_T_ERROR::A1STM8_RES_OK;
+	}
+
+	A1STM8_T_ERROR ReadIFDir(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, bool skip)
+	{
+		auto err = ReadSingleIFDir(false, start, end, skip);
+		if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
+		{
+			return err;
+		}
+
+		while(*start == SrcFile::ELIF_DIR)
+		{
+			auto err = ReadSingleIFDir(false, start, end, skip);
+			if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
+			{
+				return err;
+			}
+		}
+
+		if(*start == SrcFile::ELSE_DIR)
+		{
+			auto err = ReadSingleIFDir(true, start, end, skip);
+			if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
+			{
+				return err;
+			}
+		}
+
+		if(*start != SrcFile::ENDIF_DIR)
+		{
+			return A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
+		}
+
+		start++;
+
+		return A1STM8_T_ERROR::A1STM8_RES_OK;
+	}
+
+	A1STM8_T_ERROR ReadSection(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, bool skip)
+	{
+		while(start != end)
+		{
+			auto err = skip ? 
+				SkipUntil(start, end, Sections::ALL_DIRS.cbegin(), std::next(Sections::ALL_DIRS.cbegin(), 6)) :
+				ReadUntil(start, end, Sections::ALL_DIRS.cbegin(), std::next(Sections::ALL_DIRS.cbegin(), 6));
+			if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
+			{
+				return err;
+			}
+
+			if(start == end)
+			{
+				break;
+			}
+
+			if(*start == SrcFile::IF_DIR)
+			{
+				err = ReadIFDir(start, end, skip);
+				if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
+				{
+					return err;
+				}
+			}
+			else
+			{
+				break;
+			}
+		}
+
+		return A1STM8_T_ERROR::A1STM8_RES_OK;
+	}
+
 	A1STM8_T_ERROR ReadSections(int32_t file_num, SectType sec_type, int32_t sec_base, int32_t &over_size, int32_t max_size)
 	{
 		Section *psec = nullptr;
-		bool skip = false;
-
-		std::vector<std::tuple<bool, bool, bool, bool>> if_state;
-		bool if_blck = false;	// processing .IF block
-		bool if_skip = false;	// skip the current sub-block (.IF, .ELIF or .ELSE)
-		bool if_chck;			// check the next .IF or .ELIF
-		bool if_else;			// .ELSE sub-block
 
 		over_size = 0;
 
@@ -3552,223 +3849,117 @@ private:
 
 		const auto &tok_file = _token_files[file_num];
 
-		for(auto ti = tok_file.begin(); ti != tok_file.end(); ti++)
-		{
-			if(ti->IsEOL())
-			{
-				continue;
-			}
+		auto ti = tok_file.cbegin();
 
+		while(ti != tok_file.cend() && !ti->IsDir())
+		{
 			_curr_line_num = ti->GetLineNum();
 
-			if(ti->IsDir())
+			if(!ti->IsEOL())
 			{
-				auto token = ti->GetToken();
-				bool dir_proc = false;
+				return A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
+			}
+			ti++;
+		}
 
-				if(token == L".IF")
-				{
-					dir_proc = true;
-
-					if_state.push_back(std::make_tuple(if_blck, if_skip, if_chck, if_else));
-
-					if_blck = true;
-					if_else = false;
-
-					// higher level skip
-					if(skip || if_skip)
-					{
-						if_chck = false;
-					}
-					else
-					{
-						ti++;
-						auto err = CheckIFDir(ti, tok_file.end(), if_skip);
-						if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
-						{
-							return err;
-						}
-
-						if_skip = !if_skip;
-						if_chck = if_skip;
-					}
-				}
-				else
-				if(token == L".ELIF")
-				{
-					dir_proc = true;
-
-					if(!if_blck || if_else)
-					{
-						return A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
-					}
-
-					if_skip = true;
-
-					// check higher level skip
-					if(skip || !std::get<1>(if_state.back()))
-					{
-						if(if_chck)
-						{
-							ti++;
-							auto err = CheckIFDir(ti, tok_file.end(), if_skip);
-							if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
-							{
-								return err;
-							}
-
-							if_skip = !if_skip;
-							if_chck = if_skip;
-						}
-					}
-				}
-				else
-				if(token == L".ELSE")
-				{
-					dir_proc = true;
-
-					if(!if_blck)
-					{
-						return A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
-					}
-
-					if_skip = true;
-					if_else = true;
-
-					// check higher level skip
-					if(skip || !std::get<1>(if_state.back()))
-					{
-						if_skip = !if_chck;
-					}
-				}
-				else
-				if(token == L".ENDIF")
-				{
-					dir_proc = true;
-
-					if(!if_blck)
-					{
-						return A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
-					}
-
-					const auto &st = if_state.back();
-					if_blck = std::get<0>(st);
-					if_skip = std::get<1>(st);
-					if_chck = std::get<2>(st);
-					if_else = std::get<3>(st);
-					if_state.pop_back();
-				}
-
-				// new section declaration
-				if(!dir_proc)
-				{
-					SectType st =	token == L".DATA"	?	SectType::ST_DATA :
-									token == L".CONST"	?	SectType::ST_CONST :
-									token == L".CODE"	?	SectType::ST_CODE :
-									token == L".STACK"	?	SectType::ST_STACK :
-									token == L".HEAP"	?	SectType::ST_HEAP : SectType::ST_NONE;
-
-					if(st == SectType::ST_NONE)
-					{
-						return A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
-					}
-
-					ti++;
-
-					if(!(ti == tok_file.end() || ti->IsEOL()))
-					{
-						auto sec_mod = ti->GetToken();
-
-						ti++;
-
-						if(st == SectType::ST_CODE && sec_mod == L"INIT")
-						{
-							st = SectType::ST_INIT;
-						}
-						else
-						if(st == SectType::ST_DATA && sec_mod == L"PAGE0")
-						{
-							st = SectType::ST_PAGE0;
-						}
-						else
-						{
-							return A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
-						}
-					}
-
-					if(psec != nullptr && !(psec->GetType() == SectType::ST_STACK || psec->GetType() == SectType::ST_HEAP))
-					{
-						int32_t size = 0;
-						auto err = psec->GetSize(size);
-						if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
-						{
-							return err;
-						}
-
-						over_size += size;
-						if(over_size > max_size)
-						{
-							return A1STM8_T_ERROR::A1STM8_RES_EWSECSIZE;
-						}
-					}
-
-					skip = true;
-					psec = nullptr;
-
-					if(st == sec_type)
-					{
-						skip = false;
-						push_back(Section(_curr_file_name, _curr_line_num, st, sec_base + over_size));
-						psec = &back();
-					}
-
-					if(!(ti == tok_file.end() || ti->IsEOL()))
-					{
-						return A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
-					}
-				}
-
-				if(ti == tok_file.end())
-				{
-					break;
-				}
-				continue;
+		while(ti != tok_file.cend())
+		{
+			// find the next section start
+			auto err = SkipUntil(ti, tok_file.cend(), Sections::ALL_DIRS.cbegin(), std::next(Sections::ALL_DIRS.cbegin(), 5));
+			if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
+			{
+				return err;
 			}
 
-			if(psec == nullptr && !skip)
+			if(ti == tok_file.cend())
+			{
+				break;
+			}
+
+			SectType st =
+				*ti == SrcFile::DATA_DIR	?	SectType::ST_DATA :
+				*ti == SrcFile::CONST_DIR	?	SectType::ST_CONST :
+				*ti == SrcFile::CODE_DIR	?	SectType::ST_CODE :
+				*ti == SrcFile::STACK_DIR	?	SectType::ST_STACK :
+				*ti == SrcFile::HEAP_DIR	?	SectType::ST_HEAP :
+												SectType::ST_NONE;
+			if(st == SectType::ST_NONE)
 			{
 				return A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
 			}
 
-			if(skip)
+			ti++;
+
+			if(!(ti == tok_file.cend() || ti->IsEOL()))
 			{
-				if(ti == tok_file.end())
+				auto sec_mod = ti->GetToken();
+
+				ti++;
+
+				if(st == SectType::ST_CODE && sec_mod == L"INIT")
 				{
-					break;
+					st = SectType::ST_INIT;
 				}
-				continue;
+				else
+				if(st == SectType::ST_DATA && sec_mod == L"PAGE0")
+				{
+					st = SectType::ST_PAGE0;
+				}
+				else
+				{
+					return A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
+				}
 			}
 
-			if(if_skip)
+			if(psec != nullptr && !(psec->GetType() == SectType::ST_STACK || psec->GetType() == SectType::ST_HEAP))
 			{
-				for(; ti != tok_file.end() && !ti->IsEOL(); ti++);
-			}
-			else
-			{
-				auto err = ReadStmt(file_num, ti, tok_file.end());
+				int32_t size = 0;
+				auto err = psec->GetSize(size);
 				if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
 				{
 					return err;
 				}
+
+				over_size += size;
+				if(over_size > max_size)
+				{
+					return A1STM8_T_ERROR::A1STM8_RES_EWSECSIZE;
+				}
 			}
 
-			if(ti == tok_file.end())
+			psec = nullptr;
+
+			if(st == sec_type)
 			{
-				break;
+				push_back(Section(_curr_file_name, _curr_line_num, st, sec_base + over_size));
+				psec = &back();
+			}
+
+			if(!(ti == tok_file.cend() || ti->IsEOL()))
+			{
+				return A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
+			}
+
+			if(ti->IsEOL())
+			{
+				ti++;
+			}
+
+			if(psec == nullptr)
+			{
+				// skip the section
+				continue;
+			}
+
+			// read the section
+			err = ReadSection(ti, tok_file.cend(), false);
+			if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
+			{
+				return err;
 			}
 		}
 
-		if(!skip && psec != nullptr && !(psec->GetType() == SectType::ST_STACK || psec->GetType() == SectType::ST_HEAP))
+		if(psec != nullptr && !(psec->GetType() == SectType::ST_STACK || psec->GetType() == SectType::ST_HEAP))
 		{
 			int32_t size = 0;
 			auto err = psec->GetSize(size);
@@ -3786,6 +3977,7 @@ private:
 
 		_curr_file_name.clear();
 		_curr_line_num = 0;
+
 		return A1STM8_T_ERROR::A1STM8_RES_OK;
 	}
 
@@ -4293,6 +4485,28 @@ public:
 	{
 		return _code_size + _init_size;
 	}
+
+	std::string GetCustomErrorMsg() const
+	{
+		return _custom_err_msg;
+	}
+};
+
+// the order of references is important
+const std::vector<std::reference_wrapper<const Token>> Sections::ALL_DIRS =
+{
+	SrcFile::DATA_DIR,
+	SrcFile::CONST_DIR,
+	SrcFile::CODE_DIR,
+	SrcFile::STACK_DIR,
+	SrcFile::HEAP_DIR,
+
+	SrcFile::IF_DIR,
+	SrcFile::ELIF_DIR,
+	SrcFile::ELSE_DIR,
+	SrcFile::ENDIF_DIR,
+
+	SrcFile::ERROR_DIR,
 };
 
 
@@ -4693,7 +4907,7 @@ int main(int argc, char **argv)
 			}
 		}
 
-		a1stm8_print_error(err, secs.GetCurrLineNum(), secs.GetCurrFileName(), print_err_desc);
+		a1stm8_print_error(err, secs.GetCurrLineNum(), secs.GetCurrFileName(), print_err_desc, secs.GetCustomErrorMsg());
 		return 3;
 	}
 
@@ -4711,7 +4925,7 @@ int main(int argc, char **argv)
 				}
 			}
 
-			a1stm8_print_error(err, secs.GetCurrLineNum(), secs.GetCurrFileName(), print_err_desc);
+			a1stm8_print_error(err, secs.GetCurrLineNum(), secs.GetCurrFileName(), print_err_desc, secs.GetCustomErrorMsg());
 			return 4;
 		}
 
@@ -4732,7 +4946,7 @@ int main(int argc, char **argv)
 				}
 			}
 
-			a1stm8_print_error(err, secs.GetCurrLineNum(), secs.GetCurrFileName(), print_err_desc);
+			a1stm8_print_error(err, secs.GetCurrLineNum(), secs.GetCurrFileName(), print_err_desc, secs.GetCustomErrorMsg());
 			return 5;
 		}
 

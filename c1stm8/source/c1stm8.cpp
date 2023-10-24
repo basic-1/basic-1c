@@ -757,17 +757,37 @@ C1STM8_T_ERROR C1STM8Compiler::load_next_command(const std::wstring &line, const
 			}
 			args.push_back(B1_CMP_ARG(sval, Utils::get_type_by_name(sval)));
 
-			// read optional type modifiers (now the only modifier is V - stands for volatile)
+			bool is_static = false;
+
+			// read optional type modifiers (V - stands for volatile, S - static)
 			if(offset != std::wstring::npos && line[offset - 1] == L'(')
 			{
 				sval = Utils::str_trim(get_next_value(line, L")", offset));
-				if(sval == L"V")
+
+				std::wstring type_mod;
+				auto lpos = sval.find(L'V');
+				if(lpos != std::wstring::npos)
 				{
-					args.back().push_back(B1_TYPED_VALUE(L"V"));
+					type_mod += L'V';
+					sval.erase(lpos, 1);
 				}
-				else
+				lpos = sval.find(L'S');
+				if(lpos != std::wstring::npos)
+				{
+					// here tv.value already contains variable name
+					is_static = true;
+					cmd = L"MA";
+					sval.erase(lpos, 1);
+				}
+
+				if(!sval.empty())
 				{
 					return static_cast<C1STM8_T_ERROR>(B1_RES_ESYNTAX);
+				}
+
+				if(!type_mod.empty())
+				{
+					args.back().push_back(B1_TYPED_VALUE(type_mod));
 				}
 
 				sval = Utils::str_trim(get_next_value(line, L",", offset));
@@ -780,15 +800,19 @@ C1STM8_T_ERROR C1STM8Compiler::load_next_command(const std::wstring &line, const
 			// read var. address
 			if(cmd == L"MA")
 			{
-				err = get_simple_arg(line, tv, offset);
-				if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+				if(!is_static)
 				{
-					return err;
+					err = get_simple_arg(line, tv, offset);
+					if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+					{
+						return err;
+					}
+					if(!Utils::check_const_name(tv.value) && !check_address(tv.value))
+					{
+						return static_cast<C1STM8_T_ERROR>(B1_RES_EINVNUM);
+					}
 				}
-				if(!Utils::check_const_name(tv.value) && !check_address(tv.value))
-				{
-					return static_cast<C1STM8_T_ERROR>(B1_RES_EINVNUM);
-				}
+				// for static variable save its name as address
 				args.push_back(tv.value);
 			}
 
@@ -1303,7 +1327,12 @@ C1STM8_T_ERROR C1STM8Compiler::check_arg(B1_CMP_ARG &arg)
 					}
 					else
 					{
-						_vars_order[_vars_order.size()] = a->value;
+						if(_vars_order_set.find(a->value) == _vars_order_set.end())
+						{
+							_vars_order_set.insert(a->value);
+							_vars_order.push_back(a->value);
+						}
+						
 						_vars[a->value] = B1_CMP_VAR(a->value, a->type, 0, false, _curr_src_file_id, _curr_line_cnt);
 					}
 				}
@@ -1388,7 +1417,12 @@ C1STM8_T_ERROR C1STM8Compiler::check_arg(B1_CMP_ARG &arg)
 				}
 				else
 				{
-					_vars_order[_vars_order.size()] = arg[0].value;
+					if(_vars_order_set.find(arg[0].value) == _vars_order_set.end())
+					{
+						_vars_order_set.insert(arg[0].value);
+						_vars_order.push_back(arg[0].value);
+					}
+
 					_vars[arg[0].value] = B1_CMP_VAR(arg[0].value, arg[0].type, arg.size() - 1, false, _curr_src_file_id, _curr_line_cnt);
 				}
 			}
@@ -1507,6 +1541,7 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 
 	_vars.clear();
 	_vars_order.clear();
+	_vars_order_set.clear();
 	_mem_areas.clear();
 	_data_stmts.clear();
 
@@ -1554,7 +1589,7 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 			auto v = vars.find(vname);
 			int32_t dims_off = is_ma ? 3 : 2;
 			int32_t dims = cmd.args.size() - dims_off;
-			bool is_volatile = (cmd.args[1].size() > 1) && cmd.args[1][1].value.length() == 1 && (cmd.args[1][1].value.front() == L'V');
+			bool is_volatile = (cmd.args[1].size() > 1) && (cmd.args[1][1].value.find(L'V') != std::wstring::npos);
 
 			if(is_ma)
 			{
@@ -1591,8 +1626,10 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 				if(is_ma)
 				{
 					int32_t addr = 0, size = 0;
-
-					if(Utils::check_const_name(cmd.args[2][0].value))
+					// vname == cmd.args[2][0].value for static variables
+					bool is_static = vname == cmd.args[2][0].value;
+					
+					if(is_static || Utils::check_const_name(cmd.args[2][0].value))
 					{
 						v->second.use_symbol = true;
 						v->second.symbol = cmd.args[2][0].value;
@@ -1616,10 +1653,20 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 					// single element size (even for subscripted variables)
 					v->second.size = size;
 					v->second.fixed_size = true;
+
+					if(is_static && _vars_order_set.find(vname) == _vars_order_set.end())
+					{
+						_vars_order_set.insert(vname);
+						_vars_order.push_back(vname);
+					}
 				}
 				else
 				{
-					_vars_order[_vars_order.size()] = vname;
+					if(_vars_order_set.find(vname) == _vars_order_set.end())
+					{
+						_vars_order_set.insert(vname);
+						_vars_order.push_back(vname);
+					}
 				}
 			}
 			else
@@ -1706,12 +1753,12 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 			auto v = _vars.find(vname);
 			if(v == _vars.end())
 			{
-				_vars_order[_vars_order.size()] = vname;
+				if(_vars_order_set.find(vname) == _vars_order_set.end())
+				{
+					_vars_order_set.insert(vname);
+					_vars_order.push_back(vname);
+				}
 				_vars[vname] = B1_CMP_VAR(vname, B1Types::B1T_UNKNOWN, 0, false, _curr_src_file_id, _curr_line_cnt);
-			}
-			else
-			{
-				// do nothing
 			}
 
 			continue;
@@ -1811,8 +1858,17 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 	for(auto &ma: _mem_areas)
 	{
 		_vars.erase(ma.first);
-		// mem. references can be left in the _var_orders map
-		// _vars_order.erase();
+
+		// leave static variables only
+		if(!ma.second.use_symbol || ma.second.symbol != ma.first)
+		{
+			auto vo = std::find(_vars_order.cbegin(), _vars_order.cend(), ma.first);
+			if(vo != _vars_order.cend())
+			{
+				_vars_order.erase(vo);
+			}
+			_vars_order_set.erase(ma.first);
+		}
 	}
 
 	for(auto &var: _vars)
@@ -1874,7 +1930,7 @@ C1STM8_T_ERROR C1STM8Compiler::process_imm_str_values()
 
 		if(cmd.cmd == L"GA" || cmd.cmd == L"MA")
 		{
-			for(auto a = cmd.args.begin() + (cmd.cmd == L"GA" ? 2 : 3); a != cmd.args.end(); a++)
+			for(auto a = cmd.args.cbegin() + (cmd.cmd == L"GA" ? 2 : 3); a != cmd.args.cend(); a++)
 			{
 				auto err = process_imm_str_value(*a);
 				if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
@@ -1964,7 +2020,7 @@ C1STM8_T_ERROR C1STM8Compiler::process_imm_str_values()
 
 		if(B1CUtils::is_un_op(cmd) || B1CUtils::is_bin_op(cmd) || B1CUtils::is_log_op(cmd))
 		{
-			for(auto a: cmd.args)
+			for(const auto &a: cmd.args)
 			{
 				auto err = process_imm_str_value(a);
 				if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
@@ -1983,15 +2039,24 @@ C1STM8_T_ERROR C1STM8Compiler::write_data_sec()
 {
 	B1_ASM_OPS *data = &_page0_sec;
 
-	for(auto &vo: _vars_order)
+	for(const auto &vn: _vars_order)
 	{
+		bool is_static = false;
 		int32_t size, rep;
 		std::wstring type;
 
-		const auto v = _vars.find(vo.second);
-		if(v == _vars.end())
+		auto v = _mem_areas.find(vn);
+		if(v != _mem_areas.end())
 		{
-			continue;
+			is_static = true;
+		}
+		else
+		{
+			v = _vars.find(vn);
+			if(v == _vars.end())
+			{
+				continue;
+			}
 		}
 
 		_curr_src_file_id = v->second.src_file_id;
@@ -2003,6 +2068,23 @@ C1STM8_T_ERROR C1STM8Compiler::write_data_sec()
 			{
 				return C1STM8_T_ERROR::C1STM8_RES_EINVTYPNAME;
 			}
+		}
+		else
+		if(is_static)
+		{
+			if(!B1CUtils::get_asm_type(v->second.type, &type, &size, &rep))
+			{
+				return C1STM8_T_ERROR::C1STM8_RES_EINVTYPNAME;
+			}
+
+			rep = 1;
+
+			for(int32_t i = 0; i < v->second.dim_num; i++)
+			{
+				rep *= v->second.dims[i * 2 + 1] - v->second.dims[i * 2] + 1;
+			}
+
+			size *= rep;
 		}
 		else
 		{
@@ -2026,7 +2108,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_data_sec()
 		}
 
 		data->add_lbl(v->first);
-		data->add_op(type + (rep == 1 ? std::wstring() : L"(" + std::to_wstring(rep) + L")"));
+		data->add_op(type + (rep == 1 ? std::wstring() : L" (" + std::to_wstring(rep) + L")"));
 
 		_all_symbols.insert(v->first);
 
@@ -2049,8 +2131,9 @@ C1STM8_T_ERROR C1STM8Compiler::write_data_sec()
 			B1_CMP_VAR var(label, B1Types::B1T_WORD, 0, false, -1, 0);
 			B1CUtils::get_asm_type(B1Types::B1T_WORD, nullptr, &var.size);
 			var.address = _data_size;
-			_vars_order[_vars_order.size()] = label;
 			_vars[label] = var;
+			// no use of non-user variables in _vars_order
+			//_vars_order.push_back(label);
 
 			if(_page0 && _data_size + var.size > STM8_PAGE0_SIZE)
 			{
@@ -3121,8 +3204,6 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_
 			if(i != 0)
 			{
 				_curr_code_sec->add_op(L"LDW X, (" + arg[0].value + L" + " + Utils::str_tohex16(2 + 2 + i * 4) + L")"); //BE SHORT_ADDRESS CE LONG_ADDRESS
-				_curr_code_sec->add_op(L"SUBW X, (" + arg[0].value + L" + " + Utils::str_tohex16(2 + i * 4) + L")"); //72 B0 LONG_ADDRESS
-				_curr_code_sec->add_op(L"INCW X"); //5C
 				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_COM_MUL16"); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_COM_MUL16");
 				_curr_code_sec->add_op(L"LDW (1, SP), X"); //1F BYTE_OFFSET
@@ -3587,8 +3668,16 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_init_array(const B1_CMP_CMD &cmd, const B1_C
 			{
 				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_COM_MUL16"); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_COM_MUL16");
-				_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
-				_stack_ptr -= 2;
+				
+				if(i == dims - 1)
+				{
+					_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
+					_stack_ptr -= 2;
+				}
+				else
+				{
+					_curr_code_sec->add_op(L"LDW (1, SP), X"); //1F BYTE_OFFSET
+				}
 			}
 
 			if(i == 0 && i != dims - 1)

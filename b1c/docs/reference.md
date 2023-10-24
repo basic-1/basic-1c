@@ -239,14 +239,14 @@ A user-defined function must be defined before being used. Function arguments ar
   
 ### `DIM` and `ERASE` statements  
   
-`DIM` statement can be used to declare variables and allocate memory for them. `ERASE` statement clears simple variables (initializes them with their initial values: zero or empty string) or frees memory in case of arrays. BASIC1 language allows using variables without declaration: their types are determined by data type specifiers or set as `INT` if specifiers are absent. For arrays default upper subscript value is 10, default lower subscript value is 0 (can be changed with `OPTION BASE` statement). `OPTION EXPLICIT` statement specified in the beginning of a program forbids using undeclared variables. If the explicit variables declaration option is turned on, every variable must be created with `DIM` statement before usage.  
+`DIM` statement can be used to declare variables and allocate memory for them. `ERASE` statement clears simple variables (assigns them with their initial values: zero or empty string) or frees memory in case of arrays. BASIC1 language allows using variables without declaration: their types are determined by data type specifiers or set as `INT` if specifiers are absent. For arrays default upper subscript value is 10, default lower subscript value is 0 (can be changed with `OPTION BASE` statement). `OPTION EXPLICIT` statement specified in the beginning of a program forbids using undeclared variables. If the explicit variables declaration option is turned on, every variable must be created with `DIM` statement before usage.  
   
 **Usage:**  
-`<var_decl> = [GLOBAL] [VOLATILE] <var_name>[([<subs1_lower> TO ]<subs1_upper>[, [<subs2_lower> TO ]<subs2_upper>[, [<subs3_lower> TO ]<subs3_upper>]])] [AS <type_name>] [AT <address>]`  
+`<var_decl> = [GLOBAL] [STATIC] [VOLATILE] <var_name>[([<subs1_lower> TO ]<subs1_upper>[, [<subs2_lower> TO ]<subs2_upper>[, [<subs3_lower> TO ]<subs3_upper>]])] [AS <type_name>] [AT <address>]`  
 `DIM <var_decl1>[, <var_decl2>, ... <var_declN>]`  
 `ERASE <var_name1>[, <var_name2>, ... <var_nameM>]`  
   
-If optional `GLOBAL` keyword is specified the variable can be used in other source files. Non-global variables with the same names declared in multiple source files are different variables. Variables declaread using `VOLATILE` keyword are excluded from optimization process: compiler always produces code for reading and writing their values. The keyword should be used with variables which values can change unexpectedly: ones used in interrupt handlers, peripheral registers, etc. `AT <address>` optional clause allows declaring variables addressing specific memory area. Such variables do not reserve memory, they are just aliases for specific memory areas.  
+If optional `GLOBAL` keyword is specified the variable can be used in other source files. Non-global variables with the same names declared in multiple source files are different variables. Variables declaread using `VOLATILE` keyword are excluded from optimization process: compiler always produces code for reading and writing their values. The keyword should be used with variables which values can change unexpectedly: ones used in interrupt handlers, peripheral registers, etc. Adding `STATIC` keyword to an array declaration says compiler to reserve memory for the array at compile time. Using static arrays cause producing faster and more compact code but memory reserved for such arrays cannot be freed with `ERASE` statement (it just clears them assigning with initial values). Obviously, static arrays sizes must be known at compilation time. `AT <address>` optional clause allows declaring variables addressing specific memory area. Such variables do not reserve memory, they are just aliases for specific memory areas.  
 `<subs1_lower>`, `<subs1_upper>`, `<subs2_lower>`, `<subs2_upper>`, `<subs3_lower>`, `<subs3_upper>` must be numeric expressions to specify lower and upper boundaries of variable subscripts. If a lower boundary of subscript is omitted it is taken equal to zero. The default value of lower boundary of subscripts can be changed with `OPTION BASE` statement. BASIC1 language supports one-, two- and three-dimensional subscripted variables (arrays). Optional variable type `<var_type>` must be one of the types described in the [**Data types**](#Data-types) chapter above. The type must correspond to the variable's data type specifier if it is present. If both data type specifier and data type name are omitted the statement creates variable of default numeric type (`INT`).  
   
 **Examples:**  
@@ -261,6 +261,8 @@ If optional `GLOBAL` keyword is specified the variable can be used in other sour
 `DIM GLOBAL FLAG AS BYTE` 'declare global `FLAG` variable  
 `DIM VOLATILE C` 'compiler will not apply any optimization to `C` variable  
 `DIM VOLATILE PA(0 TO 4) AS BYTE AT 0x5000` 'array referring to memory area at 0x5000 address, no memory is really allocated  
+`DIM STATIC SARR(20)` 'declaring a static array  
+`DIM STATIC SARR1(I)` 'wrong! static array size must be known at compile time  
 `ERASE MAP, MSG$` 'free memory occupied by `MAP` and `MSG$` variables  
 `ERASE I%, I, I1%` 'erase three variables  
   

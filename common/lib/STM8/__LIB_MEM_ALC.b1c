@@ -8,6 +8,10 @@ IMP,__LIB_MEM_SET
 ; X - requested memory block size, returns allocated memory block address in X
 :__LIB_MEM_ALC
 ASM
+.IF __HEAP_SIZE < 2
+.ERROR "insufficient heap size"
+.ENDIF
+
 SUBW SP, 6
 PUSHW X ; block_size (1), curr_block_size (3), prev_hdr (5), prev_ptr (7)
 

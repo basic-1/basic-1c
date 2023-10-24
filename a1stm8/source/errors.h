@@ -39,6 +39,7 @@ enum class A1STM8_T_ERROR
 	A1STM8_RES_EINVINST,
 	A1STM8_RES_EWBLKSIZE,
 	A1STM8_RES_EFCLOSE,
+	A1STM8_RES_EERRDIR,
 
 	A1STM8_RES_LASTERRCODE
 };
@@ -61,5 +62,5 @@ enum class A1STM8_T_WARNING
 };
 
 
-extern void a1stm8_print_error(A1STM8_T_ERROR err_code, int line_cnt, const std::string &file_name, bool print_err_desc);
+extern void a1stm8_print_error(A1STM8_T_ERROR err_code, int line_cnt, const std::string &file_name, bool print_err_desc, const std::string &custom_err_msg = std::string());
 extern void a1stm8_print_warning(A1STM8_T_WARNING wrn_code, int line_cnt, const std::string &file_name, bool print_wrn_desc);

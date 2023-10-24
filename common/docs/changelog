@@ -1,3 +1,11 @@
+b1c (1.0.0-15) unstable; urgency=low
+
+  * various bugfixes
+  * static arrays support added (DIM STATIC)
+  * assembler: .ERROR directive added
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Tue, 24 Oct 2023 18:19:01 +0300
+
 b1c (1.0.0-14) unstable; urgency=low
 
   * fixed possible stack overflow (when using RETURN statement in FOR loop)

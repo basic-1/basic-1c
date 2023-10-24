@@ -142,7 +142,7 @@ Refer to STMicroelectronics' "PM0044 Programming Manual" for CPU instructions sy
   
 Conditional assembly directives provides a way excluding specific code portions from assembling process. There are four directives: `.IF`, `.ELIF`, `.ELSE` and `.ENDIF`. `.ELIF` and `.ELSE` clauses are optional, multiple `.ELIF` directives are allowed.  
   
-**Syntax:**:  
+**Syntax:**  
 `.IF <condition>`  
 `<source_lines>`  
 `.ELIF <condition1>`  
@@ -170,6 +170,17 @@ The next comparison operators can be used in the conditions:
 `.ENDIF`  
   
 Expressions on the left and right sides of the operators can be simple expressions (without parentheses) described [here](#CPU-instructions).  
+  
+## .ERROR directive  
+  
+`.ERROR` directive emits a specified error message and stops assempling.  
+  
+**Syntax:**  
+`.ERROR <double_quoted_error_message>`  
+**Samples:**  
+`.IF __HEAP_SIZE < 2`  
+`.ERROR "insufficient heap size"`  
+`.END`  
   
 # Usage  
   

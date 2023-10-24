@@ -35,6 +35,7 @@ static const char *version = B1_CMP_VERSION;
 static const B1_T_CHAR _AT[] = { 2, 'A', 'T' };
 static const B1_T_CHAR _GLOBAL[] = { 6, 'G', 'L', 'O', 'B', 'A', 'L' };
 static const B1_T_CHAR _VOLATILE[] = { 8, 'V', 'O', 'L', 'A', 'T', 'I', 'L', 'E' };
+static const B1_T_CHAR _STATIC[] = { 6, 'S', 'T', 'A', 'T', 'I', 'C' };
 static const B1_T_CHAR _NOCHECK[] = { 7, 'N', 'O', 'C', 'H', 'E', 'C', 'K' };
 
 
@@ -42,10 +43,10 @@ static const B1_T_CHAR _NOCHECK[] = { 7, 'N', 'O', 'C', 'H', 'E', 'C', 'K' };
 Settings _global_settings = { 0x0, 0x0800, 0x8000, 0x4000, 0x100, 0x0 };
 
 
-B1C_T_ERROR B1FileCompiler::put_var_name(const std::wstring &name, const B1Types type, int dims, bool global, bool volat, bool mem_var)
+B1C_T_ERROR B1FileCompiler::put_var_name(const std::wstring &name, const B1Types type, int dims, bool global, bool volat, bool mem_var, bool stat)
 {
 	// checks for global variables
-	if(!_compiler.global_var_check(global, mem_var, name))
+	if(!_compiler.global_var_check(global, mem_var, stat, name))
 	{
 		return static_cast<B1C_T_ERROR>(B1_RES_EIDINUSE);
 	}
@@ -54,8 +55,8 @@ B1C_T_ERROR B1FileCompiler::put_var_name(const std::wstring &name, const B1Types
 
 	if(var != _var_names.end())
 	{
-		// forbid multiple DIMs for memory variables
-		if(mem_var)
+		// forbid multiple DIMs for memory and static variables
+		if(mem_var || stat)
 		{
 			return static_cast<B1C_T_ERROR>(B1_RES_EIDINUSE);
 		}
@@ -93,12 +94,12 @@ B1C_T_ERROR B1FileCompiler::put_var_name(const std::wstring &name, const B1Types
 		auto gen_name = get_name_space_prefix() + (mem_var ? L"__MEM_" : L"__VAR_") + name;
 
 		_var_names[name] = gen_name;
-		_vars[gen_name] = std::make_tuple(type, dims, volat, mem_var);
+		_vars[gen_name] = std::make_tuple(type, dims, volat, mem_var, stat);
 	}
 
 	if(global)
 	{
-		return _compiler.put_global_var_name(name, type, dims, volat, mem_var);
+		return _compiler.put_global_var_name(name, type, dims, volat, mem_var, stat);
 	}
 
 	return B1C_T_ERROR::B1C_RES_OK;
@@ -1620,7 +1621,7 @@ B1C_T_ERROR B1FileCompiler::st_dim(bool first_run)
 	bool stop;
 	B1_TOKENDATA td;
 	B1_T_INDEX len;
-	bool spec_read, global, volat;
+	bool spec_read, global, volat, stat;
 
 	spec_read = true;
 
@@ -1637,6 +1638,7 @@ B1C_T_ERROR B1FileCompiler::st_dim(bool first_run)
 			spec_read = false;
 			global = false;
 			volat = false;
+			stat = false;
 		}
 
 		// get variable name or optional variable specifier
@@ -1664,6 +1666,13 @@ B1C_T_ERROR B1FileCompiler::st_dim(bool first_run)
 				b1_curr_prog_line_offset += len;
 				continue;
 			}
+			else
+			if(!b1_t_strcmpi(_STATIC, b1_progline + b1_curr_prog_line_offset, len))
+			{
+				stat = true;
+				b1_curr_prog_line_offset += len;
+				continue;
+			}
 		}
 
 		spec_read = true;
@@ -1684,7 +1693,7 @@ B1C_T_ERROR B1FileCompiler::st_dim(bool first_run)
 
 		dimsnum = 0;
 
-		// DIM [GLOBAL] [VOLATILE] <var_name>[(subscript[,...])] [AS <type_name>] [AT <address>][,...]
+		// DIM [GLOBAL] [STATIC] [VOLATILE] <var_name>[(subscript[,...])] [AS <type_name>] [AT <address>][,...]
 		err = b1_tok_get(b1_curr_prog_line_offset, 0, &td);
 		if(err != B1_RES_OK)
 		{
@@ -1822,8 +1831,15 @@ B1C_T_ERROR B1FileCompiler::st_dim(bool first_run)
 
 		if(first_run)
 		{
+			if(dimsnum == 0 && stat)
+			{
+				// non-subscripted variables are always static
+				_warnings[b1_curr_prog_line_cnt].push_back(B1C_T_WARNING::B1C_WRN_WSTATNONSUBVAR);
+				stat = false;
+			}
+
 			// do not produce code during the first run
-			auto err1 = put_var_name(name, type, dimsnum, global, volat, at);
+			auto err1 = put_var_name(name, type, dimsnum, global, volat, at, stat);
 			if(err1 != B1C_T_ERROR::B1C_RES_OK)
 			{
 				return err1;
@@ -1834,14 +1850,20 @@ B1C_T_ERROR B1FileCompiler::st_dim(bool first_run)
 			B1_CMP_ARGS args;
 			bool expl = false;
 
+			if(dimsnum == 0 && stat)
+			{
+				// non-subscripted variables are always static
+				stat = false;
+			}
+
 			// name
 			args.push_back(get_var_name(name, expl));
 			
 			// type
 			args.push_back(B1_CMP_ARG(Utils::get_type_name(type), type));
-			if(volat)
+			if(volat || stat)
 			{
-				args[1].push_back(B1_TYPED_VALUE(L"V"));
+				args[1].push_back(B1_TYPED_VALUE(std::wstring(volat ? L"V" : L"") + std::wstring(stat ? L"S" : L"")));
 			}
 
 			// address
@@ -4082,7 +4104,9 @@ B1C_T_ERROR B1FileCompiler::remove_jumps(bool &changed)
 					break;
 				}
 
-				if(!(cmd1.cmd == L"DAT" || cmd1.cmd == L"DEF" || cmd1.cmd == L"MA" || cmd1.cmd == L"NS" || cmd1.cmd == L"END" || B1CUtils::is_log_op(cmd1)))
+				if(!(cmd1.cmd == L"DAT" || cmd1.cmd == L"DEF" || cmd1.cmd == L"MA" || cmd1.cmd == L"NS" || cmd1.cmd == L"END" ||
+					 (cmd1.cmd == L"GA" && cmd1.args[1].size() > 1 && cmd1.args[1][1].value.find(L'S') != std::wstring::npos) || B1CUtils::is_log_op(cmd1)
+					))
 				{
 					erase(i--);
 					changed = true;
@@ -5216,7 +5240,7 @@ B1_T_ERROR B1FileCompiler::get_type(B1_TYPED_VALUE &v, bool read)
 		if(vt != _vars.end())
 		{
 			v.type = std::get<0>(vt->second);
-			_vars[v.value] = std::make_tuple(v.type, 0, false, false);
+			_vars[v.value] = std::make_tuple(v.type, 0, false, false, false);
 		}
 		else
 		{
@@ -5276,7 +5300,7 @@ B1_T_ERROR B1FileCompiler::get_type(B1_TYPED_VALUE &v, bool read)
 		return B1_RES_ETYPMISM;
 	}
 
-	_vars[v.value] = std::make_tuple(v.type, 0, false, false);
+	_vars[v.value] = std::make_tuple(v.type, 0, false, false, false);
 
 	return B1_RES_OK;
 }
@@ -5347,7 +5371,7 @@ B1_T_ERROR B1FileCompiler::get_type(B1_CMP_ARG &a, bool read)
 		return B1_RES_ETYPMISM;
 	}
 
-	_vars[a[0].value] = std::make_tuple(a[0].type, (int)a.size() - 1, false, false);
+	_vars[a[0].value] = std::make_tuple(a[0].type, (int)a.size() - 1, false, false, false);
 
 	return B1_RES_OK;
 }
@@ -5405,7 +5429,7 @@ B1C_T_ERROR B1FileCompiler::put_types()
 				if(err == B1_RES_ETYPMISM && is_gen_local(cmd.args[1][0].value))
 				{
 					cmd.args[1][0].type = cmd.args[0][0].type;
-					_vars[cmd.args[1][0].value] = std::make_tuple(cmd.args[0][0].type, 0, false, false);
+					_vars[cmd.args[1][0].value] = std::make_tuple(cmd.args[0][0].type, 0, false, false, false);
 					continue;
 				}
 
@@ -5439,7 +5463,7 @@ B1C_T_ERROR B1FileCompiler::put_types()
 						return static_cast<B1C_T_ERROR>(err);
 					}
 
-					_vars[cmd.args[2][0].value] = std::make_tuple(cmd.args[2][0].type, 0, false, false);
+					_vars[cmd.args[2][0].value] = std::make_tuple(cmd.args[2][0].type, 0, false, false, false);
 					continue;
 				}
 
@@ -6558,6 +6582,7 @@ B1C_T_ERROR B1FileCompiler::eval_imm_exps(bool &changed)
 	return B1C_T_ERROR::B1C_RES_OK;
 }
 
+// collects MA statements and static GA statements
 B1C_T_ERROR B1FileCompiler::check_MA_stmts()
 {
 	_MA_stmts.clear();
@@ -6575,29 +6600,33 @@ B1C_T_ERROR B1FileCompiler::check_MA_stmts()
 		_curr_line_num = cmd.line_num;
 		_curr_src_line_id = cmd.src_line_id;
 
-		if(cmd.cmd == L"MA")
+		if (cmd.cmd != L"MA" && !(cmd.cmd == L"GA" && cmd.args[1].size() > 1 && cmd.args[1][1].value.find(L'S') != std::wstring::npos))
 		{
-			// check the statement
-			for(auto a = cmd.args.begin() + 3; a != cmd.args.end(); a++)
+			continue;
+		}
+
+		bool is_ma = (cmd.cmd == L"MA");
+
+		// check the statement
+		for(auto a = cmd.args.begin() + (is_ma ? 3 : 2); a != cmd.args.end(); a++)
+		{
+			int32_t n;
+
+			if(is_ma && ((*a)[0].type != B1Types::B1T_INT && (*a)[0].type != B1Types::B1T_WORD && (*a)[0].type != B1Types::B1T_BYTE))
 			{
-				int32_t n;
-
-				if((*a)[0].type != B1Types::B1T_INT && (*a)[0].type != B1Types::B1T_WORD && (*a)[0].type != B1Types::B1T_BYTE)
-				{
-					return static_cast<B1C_T_ERROR>(B1_RES_ETYPMISM);
-				}
-
-				auto err = Utils::str2int32((*a)[0].value, n);
-				if(err != B1_RES_OK)
-				{
-					return static_cast<B1C_T_ERROR>(err);
-				}
+				return static_cast<B1C_T_ERROR>(B1_RES_ETYPMISM);
 			}
 
-			// remove the statement from the main array (the statement is declarative, removing it enables more optimizations)
-			_MA_stmts.push_back(cmd);
-			erase(i--);
+			auto err = Utils::str2int32((*a)[0].value, n);
+			if(err != B1_RES_OK)
+			{
+				return static_cast<B1C_T_ERROR>(err);
+			}
 		}
+
+		// remove the statement from the main array (the statement is declarative, removing it enables more optimizations)
+		_MA_stmts.push_back(cmd);
+		erase(i--);
 	}
 
 	return B1C_T_ERROR::B1C_RES_OK;
@@ -8468,14 +8497,14 @@ B1C_T_ERROR B1FileCompiler::Write(const std::string &file_name) const
 }
 
 
-bool B1Compiler::global_var_check(bool global, bool mem_var, const std::wstring &name) const
+bool B1Compiler::global_var_check(bool global, bool mem_var, bool stat, const std::wstring &name) const
 {
 	auto var = _global_var_names.find(name);
 
 	if(var != _global_var_names.end())
 	{
 		// forbid multiple DIMs for memory variables
-		if(mem_var)
+		if(mem_var || stat)
 		{
 			return false;
 		}
@@ -8490,10 +8519,10 @@ bool B1Compiler::global_var_check(bool global, bool mem_var, const std::wstring 
 	return true;
 }
 
-B1C_T_ERROR B1Compiler::put_global_var_name(const std::wstring &name, const B1Types type, int dims, bool volat, bool mem_var)
+B1C_T_ERROR B1Compiler::put_global_var_name(const std::wstring &name, const B1Types type, int dims, bool volat, bool mem_var, bool stat)
 {
 	// forbid multiple DIMs for memory variables
-	if(!global_var_check(true, mem_var, name))
+	if(!global_var_check(true, mem_var, stat, name))
 	{
 		return static_cast<B1C_T_ERROR>(B1_RES_EIDINUSE);
 	}
@@ -8525,7 +8554,7 @@ B1C_T_ERROR B1Compiler::put_global_var_name(const std::wstring &name, const B1Ty
 		auto gen_name = (mem_var ? L"__MEM_" : L"__VAR_") + name;
 
 		_global_var_names[name] = gen_name;
-		_global_vars[gen_name] = std::make_tuple(type, dims, volat, mem_var);
+		_global_vars[gen_name] = std::make_tuple(type, dims, volat, mem_var, stat);
 	}
 	return B1C_T_ERROR::B1C_RES_OK;
 }
