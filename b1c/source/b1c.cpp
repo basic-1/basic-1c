@@ -16,6 +16,7 @@
 #include <iterator>
 #include <list>
 #include <stack>
+#include <functional>
 
 #include "../../common/source/version.h"
 #include "../../common/source/gitrev.h"
@@ -394,7 +395,21 @@ B1_T_ERROR B1FileCompiler::process_expression(B1_CMP_EXP_TYPE &res_type, B1_CMP_
 	B1_T_INDEX i;
 	B1_T_INDEX id_off, id_len;
 	B1_T_IDHASH hash;
-	std::vector<std::vector<std::wstring>> min_eval;
+	// <var> = IIF(<cond>, <val1>, <val2>)
+	// ->
+	// <cond>
+	// LA,local
+	// JF,label1
+	// =,<val1>,local
+	// JMP,label2
+	// :label1
+	// =,<val2>,local
+	// :label2
+	// =,local,<var>
+	//                     label1        label2        local
+	std::vector<std::tuple<std::wstring, std::wstring, std::wstring>> min_eval;
+	//          LA stmt, assign1, assign 2
+	std::vector<std::vector<std::reference_wrapper<B1_CMP_CMD>>> iif_refs;
 	std::vector<std::pair<std::wstring, B1_CMP_VAL_TYPE>> stack;
 
 	bool log_op = false;
@@ -438,21 +453,21 @@ B1_T_ERROR B1FileCompiler::process_expression(B1_CMP_EXP_TYPE &res_type, B1_CMP_
 			// produce instructions for minimal evaluation
 			if(tflags == B1_RPNREC_TYPE_SPEC_ARG_1)
 			{
-				min_eval.push_back(
-					std::vector<std::wstring>({
-						emit_label(true),
-						emit_label(true),
-						emit_local(B1Types::B1T_UNKNOWN)
-						})
-				);
+				auto label1 = emit_label(true);
+				auto label2 = emit_label(true);
+				min_eval.push_back(std::make_tuple(label1, label2, emit_local(B1Types::B1T_UNKNOWN)));
 
-				emit_command(L"JF", min_eval.back()[0]);
+				iif_refs.push_back({ back() });
+
+				emit_command(L"JF", std::get<0>(min_eval.back()));
 			}
 			else
 			if(tflags == B1_RPNREC_TYPE_SPEC_ARG_2)
 			{
 				const auto &v = stack.back();
-				emit_command(L"=", std::vector<std::wstring>({ v.first, min_eval.back()[2] }));
+				emit_command(L"=", std::vector<std::wstring>({ v.first, std::get<2>(min_eval.back()) }));
+
+				iif_refs.back().push_back(back());
 
 				if(is_gen_local(v.first))
 				{
@@ -461,13 +476,15 @@ B1_T_ERROR B1FileCompiler::process_expression(B1_CMP_EXP_TYPE &res_type, B1_CMP_
 
 				stack.pop_back();
 
-				emit_command(L"JMP", min_eval.back()[1]);
-				emit_label(min_eval.back()[0]);
+				emit_command(L"JMP", std::get<1>(min_eval.back()));
+				emit_label(std::get<0>(min_eval.back()));
 			}
 			else
 			{
 				const auto &v = stack.back();
-				emit_command(L"=", std::vector<std::wstring>({ v.first, min_eval.back()[2] }));
+				emit_command(L"=", std::vector<std::wstring>({ v.first, std::get<2>(min_eval.back()) }));
+
+				iif_refs.back().push_back(back());
 
 				if(is_gen_local(v.first))
 				{
@@ -476,9 +493,9 @@ B1_T_ERROR B1FileCompiler::process_expression(B1_CMP_EXP_TYPE &res_type, B1_CMP_
 
 				stack.pop_back();
 
-				emit_label(min_eval.back()[1]);
+				emit_label(std::get<1>(min_eval.back()));
 
-				stack.push_back(std::pair<std::wstring, B1_CMP_VAL_TYPE>(min_eval.back()[2], B1_CMP_VAL_TYPE::B1_CMP_VT_LOCAL));
+				stack.push_back(std::pair<std::wstring, B1_CMP_VAL_TYPE>(std::get<2>(min_eval.back()), B1_CMP_VAL_TYPE::B1_CMP_VT_LOCAL));
 
 				min_eval.pop_back();
 			}
@@ -514,6 +531,15 @@ B1_T_ERROR B1FileCompiler::process_expression(B1_CMP_EXP_TYPE &res_type, B1_CMP_
 					{
 						return B1_RES_EWRARGCNT;
 					}
+
+					auto type = (hash == B1_FN_STRIIF_FN_HASH) ? B1Types::B1T_STRING : B1Types::B1T_COMMON;
+					auto type_name = Utils::get_type_name(type);
+
+					auto &args = iif_refs.back()[0].get().args;
+					args[1] = B1_CMP_ARG(type_name, type);
+					iif_refs.back()[1].get().args[1][0].type = type;
+					iif_refs.back()[2].get().args[1][0].type = type;
+					iif_refs.pop_back();
 				}
 				else
 				{
@@ -5205,7 +5231,7 @@ B1C_T_ERROR B1FileCompiler::remove_locals(bool &changed)
 	return B1C_T_ERROR::B1C_RES_OK;
 }
 
-B1_T_ERROR B1FileCompiler::get_type(B1_TYPED_VALUE &v, bool read)
+B1_T_ERROR B1FileCompiler::get_type(B1_TYPED_VALUE &v, bool read, std::map<std::wstring, std::vector<std::pair<B1Types &, B1Types>>> &iif_locals)
 {
 	if(v.value.empty())
 	{
@@ -5240,11 +5266,44 @@ B1_T_ERROR B1FileCompiler::get_type(B1_TYPED_VALUE &v, bool read)
 		if(vt != _vars.end())
 		{
 			v.type = std::get<0>(vt->second);
-			_vars[v.value] = std::make_tuple(v.type, 0, false, false, false);
 		}
 		else
 		{
-			return B1_RES_ETYPMISM;
+			if((v.type == B1Types::B1T_UNKNOWN || v.type == B1Types::B1T_COMMON) && read)
+			{
+				// get common type for local variable of IIF pseudo-function
+				auto il = iif_locals.find(v.value);
+				if(il == iif_locals.end() || il->second.size() != 2)
+				{
+					return B1_RES_ETYPMISM;
+				}
+
+				bool comp = false;
+				B1Types com_type = B1Types::B1T_UNKNOWN;
+				auto err = B1CUtils::get_com_type(il->second[0].second, il->second[1].second, com_type, comp);
+				if(err != B1_RES_OK)
+				{
+					return err;
+				}
+
+				il->second[0].first = com_type;
+				il->second[1].first = com_type;
+				v.type = com_type;
+
+				_vars[v.value] = std::make_tuple(com_type, 0, false, false, false);
+
+				iif_locals.erase(il);
+			}
+			else
+			if(v.type == B1Types::B1T_UNKNOWN || v.type == B1Types::B1T_COMMON)
+			{
+				return B1_RES_ETYPMISM;
+			}
+			else
+			{
+				// internal variable IIF$ pseudo-function
+				_vars[v.value] = std::make_tuple(v.type, 0, false, false, false);
+			}
 		}
 
 		return B1_RES_OK;
@@ -5293,7 +5352,6 @@ B1_T_ERROR B1FileCompiler::get_type(B1_TYPED_VALUE &v, bool read)
 		return B1_RES_OK;
 	}
 
-
 	v.type = Utils::get_type_by_type_spec(v.value, B1Types::B1T_UNKNOWN);
 	if(v.type == B1Types::B1T_UNKNOWN)
 	{
@@ -5305,11 +5363,11 @@ B1_T_ERROR B1FileCompiler::get_type(B1_TYPED_VALUE &v, bool read)
 	return B1_RES_OK;
 }
 
-B1_T_ERROR B1FileCompiler::get_type(B1_CMP_ARG &a, bool read)
+B1_T_ERROR B1FileCompiler::get_type(B1_CMP_ARG &a, bool read, std::map<std::wstring, std::vector<std::pair<B1Types &, B1Types>>> &iif_locals)
 {
 	if(a.size() == 1)
 	{
-		return get_type(a[0], read);
+		return get_type(a[0], read, iif_locals);
 	}
 
 	if(Utils::check_const_name(a[0].value))
@@ -5320,7 +5378,7 @@ B1_T_ERROR B1FileCompiler::get_type(B1_CMP_ARG &a, bool read)
 	// process arguments first
 	for(auto aa = a.begin() + 1; aa != a.end(); aa++)
 	{
-		auto err = get_type(*aa, true);
+		auto err = get_type(*aa, true, iif_locals);
 		if(err != B1_RES_OK)
 		{
 			return err;
@@ -5379,6 +5437,7 @@ B1_T_ERROR B1FileCompiler::get_type(B1_CMP_ARG &a, bool read)
 B1C_T_ERROR B1FileCompiler::put_types()
 {
 	B1_T_ERROR err;
+	std::map<std::wstring, std::vector<std::pair<B1Types &, B1Types>>> iif_locals;
 
 	// set types
 	for(auto &cmd: *this)
@@ -5403,12 +5462,12 @@ B1C_T_ERROR B1FileCompiler::put_types()
 
 		if(B1CUtils::is_log_op(cmd))
 		{
-			err = get_type(cmd.args[0], true);
+			err = get_type(cmd.args[0], true, iif_locals);
 			if(err != B1_RES_OK)
 			{
 				return static_cast<B1C_T_ERROR>(err);
 			}
-			err = get_type(cmd.args[1], true);
+			err = get_type(cmd.args[1], true, iif_locals);
 			if(err != B1_RES_OK)
 			{
 				return static_cast<B1C_T_ERROR>(err);
@@ -5417,19 +5476,33 @@ B1C_T_ERROR B1FileCompiler::put_types()
 		else
 		if(B1CUtils::is_un_op(cmd))
 		{
-			err = get_type(cmd.args[0], true);
+			err = get_type(cmd.args[0], true, iif_locals);
 			if(err != B1_RES_OK)
 			{
 				return static_cast<B1C_T_ERROR>(err);
 			}
 
-			err = get_type(cmd.args[1], false);
+			err = get_type(cmd.args[1], false, iif_locals);
 			if(err != B1_RES_OK)
 			{
 				if(err == B1_RES_ETYPMISM && is_gen_local(cmd.args[1][0].value))
 				{
-					cmd.args[1][0].type = cmd.args[0][0].type;
-					_vars[cmd.args[1][0].value] = std::make_tuple(cmd.args[0][0].type, 0, false, false, false);
+					if(cmd.args[1][0].type == B1Types::B1T_COMMON)
+					{
+						// local variable of IFF pseudo-function
+						if(cmd.args[0][0].type == B1Types::B1T_STRING)
+						{
+							// IIF cannot return strings
+							return static_cast<B1C_T_ERROR>(B1_RES_ETYPMISM);
+						}
+
+						iif_locals[cmd.args[1][0].value].push_back(std::make_pair(std::ref(cmd.args[1][0].type), cmd.args[0][0].type));
+					}
+					else
+					{
+						cmd.args[1][0].type = cmd.args[0][0].type;
+						_vars[cmd.args[1][0].value] = std::make_tuple(cmd.args[0][0].type, 0, false, false, false);
+					}
 					continue;
 				}
 
@@ -5439,31 +5512,46 @@ B1C_T_ERROR B1FileCompiler::put_types()
 		else
 		if(B1CUtils::is_bin_op(cmd))
 		{
-			err = get_type(cmd.args[0], true);
+			err = get_type(cmd.args[0], true, iif_locals);
 			if(err != B1_RES_OK)
 			{
 				return static_cast<B1C_T_ERROR>(err);
 			}
 
-			err = get_type(cmd.args[1], true);
+			err = get_type(cmd.args[1], true, iif_locals);
 			if(err != B1_RES_OK)
 			{
 				return static_cast<B1C_T_ERROR>(err);
 			}
 
-			err = get_type(cmd.args[2], false);
+			err = get_type(cmd.args[2], false, iif_locals);
 			if(err != B1_RES_OK)
 			{
 				if(err == B1_RES_ETYPMISM && is_gen_local(cmd.args[2][0].value))
 				{
 					bool comp = false;
-					err = B1CUtils::get_com_type(cmd.args[0][0].type, cmd.args[1][0].type, cmd.args[2][0].type, comp);
+					B1Types com_type = B1Types::B1T_UNKNOWN;
+					err = B1CUtils::get_com_type(cmd.args[0][0].type, cmd.args[1][0].type, com_type, comp);
 					if(err != B1_RES_OK)
 					{
 						return static_cast<B1C_T_ERROR>(err);
 					}
 
-					_vars[cmd.args[2][0].value] = std::make_tuple(cmd.args[2][0].type, 0, false, false, false);
+					if(cmd.args[2][0].type == B1Types::B1T_COMMON)
+					{
+						// local variable of IFF pseudo-function
+						if(com_type == B1Types::B1T_STRING)
+						{
+							// IIF cannot return strings
+							return static_cast<B1C_T_ERROR>(B1_RES_ETYPMISM);
+						}
+						iif_locals[cmd.args[2][0].value].push_back(std::make_pair(std::ref(cmd.args[2][0].type), com_type));
+					}
+					else
+					{
+						cmd.args[2][0].type = com_type;
+						_vars[cmd.args[2][0].value] = std::make_tuple(com_type, 0, false, false, false);
+					}
 					continue;
 				}
 
@@ -5514,7 +5602,7 @@ B1C_T_ERROR B1FileCompiler::put_types()
 					read = false;
 				}
 
-				err = get_type(*a, read);
+				err = get_type(*a, read, iif_locals);
 				if(err != B1_RES_OK)
 				{
 					return static_cast<B1C_T_ERROR>(err);

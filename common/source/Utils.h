@@ -30,7 +30,8 @@ enum class B1Types
 	B1T_STRING,
 
 	// special types
-	B1T_LABEL = 1000,
+	B1T_LABEL = 1000, // used with IOCTL
+	B1T_COMMON, // used when choosing type of IIF pseudo-function
 };
 
 

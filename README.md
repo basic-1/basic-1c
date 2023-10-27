@@ -7,6 +7,9 @@
 - supports classic BASIC language dialect with various extensions  
 - command-line compiler built for Windows x86, Windows x64, Linux i386, Linux amd64, Linux armhf  
 - produces a kind of intermediate code that can be compiled into STM8 assembler code  
+- static and dynamic memory allocation  
+- some essential peripherals support (GPIO, timer, UART)  
+- interrupts handling  
 - includes STM8 assembler  
 - licensed under MIT license  
   

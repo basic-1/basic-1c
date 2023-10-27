@@ -145,8 +145,8 @@ private:
 	std::wstring set_to_init_value(B1_CMP_CMD &cmd, const std::map<std::wstring, std::pair<bool, std::wstring>> &vars, bool init, bool &changed);
 	B1C_T_ERROR reuse_imm_values(bool init, bool &changed);
 	B1C_T_ERROR remove_locals(bool &changed);
-	B1_T_ERROR get_type(B1_TYPED_VALUE &v, bool read);
-	B1_T_ERROR get_type(B1_CMP_ARG &a, bool read);
+	B1_T_ERROR get_type(B1_TYPED_VALUE &v, bool read, std::map<std::wstring, std::vector<std::pair<B1Types &, B1Types>>> &iif_locals);
+	B1_T_ERROR get_type(B1_CMP_ARG &a, bool read, std::map<std::wstring, std::vector<std::pair<B1Types &, B1Types>>> &iif_locals);
 	B1C_T_ERROR put_types();
 	B1C_T_ERROR put_fn_def_values(B1_CMP_ARG &arg);
 	B1C_T_ERROR put_fn_def_values();

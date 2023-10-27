@@ -1,3 +1,9 @@
+b1c (1.0.0-16) unstable; urgency=low
+
+  * bugfix: choosing proper type for return value of IIF and IIF$ functions
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Fri, 27 Oct 2023 18:12:04 +0300
+ 
 b1c (1.0.0-15) unstable; urgency=low
 
   * various bugfixes
