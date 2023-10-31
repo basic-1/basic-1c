@@ -4,13 +4,37 @@ IMP,__LIB_COM_MUL16
 ; X - base, stack1 - exponent, returns 16-bit power in X
 :__LIB_COM_POW16
 ASM
-PUSHW X ; base (1), exp (__RET_ADDR_SIZE + 3)
 TNZW X
-JREQ ::__LBL_ZERO
-LDW Y, (__RET_ADDR_SIZE + 3, SP) ; exp
-JRMI ::__LBL_ZERO
+JRNE ::__LBL_NON_ZERO_BASE
+RET
+
+:::__LBL_NON_ZERO_BASE
+LDW Y, (__RET_ADDR_SIZE + 1, SP) ; exp
+JRPL ::__LBL_POS_EXP
+INCW Y
+JREQ ::__LBL_MINUS_1_EXP
+CLRW X
+RET
+
+:::__LBL_MINUS_1_EXP
+CPW X, 1
+JRNE ::__LBL_TEST_MINUS_1
+RET
+
+:::__LBL_TEST_MINUS_1
+CPW X, -1
+JRNE ::__LBL_RET_ZERO
+RET
+
+:::__LBL_RET_ZERO
+CLRW X
+RET
+
+:::__LBL_POS_EXP
+PUSHW X ; base (1), exp (__RET_ADDR_SIZE + 3)
 CLRW X
 INCW X ; result
+
 :::__LBL_EXP_LOOP
 TNZW Y
 JREQ ::__LBL_EXIT
@@ -33,8 +57,7 @@ LDW (5, SP), X
 POPW X
 POPW Y
 JRA ::__LBL_EXP_LOOP
-:::__LBL_ZERO
-CLRW X
+
 :::__LBL_EXIT
 ADDW SP, 2
 RET

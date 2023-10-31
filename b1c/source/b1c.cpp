@@ -9602,9 +9602,17 @@ int main(int argc, char **argv)
 		src_files.push_back(argv[j]);
 	}
 
-	// file with MCU-specific constants, variables, etc.
-	if(!MCU_name.empty())
+	if(MCU_name.empty())
 	{
+		if(list_devs || list_cmds)
+		{
+			std::fputs("-lc and -ld options require a MCU specified with -m option\n", stderr);
+			return 2;
+		}
+	}
+	else
+	{
+		// read file with MCU-specific constants, variables, etc.
 		bool cfg_file_read = false;
 
 		auto file_name = _global_settings.GetLibFileName(MCU_name, ".io");
@@ -9614,7 +9622,7 @@ int main(int argc, char **argv)
 			if(err != B1C_T_ERROR::B1C_RES_OK)
 			{
 				b1c_print_error(err, -1, file_name, print_err_desc);
-				return 2;
+				return 3;
 			}
 			cfg_file_read = true;
 		}
@@ -9626,7 +9634,7 @@ int main(int argc, char **argv)
 			if(err != B1C_T_ERROR::B1C_RES_OK)
 			{
 				b1c_print_error(err, -1, file_name, print_err_desc);
-				return 3;
+				return 4;
 			}
 			cfg_file_read = true;
 		}
@@ -9656,9 +9664,9 @@ int main(int argc, char **argv)
 			const auto comm_name = _global_settings.GetCommonDeviceName(d);
 			if(!comm_name.empty())
 			{
-				std::fputws((comm_name + L" (" + d + L")\n").c_str(), stdout);
+				std::fputs(Utils::wstr2str(comm_name + L" (" + d + L")\n").c_str(), stdout);
 			}
-			std::fputws((d + L"\n").c_str(), stdout);
+			std::fputs(Utils::wstr2str(d + L"\n").c_str(), stdout);
 		}
 		return 0;
 	}
@@ -9693,16 +9701,16 @@ int main(int argc, char **argv)
 						vals.pop_back();
 					}
 
-					std::fputws((c + L" (" + vals + L")\n").c_str(), stdout);
+					std::fputs(Utils::wstr2str(c + L" (" + vals + L")\n").c_str(), stdout);
 				}
 				else
 				{
-					std::fputws((c + L" (<" + Utils::get_type_name(cmd.data_type) + L" VALUE>)\n").c_str(), stdout);
+					std::fputs(Utils::wstr2str(c + L" (<" + Utils::get_type_name(cmd.data_type) + L" VALUE>)\n").c_str(), stdout);
 				}
 			}
 			else
 			{
-				std::fputws((c + L"\n").c_str(), stdout);
+				std::fputs(Utils::wstr2str(c + L"\n").c_str(), stdout);
 			}
 		}
 		return 0;
@@ -9717,7 +9725,7 @@ int main(int argc, char **argv)
 	{
 		b1c_print_warnings(b1c.GetWarnings());
 		b1c_print_error(err, -1, b1c.GetCurrFileName(), print_err_desc);
-		return 4;
+		return 5;
 	}
 
 	err = b1c.Compile();
@@ -9725,7 +9733,7 @@ int main(int argc, char **argv)
 	{
 		b1c_print_warnings(b1c.GetWarnings());
 		b1c_print_error(err, b1_curr_prog_line_cnt, b1c.GetCurrFileName(), print_err_desc);
-		retcode = 5;
+		retcode = 6;
 	}
 
 	if(retcode == 0)
@@ -9768,7 +9776,7 @@ int main(int argc, char **argv)
 		{
 			b1c_print_warnings(b1c.GetWarnings());
 			b1c_print_error(err, b1_curr_prog_line_cnt, b1c.GetCurrFileName(), print_err_desc);
-			retcode = 6;
+			retcode = 7;
 		}
 
 		if(b1c.GetOptExplicit())
@@ -9810,7 +9818,7 @@ int main(int argc, char **argv)
 			if(sc == -1)
 			{
 				std::perror("fail");
-				retcode = 7;
+				retcode = 8;
 			}
 		}
 	}

@@ -2436,7 +2436,6 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 			if(req_valtype & LVT::LVT_REG)
 			{
 				rvt = LVT::LVT_REG;
-				rv = req_type == B1Types::B1T_BYTE ? L"A" : L"X";
 
 				if(req_type == B1Types::B1T_BYTE)
 				{
@@ -2471,7 +2470,6 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 			if(req_valtype & LVT::LVT_REG)
 			{
 				rvt = LVT::LVT_REG;
-				rv = req_type == B1Types::B1T_BYTE ? L"A" : L"X";
 
 				if(req_type == B1Types::B1T_BYTE)
 				{
@@ -2513,7 +2511,6 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 			if(req_valtype & LVT::LVT_REG)
 			{
 				rvt = LVT::LVT_REG;
-				rv = L"X";
 				_curr_code_sec->add_op(L"LDW X, " + std::get<0>(_str_labels[tv.value])); //AE WORD_VALUE
 				_req_symbols.insert(std::get<0>(_str_labels[tv.value]));
 			}
@@ -2557,7 +2554,6 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 			if(req_valtype & LVT::LVT_REG)
 			{
 				rvt = LVT::LVT_REG;
-				rv = req_type == B1Types::B1T_BYTE ? L"A" : L"X";
 
 				_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset) + L", SP)"); //7B BYTE_OFFSET
 
@@ -2591,7 +2587,6 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 			if(req_valtype & LVT::LVT_REG)
 			{
 				rvt = LVT::LVT_REG;
-				rv = req_type == B1Types::B1T_BYTE ? L"A" : L"X";
 
 				if(req_type == B1Types::B1T_BYTE)
 				{
@@ -2631,7 +2626,6 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 			if(req_valtype & LVT::LVT_REG)
 			{
 				rvt = LVT::LVT_REG;
-				rv = L"X";
 				// STRING variable, copy value
 				_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
 				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CPY"); //AD SIGNED_BYTE_OFFSET (CALLR)
@@ -2671,7 +2665,6 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 			if(req_valtype & LVT::LVT_REG)
 			{
 				rvt = LVT::LVT_REG;
-				rv = req_type == B1Types::B1T_BYTE ? L"A" : L"X";
 
 				_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset) + L", SP)"); //7B BYTE_OFFSET
 
@@ -2705,7 +2698,6 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 			if(req_valtype & LVT::LVT_REG)
 			{
 				rvt = LVT::LVT_REG;
-				rv = req_type == B1Types::B1T_BYTE ? L"A" : L"X";
 
 				if(req_type == B1Types::B1T_BYTE)
 				{
@@ -2746,7 +2738,6 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 			if(req_valtype & LVT::LVT_REG)
 			{
 				rvt = LVT::LVT_REG;
-				rv = L"X";
 				// STRING variable, copy value
 				_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
 				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CPY"); //AD SIGNED_BYTE_OFFSET (CALLR)
@@ -2806,7 +2797,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 						_req_symbols.insert(L"__LIB_STR_STR_I");
 					}
 
-					rv = req_type == B1Types::B1T_BYTE ? L"A" : L"X";
+					rv.clear();
 				}
 				else
 				{
@@ -2848,7 +2839,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 						}
 					}
 
-					rv = req_type == B1Types::B1T_BYTE ? L"A" : L"X";
+					rv.clear();
 				}
 				else
 				{
@@ -2871,7 +2862,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CPY"); //AD SIGNED_BYTE_OFFSET (CALLR)
 					_req_symbols.insert(L"__LIB_STR_CPY");
 
-					rv = L"X";
+					rv.clear();
 				}
 				else
 				{
@@ -2885,7 +2876,6 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 			if(req_valtype & LVT::LVT_REG)
 			{
 				rvt = LVT::LVT_REG;
-				rv = req_type == B1Types::B1T_BYTE ? L"A" : L"X";
 
 				_curr_code_sec->add_op(_call_stmt + L" " + fn->iname); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(fn->iname);
@@ -3308,7 +3298,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 					}
 				}
 
-				rv = req_type == B1Types::B1T_BYTE ? L"A" : L"X";
+				rv.clear();
 
 				if(req_type != B1Types::B1T_BYTE)
 				{
@@ -3421,7 +3411,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 					}
 				}
 
-				rv = req_type == B1Types::B1T_BYTE ? L"A" : L"X";
+				rv.clear();
 			}
 			else
 			{
@@ -3462,7 +3452,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CPY"); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_STR_CPY");
 
-				rv = L"X";
+				rv.clear();
 			}
 			else
 			{
@@ -3545,7 +3535,6 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 		if(req_valtype & LVT::LVT_REG)
 		{
 			rvt = LVT::LVT_REG;
-			rv = req_type == B1Types::B1T_BYTE ? L"A" : L"X";
 			_curr_code_sec->add_op(_call_stmt + L" " + fn->iname); //AD SIGNED_BYTE_OFFSET (CALLR)
 			_req_symbols.insert(fn->iname);
 
@@ -4292,74 +4281,149 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 C1STM8_T_ERROR C1STM8Compiler::stm8_mul_op(const B1_CMP_CMD &cmd)
 {
 	B1Types com_type;
-	std::wstring inst, val;
-	LVT lvt;
 	bool comp = false;
-	bool imm_val = false;
-	bool mem_ref = false;
-	bool stk = false;
 
 	B1_CMP_ARG arg1 = cmd.args[0];
 	B1_CMP_ARG arg2 = cmd.args[1];
-
-	com_type = B1Types::B1T_INT;
 
 	if(arg1[0].type == B1Types::B1T_STRING || arg2[0].type == B1Types::B1T_STRING)
 	{
 		return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
 	}
 
-	auto err = stm8_load(arg2, com_type, LVT::LVT_REG, &lvt, &val);
-	if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
-	{
-		return err;
-	}
-	_curr_code_sec->add_op(L"PUSHW X"); //89
-	_stack_ptr += 2;
-
-	err = stm8_load(arg1, com_type, LVT::LVT_REG, &lvt, &val);
-	if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
-	{
-		return err;
-	}
-
-	if(cmd.cmd == L"*")
-	{
-		_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_COM_MUL16"); //AD SIGNED_BYTE_OFFSET (CALLR)
-		_req_symbols.insert(L"__LIB_COM_MUL16");
-		_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
-		_stack_ptr -= 2;
-	}
-	else
-	if(cmd.cmd == L"/")
-	{
-		_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_COM_DIV16"); //AD SIGNED_BYTE_OFFSET (CALLR)
-		_req_symbols.insert(L"__LIB_COM_DIV16");
-		_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
-		_stack_ptr -= 2;
-	}
-	else
-	if(cmd.cmd == L"%")
-	{
-		_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_COM_REM16"); //AD SIGNED_BYTE_OFFSET (CALLR)
-		_req_symbols.insert(L"__LIB_COM_REM16");
-		_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
-		_stack_ptr -= 2;
-	}
-	else
 	if(cmd.cmd == L"^")
 	{
-		_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_COM_POW16"); //AD SIGNED_BYTE_OFFSET (CALLR)
-		_req_symbols.insert(L"__LIB_COM_POW16");
-		_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
-		_stack_ptr -= 2;
+		com_type = B1Types::B1T_INT;
 	}
 	else
 	{
-		return C1STM8_T_ERROR::C1STM8_RES_EUNKINST;
+		auto err = B1CUtils::get_com_type(arg1[0].type, arg2[0].type, com_type, comp);
+		if(err != B1_RES_OK)
+		{
+			return static_cast<C1STM8_T_ERROR>(err);
+		}
 	}
 
-	err = stm8_arrange_types(com_type, cmd.args[2][0].type);
+	if(com_type == B1Types::B1T_BYTE)
+	{
+		// two BYTE arguments
+		auto err = stm8_load(arg1, com_type, LVT::LVT_REG);
+		if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+		{
+			return err;
+		}
+
+		if(cmd.cmd == L"/" || cmd.cmd == L"%")
+		{
+			_curr_code_sec->add_op(L"CLRW X"); //5F
+		}
+
+		_curr_code_sec->add_op(L"LD XL, A"); //97
+
+		err = stm8_load(arg2, com_type, LVT::LVT_REG);
+		if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+		{
+			return err;
+		}
+
+		if(cmd.cmd == L"*")
+		{
+			_curr_code_sec->add_op(L"MUL X, A"); //42
+		}
+		else
+		{
+			// div or mod
+			_curr_code_sec->add_op(L"DIV X, A"); //62
+		}
+
+		if(cmd.cmd == L"*" || cmd.cmd == L"/")
+		{
+			_curr_code_sec->add_op(L"LD A, XL"); //9F
+		}
+	}
+	else
+	if(com_type == B1Types::B1T_WORD && (cmd.cmd == L"/" || cmd.cmd == L"%"))
+	{
+		// two WORD arguments or BYTE and WORD
+		auto err = stm8_load(arg2, com_type, LVT::LVT_REG);
+		if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+		{
+			return err;
+		}
+
+		_curr_code_sec->add_op(L"PUSHW X"); //89
+		_stack_ptr += 2;
+
+		err = stm8_load(arg1, com_type, LVT::LVT_REG);
+		if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+		{
+			return err;
+		}
+
+		_curr_code_sec->add_op(L"POPW Y"); //90 85
+		_stack_ptr -= 2;
+
+		_curr_code_sec->add_op(L"DIVW X, Y"); //62
+
+		if(cmd.cmd == L"%")
+		{
+			_curr_code_sec->add_op(L"LDW X, Y"); //93
+		}
+	}
+	else
+	{
+		auto err = stm8_load(arg2, com_type, LVT::LVT_REG);
+		if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+		{
+			return err;
+		}
+		_curr_code_sec->add_op(L"PUSHW X"); //89
+		_stack_ptr += 2;
+
+		err = stm8_load(arg1, com_type, LVT::LVT_REG);
+		if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+		{
+			return err;
+		}
+
+		if(cmd.cmd == L"*")
+		{
+			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_COM_MUL16"); //AD SIGNED_BYTE_OFFSET (CALLR)
+			_req_symbols.insert(L"__LIB_COM_MUL16");
+			_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
+			_stack_ptr -= 2;
+		}
+		else
+		if(cmd.cmd == L"/")
+		{
+			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_COM_DIV16"); //AD SIGNED_BYTE_OFFSET (CALLR)
+			_req_symbols.insert(L"__LIB_COM_DIV16");
+			_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
+			_stack_ptr -= 2;
+		}
+		else
+		if(cmd.cmd == L"%")
+		{
+			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_COM_REM16"); //AD SIGNED_BYTE_OFFSET (CALLR)
+			_req_symbols.insert(L"__LIB_COM_REM16");
+			_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
+			_stack_ptr -= 2;
+		}
+		else
+		if(cmd.cmd == L"^")
+		{
+			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_COM_POW16"); //AD SIGNED_BYTE_OFFSET (CALLR)
+			_req_symbols.insert(L"__LIB_COM_POW16");
+			_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
+			_stack_ptr -= 2;
+		}
+		else
+		{
+			return C1STM8_T_ERROR::C1STM8_RES_EUNKINST;
+		}
+	}
+
+	auto err = stm8_arrange_types(com_type, cmd.args[2][0].type);
 	if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 	{
 		return err;
