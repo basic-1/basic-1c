@@ -23,7 +23,7 @@
 #include "moresym.h"
 
 
-B1_T_ERROR Utils::str2int32(const std::wstring &str, int32_t &num, B1Types *type /*= nullptr*/)
+B1_T_ERROR Utils::str2int32(const std::wstring &str, int32_t &num)
 {
 	bool neg = false;
 	int base = 10;
@@ -43,15 +43,10 @@ B1_T_ERROR Utils::str2int32(const std::wstring &str, int32_t &num, B1Types *type
 		strptr += 2;
 	}
 
-	wchar_t c, c1;
+	wchar_t c;
 	int64_t n = 0;
 	bool start = true;
 	bool lead_zero = false;
-
-	if(type != nullptr)
-	{
-		*type = B1Types::B1T_UNKNOWN;
-	}
 
 	while(true)
 	{
@@ -149,71 +144,7 @@ B1_T_ERROR Utils::str2int32(const std::wstring &str, int32_t &num, B1Types *type
 
 	if(c == L'\0')
 	{
-		if(type != nullptr)
-		{
-			*type = B1Types::B1T_LONG;
-		}
-
 		num = nn;
-	}
-	else
-	if(c == L'.')
-	{
-		c = *(++strptr);
-		if(c == L'\0')
-		{
-			return B1_RES_EINVNUM;
-		}
-		c1 = *(++strptr);
-
-		if(c != L'\0')
-		{
-			if(type != nullptr)
-			{
-				*type = neg ? B1Types::B1T_INT : B1Types::B1T_WORD;
-			}
-
-			if(c == L'l' || c == L'L')
-			{
-				num = (uint16_t)nn;
-			}
-			else
-			if(c == L'h' || c == L'H')
-			{
-				num = (uint16_t)(nn >> 16);
-			}
-			else
-			{
-				return B1_RES_EINVNUM;
-			}
-
-			if(c1 != L'\0')
-			{
-				if(type != nullptr)
-				{
-					*type = B1Types::B1T_BYTE;
-				}
-
-				if(*(++strptr) != L'\0')
-				{
-					return B1_RES_EINVNUM;
-				}
-
-				if(c1 == L'l' || c1 == L'L')
-				{
-					num = (uint8_t)num;
-				}
-				else
-				if(c1 == L'h' || c1 == L'H')
-				{
-					num = (uint8_t)(num >> 8);
-				}
-				else
-				{
-					return B1_RES_EINVNUM;
-				}
-			}
-		}
 	}
 	else
 	if(c == L'%')
@@ -221,11 +152,6 @@ B1_T_ERROR Utils::str2int32(const std::wstring &str, int32_t &num, B1Types *type
 		if(*(++strptr) != L'\0')
 		{
 			return B1_RES_EINVNUM;
-		}
-
-		if(type != nullptr)
-		{
-			*type = B1Types::B1T_INT;
 		}
 
 		num = (uint16_t)nn;
@@ -446,6 +372,9 @@ B1Types Utils::get_type_by_name(const std::wstring &type_name)
 	else
 	if(type_name_uc == L"BYTE")
 		return B1Types::B1T_BYTE;
+	else
+	if(type_name_uc == L"LONG")
+		return B1Types::B1T_LONG;
 	else
 	if(type_name_uc == L"LABEL")
 		return B1Types::B1T_LABEL;

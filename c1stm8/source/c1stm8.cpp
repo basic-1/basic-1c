@@ -2316,6 +2316,12 @@ C1STM8_T_ERROR C1STM8Compiler::calc_array_size(const B1_CMP_VAR &var, int32_t si
 		{
 			_curr_code_sec->add_op(L"SLAW X"); //58
 		}
+		else
+		if(size1 == 4)
+		{
+			_curr_code_sec->add_op(L"SLAW X"); //58
+			_curr_code_sec->add_op(L"SLAW X"); //58
+		}
 	}
 
 	return C1STM8_T_ERROR::C1STM8_RES_OK;
@@ -2357,6 +2363,10 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_st_gf(const B1_CMP_VAR &var, bool is_ma)
 			}
 			_curr_code_sec->add_op(L"CLRW X"); //5F
 			_curr_code_sec->add_op(L"LDW (" + v + L"), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+			if(var.type == B1Types::B1T_LONG)
+			{
+				_curr_code_sec->add_op(L"LDW (" + v + L" + 2), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+			}
 		}
 	}
 	else
@@ -2416,6 +2426,273 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_st_gf(const B1_CMP_VAR &var, bool is_ma)
 	return C1STM8_T_ERROR::C1STM8_RES_OK;
 }
 
+C1STM8_T_ERROR C1STM8Compiler::stm8_arrange_types(const B1Types type_from, const B1Types type_to)
+{
+	if(type_from != type_to)
+	{
+		if(type_from == B1Types::B1T_BYTE)
+		{
+			if(type_to == B1Types::B1T_LONG)
+			{
+				//A -> Y:X
+				_curr_code_sec->add_op(L"CLRW Y"); //90 5F
+			}
+			// A -> X
+			_curr_code_sec->add_op(L"CLRW X"); //5F
+			_curr_code_sec->add_op(L"LD XL, A"); //97
+
+			if(type_to == B1Types::B1T_STRING)
+			{
+				// BYTE to STRING
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_req_symbols.insert(L"__LIB_STR_STR_I");
+			}
+		}
+		else
+		if(type_from == B1Types::B1T_INT || type_from == B1Types::B1T_WORD)
+		{
+			if(type_to == B1Types::B1T_BYTE)
+			{
+				// X -> A
+				_curr_code_sec->add_op(L"LD A, XL"); //9F
+			}
+			else
+			if(type_to == B1Types::B1T_LONG)
+			{
+				// X -> Y:X
+				_curr_code_sec->add_op(L"CLRW Y"); //90 5F
+				if(type_from == B1Types::B1T_INT)
+				{
+					_curr_code_sec->add_op(L"TNZW X"); //5D
+					const auto label = emit_label(true);
+					_curr_code_sec->add_op(L"JRPL " + label); //2A SIGNED_BYTE_OFFSET
+					_req_symbols.insert(label);
+					_curr_code_sec->add_op(L"DECW Y"); //90 5A
+					_curr_code_sec->add_lbl(label);
+					_all_symbols.insert(label);
+				}
+			}
+			else
+			if(type_to == B1Types::B1T_STRING)
+			{
+				if(type_from == B1Types::B1T_INT)
+				{
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_req_symbols.insert(L"__LIB_STR_STR_I");
+				}
+				else
+				{
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_W"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_req_symbols.insert(L"__LIB_STR_STR_W");
+				}
+			}
+		}
+		else
+		if(type_from == B1Types::B1T_LONG)
+		{
+			if(type_to == B1Types::B1T_BYTE)
+			{
+				// Y:X -> A
+				_curr_code_sec->add_op(L"LD A, XL"); //9F
+			}
+			else
+			if(type_to == B1Types::B1T_STRING)
+			{
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_L"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_req_symbols.insert(L"__LIB_STR_STR_L");
+			}
+		}
+		else
+		{
+			// string, can't convert to any other type
+			return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
+		}
+	}
+
+	return C1STM8_T_ERROR::C1STM8_RES_OK;
+}
+
+C1STM8_T_ERROR C1STM8Compiler::stm8_load_from_stack(int32_t offset, const B1Types init_type, const B1Types req_type, LVT req_valtype, LVT &rvt, std::wstring &rv)
+{
+	if(offset < 0 || offset > 255)
+	{
+		return C1STM8_T_ERROR::C1STM8_RES_ESTCKOVF;
+	}
+
+	if(init_type == B1Types::B1T_BYTE)
+	{
+		if((req_valtype & LVT::LVT_STKREF) && req_type == B1Types::B1T_BYTE)
+		{
+			rvt = LVT::LVT_STKREF;
+			rv = Utils::str_tohex16(offset);
+		}
+		else
+		if(req_valtype & LVT::LVT_REG)
+		{
+			rvt = LVT::LVT_REG;
+
+			_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset) + L", SP)"); //7B BYTE_OFFSET
+
+			if(req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD || req_type == B1Types::B1T_STRING)
+			{
+				_curr_code_sec->add_op(L"CLRW X"); //5F
+				_curr_code_sec->add_op(L"LD XL, A"); //97
+				if(req_type == B1Types::B1T_STRING)
+				{
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_req_symbols.insert(L"__LIB_STR_STR_I");
+				}
+			}
+			else
+			if(req_type == B1Types::B1T_LONG)
+			{
+				_curr_code_sec->add_op(L"CLRW Y"); //90 5F
+				_curr_code_sec->add_op(L"CLRW X"); //5F
+				_curr_code_sec->add_op(L"LD XL, A"); //97
+			}
+		}
+		else
+		{
+			return C1STM8_T_ERROR::C1STM8_RES_EINTERR;
+		}
+	}
+	else
+	if(init_type == B1Types::B1T_INT || init_type == B1Types::B1T_WORD)
+	{
+		offset += (req_type == B1Types::B1T_BYTE) ? 1 : 0;
+		if(offset > 255)
+		{
+			return C1STM8_T_ERROR::C1STM8_RES_ESTCKOVF;
+		}
+
+		if((req_valtype & LVT::LVT_STKREF) && req_type != B1Types::B1T_STRING && req_type != B1Types::B1T_LONG)
+		{
+			rvt = LVT::LVT_STKREF;
+			rv = Utils::str_tohex16(offset);
+		}
+		else
+		if(req_valtype & LVT::LVT_REG)
+		{
+			rvt = LVT::LVT_REG;
+
+			if(req_type == B1Types::B1T_BYTE)
+			{
+				_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset) + L", SP)"); //7B BYTE_OFFSET
+			}
+			else
+			{
+				if(req_type == B1Types::B1T_LONG)
+				{
+					_curr_code_sec->add_op(L"CLRW Y"); //90 5F
+				}
+
+				_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
+
+				if(req_type == B1Types::B1T_STRING)
+				{
+					if(init_type == B1Types::B1T_INT)
+					{
+						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
+						_req_symbols.insert(L"__LIB_STR_STR_I");
+					}
+					else
+					{
+						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_W"); //AD SIGNED_BYTE_OFFSET (CALLR)
+						_req_symbols.insert(L"__LIB_STR_STR_W");
+					}
+				}
+				else
+				if(req_type == B1Types::B1T_LONG)
+				{
+					if(init_type == B1Types::B1T_INT)
+					{
+						const auto label = emit_label(true);
+						_curr_code_sec->add_op(L"JRPL " + label); //2A SIGNED_BYTE_OFFSET
+						_req_symbols.insert(label);
+						_curr_code_sec->add_op(L"DECW Y"); //90 5A
+						_curr_code_sec->add_lbl(label);
+						_all_symbols.insert(label);
+					}
+				}
+			}
+		}
+		else
+		{
+			return C1STM8_T_ERROR::C1STM8_RES_EINTERR;
+		}
+	}
+	else
+	if(init_type == B1Types::B1T_LONG)
+	{
+		offset += (req_type == B1Types::B1T_BYTE) ? 3 : ((req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD) ? 2 : 0);
+		if(offset > (req_type == B1Types::B1T_LONG ? 253 : 255))
+		{
+			return C1STM8_T_ERROR::C1STM8_RES_ESTCKOVF;
+		}
+
+		if((req_valtype & LVT::LVT_STKREF) && req_type != B1Types::B1T_STRING)
+		{
+			rvt = LVT::LVT_STKREF;
+			rv = Utils::str_tohex16(offset);
+		}
+		else
+		if(req_valtype & LVT::LVT_REG)
+		{
+			rvt = LVT::LVT_REG;
+
+			if(req_type == B1Types::B1T_BYTE)
+			{
+				_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset) + L", SP)"); //7B BYTE_OFFSET
+			}
+			else
+			if(req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD)
+			{
+				_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
+			}
+			else
+			if(req_type == B1Types::B1T_STRING)
+			{
+				_curr_code_sec->add_op(L"LDW Y, (" + Utils::str_tohex16(offset) + L", SP)"); //16 BYTE_OFFSET
+				_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset + 2) + L", SP)"); //1E BYTE_OFFSET
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_L"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_req_symbols.insert(L"__LIB_STR_STR_L");
+			}
+			else
+			{
+				_curr_code_sec->add_op(L"LDW Y, (" + Utils::str_tohex16(offset) + L", SP)"); //16 BYTE_OFFSET
+				_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset + 2) + L", SP)"); //1E BYTE_OFFSET
+			}
+		}
+		else
+		{
+			return C1STM8_T_ERROR::C1STM8_RES_EINTERR;
+		}
+	}
+	else
+	{
+		// string
+		if(req_type != B1Types::B1T_STRING)
+		{
+			return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
+		}
+
+		if(req_valtype & LVT::LVT_REG)
+		{
+			rvt = LVT::LVT_REG;
+			// STRING variable, copy value
+			_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
+			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CPY"); //AD SIGNED_BYTE_OFFSET (CALLR)
+			_req_symbols.insert(L"__LIB_STR_CPY");
+		}
+		else
+		{
+			return C1STM8_T_ERROR::C1STM8_RES_EINTERR;
+		}
+	}
+
+	return C1STM8_T_ERROR::C1STM8_RES_OK;
+}
+
 C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types req_type, LVT req_valtype, LVT *res_valtype /*= nullptr*/, std::wstring *res_val /*= nullptr*/)
 {
 	std::wstring rv;
@@ -2445,6 +2722,12 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 				if(req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD)
 				{
 					_curr_code_sec->add_op(L"LDW X, " + tv.value); //AE WORD_VALUE
+				}
+				else
+				if(req_type == B1Types::B1T_LONG)
+				{
+					_curr_code_sec->add_op(L"LDW Y, " + tv.value + L".h"); //90 AE WORD_VALUE
+					_curr_code_sec->add_op(L"LDW X, " + tv.value + L".l"); //AE WORD_VALUE
 				}
 				else
 				{
@@ -2481,6 +2764,12 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 					_curr_code_sec->add_op(L"LDW X, " + tv.value); //AE WORD_VALUE
 				}
 				else
+				if(req_type == B1Types::B1T_LONG)
+				{
+					_curr_code_sec->add_op(L"LDW Y, " + tv.value + L".h"); //90 AE WORD_VALUE
+					_curr_code_sec->add_op(L"LDW X, " + tv.value + L".l"); //AE WORD_VALUE
+				}
+				else
 				{
 					_curr_code_sec->add_op(L"LDW X, " + tv.value); //AE WORD_VALUE
 					if(init_type == B1Types::B1T_INT)
@@ -2493,6 +2782,47 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_W"); //AD SIGNED_BYTE_OFFSET (CALLR)
 						_req_symbols.insert(L"__LIB_STR_STR_W");
 					}
+				}
+			}
+			else
+			{
+				return C1STM8_T_ERROR::C1STM8_RES_EINTERR;
+			}
+		}
+		else
+		if(init_type == B1Types::B1T_LONG)
+		{
+			if((req_valtype & LVT::LVT_IMMVAL) && req_type != B1Types::B1T_STRING)
+			{
+				rvt = LVT::LVT_IMMVAL;
+				rv = tv.value;
+			}
+			else
+			if(req_valtype & LVT::LVT_REG)
+			{
+				rvt = LVT::LVT_REG;
+
+				if(req_type == B1Types::B1T_BYTE)
+				{
+					_curr_code_sec->add_op(L"LD A, " + tv.value); //A6 BYTE_VALUE
+				}
+				else
+				if(req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD)
+				{
+					_curr_code_sec->add_op(L"LDW X, " + tv.value); //AE WORD_VALUE
+				}
+				else
+				if(req_type == B1Types::B1T_LONG)
+				{
+					_curr_code_sec->add_op(L"LDW Y, " + tv.value + L".h"); //90 AE WORD_VALUE
+					_curr_code_sec->add_op(L"LDW X, " + tv.value + L".l"); //AE WORD_VALUE
+				}
+				else
+				{
+					_curr_code_sec->add_op(L"LDW Y, " + tv.value + L".h"); //90 AE WORD_VALUE
+					_curr_code_sec->add_op(L"LDW X, " + tv.value + L".l"); //AE WORD_VALUE
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_L"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_req_symbols.insert(L"__LIB_STR_STR_L");
 				}
 			}
 			else
@@ -2538,109 +2868,16 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 			}
 		}
 
-		if(offset < 0 || offset > 255)
+		auto err = stm8_load_from_stack(offset, init_type, req_type, req_valtype, rvt, rv);
+		if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 		{
-			return C1STM8_T_ERROR::C1STM8_RES_ESTCKOVF;
-		}
-
-		if(init_type == B1Types::B1T_BYTE)
-		{
-			if((req_valtype & LVT::LVT_STKREF) && req_type == B1Types::B1T_BYTE)
-			{
-				rvt = LVT::LVT_STKREF;
-				rv = Utils::str_tohex16(offset);
-			}
-			else
-			if(req_valtype & LVT::LVT_REG)
-			{
-				rvt = LVT::LVT_REG;
-
-				_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset) + L", SP)"); //7B BYTE_OFFSET
-
-				if(req_type != B1Types::B1T_BYTE)
-				{
-					_curr_code_sec->add_op(L"CLRW X"); //5F
-					_curr_code_sec->add_op(L"LD XL, A"); //97
-				}
-
-				if(req_type == B1Types::B1T_STRING)
-				{
-					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
-					_req_symbols.insert(L"__LIB_STR_STR_I");
-				}
-			}
-			else
-			{
-				return C1STM8_T_ERROR::C1STM8_RES_EINTERR;
-			}
-		}
-		else
-		if(init_type == B1Types::B1T_INT || init_type == B1Types::B1T_WORD)
-		{
-			if((req_valtype & LVT::LVT_STKREF) && req_type != B1Types::B1T_STRING)
-			{
-				rvt = LVT::LVT_STKREF;
-				offset += req_type == B1Types::B1T_BYTE ? 1 : 0;
-				rv = Utils::str_tohex16(offset);
-			}
-			else
-			if(req_valtype & LVT::LVT_REG)
-			{
-				rvt = LVT::LVT_REG;
-
-				if(req_type == B1Types::B1T_BYTE)
-				{
-					_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset + 1) + L", SP)"); //7B BYTE_OFFSET
-				}
-				else
-				{
-					_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
-
-					if(req_type == B1Types::B1T_STRING)
-					{
-						if(init_type == B1Types::B1T_INT)
-						{
-							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
-							_req_symbols.insert(L"__LIB_STR_STR_I");
-						}
-						else
-						{
-							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_W"); //AD SIGNED_BYTE_OFFSET (CALLR)
-							_req_symbols.insert(L"__LIB_STR_STR_W");
-						}
-					}
-				}
-			}
-			else
-			{
-				return C1STM8_T_ERROR::C1STM8_RES_EINTERR;
-			}
-		}
-		else
-		{
-			if(req_type != B1Types::B1T_STRING)
-			{
-				return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
-			}
-
-			if(req_valtype & LVT::LVT_REG)
-			{
-				rvt = LVT::LVT_REG;
-				// STRING variable, copy value
-				_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CPY"); //AD SIGNED_BYTE_OFFSET (CALLR)
-				_req_symbols.insert(L"__LIB_STR_CPY");
-			}
-			else
-			{
-				return C1STM8_T_ERROR::C1STM8_RES_EINTERR;
-			}
+			return err;
 		}
 	}
 	else
 	if(B1CUtils::is_fn_arg(tv.value))
 	{
-		int32_t offset;
+		int32_t offset = -1;
 
 		if(_curr_udef_arg_offsets.size() == 1)
 		{
@@ -2654,99 +2891,10 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 			offset = _stack_ptr + _ret_addr_size + arg_off;
 		}
 
-		if(init_type == B1Types::B1T_BYTE)
+		auto err = stm8_load_from_stack(offset, init_type, req_type, req_valtype, rvt, rv);
+		if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 		{
-			if((req_valtype & LVT::LVT_STKREF) && req_type == B1Types::B1T_BYTE)
-			{
-				rvt = LVT::LVT_STKREF;
-				rv = Utils::str_tohex16(offset);
-			}
-			else
-			if(req_valtype & LVT::LVT_REG)
-			{
-				rvt = LVT::LVT_REG;
-
-				_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset) + L", SP)"); //7B BYTE_OFFSET
-
-				if(req_type != B1Types::B1T_BYTE)
-				{
-					_curr_code_sec->add_op(L"CLRW X"); //5F
-					_curr_code_sec->add_op(L"LD XL, A"); //97
-				}
-
-				if(req_type == B1Types::B1T_STRING)
-				{
-					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
-					_req_symbols.insert(L"__LIB_STR_STR_I");
-				}
-			}
-			else
-			{
-				return C1STM8_T_ERROR::C1STM8_RES_EINTERR;
-			}
-		}
-		else
-		if(init_type == B1Types::B1T_INT || init_type == B1Types::B1T_WORD)
-		{
-			if((req_valtype & LVT::LVT_STKREF) && req_type != B1Types::B1T_STRING)
-			{
-				rvt = LVT::LVT_STKREF;
-				offset += req_type == B1Types::B1T_BYTE ? 1 : 0;
-				rv = Utils::str_tohex16(offset);
-			}
-			else
-			if(req_valtype & LVT::LVT_REG)
-			{
-				rvt = LVT::LVT_REG;
-
-				if(req_type == B1Types::B1T_BYTE)
-				{
-					_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset + 1) + L", SP)"); //7B BYTE_OFFSET
-				}
-				else
-				{
-					_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
-
-					if(req_type == B1Types::B1T_STRING)
-					{
-						if(init_type == B1Types::B1T_INT)
-						{
-							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
-							_req_symbols.insert(L"__LIB_STR_STR_I");
-						}
-						else
-						{
-							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_W"); //AD SIGNED_BYTE_OFFSET (CALLR)
-							_req_symbols.insert(L"__LIB_STR_STR_W");
-						}
-					}
-				}
-			}
-			else
-			{
-				return C1STM8_T_ERROR::C1STM8_RES_EINTERR;
-			}
-		}
-		else
-		{
-			// string
-			if(req_type != B1Types::B1T_STRING)
-			{
-				return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
-			}
-
-			if(req_valtype & LVT::LVT_REG)
-			{
-				rvt = LVT::LVT_REG;
-				// STRING variable, copy value
-				_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CPY"); //AD SIGNED_BYTE_OFFSET (CALLR)
-				_req_symbols.insert(L"__LIB_STR_CPY");
-			}
-			else
-			{
-				return C1STM8_T_ERROR::C1STM8_RES_EINTERR;
-			}
+			return err;
 		}
 	}
 	else
@@ -2758,14 +2906,36 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 			// simple variable
 			auto ma = _mem_areas.find(tv.value);
 			bool is_ma = ma != _mem_areas.end();
-			
+			std::wstring str_off;
+			int int_off = 0;
+
+			if(init_type == B1Types::B1T_LONG)
+			{
+				if(req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD)
+				{
+					str_off = L" + 0x2";
+					int_off = 2;
+				}
+				else
+				if(req_type == B1Types::B1T_BYTE)
+				{
+					str_off = L" + 0x3";
+					int_off = 3;
+				}
+			}
+			else
+			if(init_type == B1Types::B1T_INT || init_type == B1Types::B1T_WORD)
+			{
+				if(req_type == B1Types::B1T_BYTE)
+				{
+					str_off = L" + 0x1";
+					int_off = 1;
+				}
+			}
+
 			rv = is_ma ?
-				(ma->second.use_symbol ?
-					(ma->second.symbol + ((init_type == B1Types::B1T_INT || init_type == B1Types::B1T_WORD) && req_type == B1Types::B1T_BYTE ? L" + 0x1" : std::wstring())) :
-					std::to_wstring(ma->second.address + ((init_type == B1Types::B1T_INT || init_type == B1Types::B1T_WORD) && req_type == B1Types::B1T_BYTE ? 1 : 0))
-				) :
-				(tv.value + ((init_type == B1Types::B1T_INT || init_type == B1Types::B1T_WORD) && req_type == B1Types::B1T_BYTE ? L" + 0x1" : std::wstring())
-			);
+				(ma->second.use_symbol ? (ma->second.symbol + str_off) : std::to_wstring(ma->second.address + int_off)) :
+				(tv.value + str_off);
 
 			if(!is_ma)
 			{
@@ -2785,16 +2955,22 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 
 					_curr_code_sec->add_op(L"LD A, (" + rv + L")"); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
 
-					if(req_type != B1Types::B1T_BYTE)
+					if(req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD || req_type == B1Types::B1T_STRING)
 					{
 						_curr_code_sec->add_op(L"CLRW X"); //5F
 						_curr_code_sec->add_op(L"LD XL, A"); //97
+						if(req_type == B1Types::B1T_STRING)
+						{
+							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
+							_req_symbols.insert(L"__LIB_STR_STR_I");
+						}
 					}
-
-					if(req_type == B1Types::B1T_STRING)
+					else
+					if(req_type == B1Types::B1T_LONG)
 					{
-						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
-						_req_symbols.insert(L"__LIB_STR_STR_I");
+						_curr_code_sec->add_op(L"CLRW Y"); //90 5F
+						_curr_code_sec->add_op(L"CLRW X"); //5F
+						_curr_code_sec->add_op(L"LD XL, A"); //97
 					}
 
 					rv.clear();
@@ -2807,7 +2983,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 			else
 			if(init_type == B1Types::B1T_INT || init_type == B1Types::B1T_WORD)
 			{
-				if((req_valtype & LVT::LVT_MEMREF) && req_type != B1Types::B1T_STRING)
+				if((req_valtype & LVT::LVT_MEMREF) && req_type != B1Types::B1T_STRING && req_type != B1Types::B1T_LONG)
 				{
 					rvt = LVT::LVT_MEMREF;
 				}
@@ -2822,6 +2998,11 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 					}
 					else
 					{
+						if(req_type == B1Types::B1T_LONG)
+						{
+							_curr_code_sec->add_op(L"CLRW Y"); //90 5F
+						}
+
 						_curr_code_sec->add_op(L"LDW X, (" + rv + L")"); //BE SHORT_ADDRESS CE LONG_ADDRESS
 
 						if(req_type == B1Types::B1T_STRING)
@@ -2837,6 +3018,62 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 								_req_symbols.insert(L"__LIB_STR_STR_W");
 							}
 						}
+						else
+						if(req_type == B1Types::B1T_LONG)
+						{
+							if(init_type == B1Types::B1T_INT)
+							{
+								const auto label = emit_label(true);
+								_curr_code_sec->add_op(L"JRPL " + label); //2A SIGNED_BYTE_OFFSET
+								_req_symbols.insert(label);
+								_curr_code_sec->add_op(L"DECW Y"); //90 5A
+								_curr_code_sec->add_lbl(label);
+								_all_symbols.insert(label);
+							}
+						}
+					}
+
+					rv.clear();
+				}
+				else
+				{
+					return C1STM8_T_ERROR::C1STM8_RES_EINTERR;
+				}
+			}
+			else
+			if(init_type == B1Types::B1T_LONG)
+			{
+				if((req_valtype & LVT::LVT_MEMREF) && req_type != B1Types::B1T_STRING)
+				{
+					rvt = LVT::LVT_MEMREF;
+				}
+				else
+				if(req_valtype & LVT::LVT_REG)
+				{
+					rvt = LVT::LVT_REG;
+
+					if(req_type == B1Types::B1T_BYTE)
+					{
+						_curr_code_sec->add_op(L"LD A, (" + rv + L")"); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
+					}
+					else
+					if(req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD)
+					{
+						_curr_code_sec->add_op(L"LDW X, (" + rv + L")"); //BE SHORT_ADDRESS CE LONG_ADDRESS
+					}
+					else
+					if(req_type == B1Types::B1T_STRING)
+					{
+						_curr_code_sec->add_op(L"LDW Y, (" + rv + L")"); //90 BE SHORT_ADDRESS 90 CE LONG_ADDRESS
+						_curr_code_sec->add_op(L"LDW X, (" + rv + L" + 2)"); //BE SHORT_ADDRESS CE LONG_ADDRESS
+						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_L"); //AD SIGNED_BYTE_OFFSET (CALLR)
+						_req_symbols.insert(L"__LIB_STR_STR_L");
+					}
+					else
+					if(req_type == B1Types::B1T_LONG)
+					{
+						_curr_code_sec->add_op(L"LDW Y, (" + rv + L")"); //90 BE SHORT_ADDRESS 90 CE LONG_ADDRESS
+						_curr_code_sec->add_op(L"LDW X, (" + rv + L" + 2)"); //BE SHORT_ADDRESS CE LONG_ADDRESS
 					}
 
 					rv.clear();
@@ -2880,48 +3117,10 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 				_curr_code_sec->add_op(_call_stmt + L" " + fn->iname); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(fn->iname);
 
-				if(init_type == B1Types::B1T_BYTE)
+				auto err = stm8_arrange_types(init_type, req_type);
+				if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 				{
-					if(req_type != B1Types::B1T_BYTE)
-					{
-						_curr_code_sec->add_op(L"CLRW X"); //5F
-						_curr_code_sec->add_op(L"LD XL, A"); //97
-					}
-
-					if(req_type == B1Types::B1T_STRING)
-					{
-						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
-						_req_symbols.insert(L"__LIB_STR_STR_I");
-					}
-				}
-				else
-				if(init_type == B1Types::B1T_INT || init_type == B1Types::B1T_WORD)
-				{
-					if(req_type == B1Types::B1T_BYTE)
-					{
-						_curr_code_sec->add_op(L"LD A, XL"); //9F
-					}
-					else
-					if(req_type == B1Types::B1T_STRING)
-					{
-						if(init_type == B1Types::B1T_INT)
-						{
-							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
-							_req_symbols.insert(L"__LIB_STR_STR_I");
-						}
-						else
-						{
-							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_W"); //AD SIGNED_BYTE_OFFSET (CALLR)
-							_req_symbols.insert(L"__LIB_STR_STR_W");
-						}
-					}
-				}
-				else
-				{
-					if(req_type != B1Types::B1T_STRING)
-					{
-						return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
-					}
+					return err;
 				}
 			}
 			else
@@ -2963,7 +3162,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arr_alloc_def(const B1_CMP_ARG &arg, const B
 	}
 
 	// check if memory is allocated
-	auto label = emit_label(true);
+	const auto label = emit_label(true);
 	_curr_code_sec->add_op(L"LDW X, (" + arg[0].value + L")"); //BE SHORT_ADDRESS, CE LONG_ADDRESS
 	_req_symbols.insert(arg[0].value);
 	_curr_code_sec->add_op(L"JRNE " + label); //26 SIGNED_BYTE_OFFSET
@@ -2981,8 +3180,14 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arr_alloc_def(const B1_CMP_ARG &arg, const B
 			_curr_code_sec->add_op(L"LDW X, " + Utils::str_tohex16(size)); //AE WORD_VALUE
 		}
 		else
+		if(arg[0].type == B1Types::B1T_INT || arg[0].type == B1Types::B1T_WORD || arg[0].type == B1Types::B1T_STRING)
 		{
 			_curr_code_sec->add_op(L"LDW X, " + Utils::str_tohex16(size * 2)); //AE WORD_VALUE
+		}
+		else
+		{
+			// LONG type
+			_curr_code_sec->add_op(L"LDW X, " + Utils::str_tohex16(size * 4)); //AE WORD_VALUE
 		}
 
 		_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_MEM_ALC"); //AD SIGNED_BYTE_OFFSET (CALLR)
@@ -3034,7 +3239,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_
 {
 	auto ma = _mem_areas.find(arg[0].value);
 	bool is_ma = ma != _mem_areas.end();
-	auto var = is_ma ? ma : _vars.find(arg[0].value);
+	const auto &var = is_ma ? ma : _vars.find(arg[0].value);
 	bool known_size = is_ma ? true : var->second.fixed_size;
 	int32_t dims_size;
 
@@ -3302,6 +3507,10 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 
 				if(req_type != B1Types::B1T_BYTE)
 				{
+					if(req_type == B1Types::B1T_LONG)
+					{
+						_curr_code_sec->add_op(L"CLRW Y"); //90 5F
+					}
 					_curr_code_sec->add_op(L"CLRW X"); //5F
 					_curr_code_sec->add_op(L"LD XL, A"); //97
 				}
@@ -3372,6 +3581,11 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 				}
 				else
 				{
+					if(req_type == B1Types::B1T_LONG)
+					{
+						_curr_code_sec->add_op(L"CLRW Y"); //90 5F
+					}
+
 					if(is_ma)
 					{
 						if(imm_offset)
@@ -3396,6 +3610,19 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 						}
 					}
 
+					if(req_type == B1Types::B1T_LONG)
+					{
+						if(init_type == B1Types::B1T_INT)
+						{
+							const auto label = emit_label(true);
+							_curr_code_sec->add_op(L"JRPL " + label); //2A SIGNED_BYTE_OFFSET
+							_req_symbols.insert(label);
+							_curr_code_sec->add_op(L"DECW Y"); //90 5A
+							_curr_code_sec->add_lbl(label);
+							_all_symbols.insert(label);
+						}
+					}
+					else
 					if(req_type == B1Types::B1T_STRING)
 					{
 						if(init_type == B1Types::B1T_INT)
@@ -3408,6 +3635,150 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_W"); //AD SIGNED_BYTE_OFFSET (CALLR)
 							_req_symbols.insert(L"__LIB_STR_STR_W");
 						}
+					}
+				}
+
+				rv.clear();
+			}
+			else
+			{
+				return C1STM8_T_ERROR::C1STM8_RES_EINTERR;
+			}
+		}
+		else
+		if(init_type == B1Types::B1T_LONG)
+		{
+			if(imm_offset)
+			{
+				offset *= 4;
+			}
+			else
+			{
+				_curr_code_sec->add_op(L"SLAW X"); //58
+				_curr_code_sec->add_op(L"SLAW X"); //58
+			}
+
+			if(req_type == B1Types::B1T_BYTE)
+			{
+				if(imm_offset)
+				{
+					offset += 3;
+				}
+				else
+				{
+					_curr_code_sec->add_op(L"ADDW X, 3"); //5C
+				}
+			}
+			if(req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD)
+			{
+				if(imm_offset)
+				{
+					offset += 2;
+				}
+				else
+				{
+					_curr_code_sec->add_op(L"INCW X"); //5C
+					_curr_code_sec->add_op(L"INCW X"); //5C
+				}
+			}
+
+			if(req_valtype & LVT::LVT_REG)
+			{
+				rvt = LVT::LVT_REG;
+
+				if(req_type == B1Types::B1T_BYTE)
+				{
+					if(is_ma)
+					{
+						if(imm_offset)
+						{
+							_curr_code_sec->add_op(L"LD A, (" + rv + L" + " + Utils::str_tohex16(offset) + L")"); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
+						}
+						else
+						{
+							_curr_code_sec->add_op(L"LD A, (" + rv + L", X)"); //E6 BYTE_OFFSET D6 WORD_OFFSET
+						}
+					}
+					else
+					{
+						if(imm_offset)
+						{
+							_curr_code_sec->add_op(L"LDW X, (" + rv + L")"); //BE BYTE_OFFSET CE WORD_OFFSET
+							_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset) + L", X)"); //E6 BYTE_OFFSET D6 WORD_OFFSET
+						}
+						else
+						{
+							_curr_code_sec->add_op(L"LD A, ([" + rv + L"], X)"); //92 D6 BYTE_OFFSET 72 D6 WORD_OFFSET
+						}
+					}
+				}
+				else
+				if(req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD)
+				{
+					if(is_ma)
+					{
+						if(imm_offset)
+						{
+							_curr_code_sec->add_op(L"LDW X, (" + rv + L" + " + Utils::str_tohex16(offset) + L")"); //BE SHORT_ADDRESS CE LONG_ADDRESS
+						}
+						else
+						{
+							_curr_code_sec->add_op(L"LDW X, (" + rv + L", X)"); //EE BYTE_OFFSET DE WORD_OFFSET
+						}
+					}
+					else
+					{
+						if(imm_offset)
+						{
+							_curr_code_sec->add_op(L"LDW X, (" + rv + L")"); //BE BYTE_OFFSET CE WORD_OFFSET
+							_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", X)"); //EE BYTE_OFFSET DE WORD_OFFSET
+						}
+						else
+						{
+							_curr_code_sec->add_op(L"LDW X, ([" + rv + L"], X)"); //92 DE BYTE_OFFSET 72 DE WORD_OFFSET
+						}
+					}
+				}
+				else
+				if(req_type == B1Types::B1T_LONG || req_type == B1Types::B1T_STRING)
+				{
+					if(is_ma)
+					{
+						if(imm_offset)
+						{
+							_curr_code_sec->add_op(L"LDW Y, (" + rv + L" + " + Utils::str_tohex16(offset) + L")"); //90 BE SHORT_ADDRESS 90 CE LONG_ADDRESS
+							_curr_code_sec->add_op(L"LDW X, (" + rv + L" + " + Utils::str_tohex16(offset) + L" + 2)"); //BE SHORT_ADDRESS CE LONG_ADDRESS
+						}
+						else
+						{
+							_curr_code_sec->add_op(L"LDW Y, X"); //90 93
+							_curr_code_sec->add_op(L"LDW Y, (" + rv + L", Y)"); //90 EE BYTE_OFFSET 90 DE WORD_OFFSET
+							_curr_code_sec->add_op(L"LDW X, (" + rv + L" + 2, X)"); //EE BYTE_OFFSET DE WORD_OFFSET
+						}
+					}
+					else
+					{
+						if(imm_offset)
+						{
+							_curr_code_sec->add_op(L"LDW X, (" + rv + L")"); //BE BYTE_OFFSET CE WORD_OFFSET
+							_curr_code_sec->add_op(L"LDW Y, X"); //90 93
+							_curr_code_sec->add_op(L"LDW Y, (" + Utils::str_tohex16(offset) + L", Y)"); //90 EE BYTE_OFFSET 90 DE WORD_OFFSET
+							_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L" + 2, X)"); //EE BYTE_OFFSET DE WORD_OFFSET
+						}
+						else
+						{
+							_curr_code_sec->add_op(L"ADDW X, (" + rv + L")"); //72 BB WORD_OFFSET
+							_curr_code_sec->add_op(L"LDW Y, X"); //90 93
+							_curr_code_sec->add_op(L"LDW Y, (Y)"); //90 FE
+							_curr_code_sec->add_op(L"LDW X, (2, X)"); //EE BYTE_OFFSET
+						}
+					}
+
+
+					if(req_type == B1Types::B1T_STRING)
+					{
+						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_L"); //AD SIGNED_BYTE_OFFSET (CALLR)
+						_req_symbols.insert(L"__LIB_STR_STR_L");
 					}
 				}
 
@@ -3463,6 +3834,43 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 	else
 	{
 		// function call
+		
+		// check for special data type conversion functions (inline)
+		if(fn->args.size() == 1 && fn->isstdfn && fn->iname.empty())
+		{
+			if((fn->name == L"CBYTE" || fn->name == L"CINT" || fn->name == L"CWRD" || fn->name == L"CLNG") && (req_valtype & LVT::LVT_REG))
+			{
+				auto err = stm8_load(arg[1], fn->rettype, LVT::LVT_REG);
+				if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+				{
+					return err;
+				}
+
+				if(fn->rettype != req_type)
+				{
+					auto err = stm8_arrange_types(fn->rettype, req_type);
+					if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+					{
+						return err;
+					}
+				}
+
+				if(res_val != nullptr)
+				{
+					res_val->clear();
+				}
+
+				if(res_valtype != nullptr)
+				{
+					*res_valtype = LVT::LVT_REG;
+				}
+
+				return C1STM8_T_ERROR::C1STM8_RES_OK;
+			}
+
+			return C1STM8_T_ERROR::C1STM8_RES_EINTERR;
+		}
+		 
 		// arguments size in stack
 		int args_size = 0;
 		int arg_ind = 0;
@@ -3501,6 +3909,14 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 					_curr_code_sec->add_op(L"PUSH " + res_val + L".lh"); //4B BYTE_VALUE
 					_stack_ptr += 2;
 					args_size += 2;
+
+					if(req_type == B1Types::B1T_LONG)
+					{
+						_curr_code_sec->add_op(L"PUSH " + res_val + L".hl"); //4B BYTE_VALUE
+						_curr_code_sec->add_op(L"PUSH " + res_val + L".hh"); //4B BYTE_VALUE
+						_stack_ptr += 2;
+						args_size += 2;
+					}
 				}
 			}
 			else
@@ -3516,6 +3932,13 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 					_curr_code_sec->add_op(L"PUSHW X"); //89
 					_stack_ptr += 2;
 					args_size += 2;
+
+					if(req_type == B1Types::B1T_LONG)
+					{
+						_curr_code_sec->add_op(L"PUSHW Y"); //90 89
+						_stack_ptr += 2;
+						args_size += 2;
+					}
 				}
 			}
 		}
@@ -3545,47 +3968,10 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 				_stack_ptr -= args_size;
 			}
 
-			if(init_type == B1Types::B1T_BYTE)
+			auto err = stm8_arrange_types(init_type, req_type);
+			if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 			{
-				if(req_type != B1Types::B1T_BYTE)
-				{
-					_curr_code_sec->add_op(L"CLRW X"); //5F
-					_curr_code_sec->add_op(L"LD XL, A"); //97
-				}
-				if(req_type == B1Types::B1T_STRING)
-				{
-					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
-					_req_symbols.insert(L"__LIB_STR_STR_I");
-				}
-			}
-			else
-			if(init_type == B1Types::B1T_INT || init_type == B1Types::B1T_WORD)
-			{
-				if(req_type == B1Types::B1T_BYTE)
-				{
-					_curr_code_sec->add_op(L"LD A, XL"); //9F
-				}
-				else
-				if(req_type == B1Types::B1T_STRING)
-				{
-					if(init_type == B1Types::B1T_INT)
-					{
-						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
-						_req_symbols.insert(L"__LIB_STR_STR_I");
-					}
-					else
-					{
-						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_W"); //AD SIGNED_BYTE_OFFSET (CALLR)
-						_req_symbols.insert(L"__LIB_STR_STR_W");
-					}
-				}
-			}
-			else
-			{
-				if(req_type != B1Types::B1T_STRING)
-				{
-					return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
-				}
+				return err;
 			}
 		}
 		else
@@ -3678,7 +4064,14 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_init_array(const B1_CMP_CMD &cmd, const B1_C
 
 		if(data_size == 2)
 		{
-			// for all types except BYTE: data size = arr. size * 2
+			// 2-byte types: data size = arr. size * 2
+			_curr_code_sec->add_op(L"SLAW X"); //58
+		}
+		else
+		if(data_size == 4)
+		{
+			// 4-byte types: data size = arr. size * 4
+			_curr_code_sec->add_op(L"SLAW X"); //58
 			_curr_code_sec->add_op(L"SLAW X"); //58
 		}
 	}
@@ -3691,7 +4084,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_st_ga(const B1_CMP_CMD &cmd, const B1_CMP_VA
 	// report error if the array is already allocated
 	_curr_code_sec->add_op(L"LDW X, (" + cmd.args[0][0].value + L")"); //BE SHORT_ADDRESS CE LONG_ADDRESS
 	_req_symbols.insert(cmd.args[0][0].value);
-	auto label = emit_label(true);
+	const auto label = emit_label(true);
 	_curr_code_sec->add_op(L"JREQ " + label); //27 SIGNED_BYTE_OFFSET
 	_req_symbols.insert(label);
 	_curr_code_sec->add_op(L"MOV (__LIB_ERR_LAST_ERR), " + _RTE_error_names[B1C_T_RTERROR::B1C_RTE_ARR_ALLOC]); //35 BYTE_VALUE LONG_ADDRESS
@@ -3736,7 +4129,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_TYPED_VALUE &tv)
 			}
 		}
 
-		if(offset < 0 || offset > 255)
+		if(offset < 0 || offset > (tv.type == B1Types::B1T_LONG ? 253 : 255))
 		{
 			return C1STM8_T_ERROR::C1STM8_RES_ESTCKOVF;
 		}
@@ -3751,6 +4144,12 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_TYPED_VALUE &tv)
 			_curr_code_sec->add_op(L"LDW (" + Utils::str_tohex16(offset) + L", SP), X"); //1F BYTE_OFFSET
 		}
 		else
+		if(tv.type == B1Types::B1T_LONG)
+		{
+			_curr_code_sec->add_op(L"LDW (" + Utils::str_tohex16(offset) + L", SP), Y"); //17 BYTE_OFFSET
+			_curr_code_sec->add_op(L"LDW (" + Utils::str_tohex16(offset) + L" + 2, SP), X"); //1F BYTE_OFFSET
+		}
+		else
 		{
 			// string
 			if(_clear_locals.find(tv.value) == _clear_locals.end())
@@ -3759,6 +4158,11 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_TYPED_VALUE &tv)
 				_curr_code_sec->add_op(L"PUSHW X"); //89
 				_stack_ptr += 2;
 				offset += 2;
+				if(offset > 255)
+				{
+					return C1STM8_T_ERROR::C1STM8_RES_ESTCKOVF;
+				}
+
 				_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
 				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_STR_RLS");
@@ -3799,6 +4203,12 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_TYPED_VALUE &tv)
 		if(tv.type == B1Types::B1T_INT || tv.type == B1Types::B1T_WORD)
 		{
 			_curr_code_sec->add_op(L"LDW (" + dst + L"), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+		}
+		else
+		if(tv.type == B1Types::B1T_LONG)
+		{
+			_curr_code_sec->add_op(L"LDW (" + dst + L"), Y"); //90 BF SHORT_ADDRESS 90 CF LONG_ADDRESS
+			_curr_code_sec->add_op(L"LDW (" + dst + L" + 2), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
 		}
 		else
 		{
@@ -3860,6 +4270,13 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 	{
 		_curr_code_sec->add_op(L"PUSHW X"); //89
 		_stack_ptr += 2;
+
+
+		if(arg[0].type == B1Types::B1T_LONG)
+		{
+			_curr_code_sec->add_op(L"PUSHW Y"); //90 89
+			_stack_ptr += 2;
+		}
 	}
 
 	if(!is_ma)
@@ -3914,6 +4331,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 		}
 	}
 	else
+	if(arg[0].type == B1Types::B1T_INT || arg[0].type == B1Types::B1T_WORD || arg[0].type == B1Types::B1T_STRING)
 	{
 		if(imm_offset)
 		{
@@ -4001,6 +4419,64 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 			}
 		}
 	}
+	else
+	{
+		// LONG type
+		if(imm_offset)
+		{
+			offset *= 4;
+		}
+		else
+		{
+			_curr_code_sec->add_op(L"SLAW X"); //58
+			_curr_code_sec->add_op(L"SLAW X"); //58
+		}
+
+		if(is_ma)
+		{
+			if(imm_offset)
+			{
+				_curr_code_sec->add_op(L"POPW X"); //85
+				_stack_ptr -= 2;
+				_curr_code_sec->add_op(L"LDW (" + dst + L" + " + Utils::str_tohex16(offset) + L"), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+				_curr_code_sec->add_op(L"POPW X"); //85
+				_stack_ptr -= 2;
+				_curr_code_sec->add_op(L"LDW (" + dst + L" + " + Utils::str_tohex16(offset) + L" + 2), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+			}
+			else
+			{
+				_curr_code_sec->add_op(L"POPW Y"); //90 85
+				_stack_ptr -= 2;
+				_curr_code_sec->add_op(L"LDW (" + dst + L", X), Y"); //EF BYTE_OFFSET DF WORD_OFFSET
+				_curr_code_sec->add_op(L"POPW Y"); //90 85
+				_stack_ptr -= 2;
+				_curr_code_sec->add_op(L"LDW (" + dst + L" + 2, X), Y"); //EF BYTE_OFFSET DF WORD_OFFSET
+			}
+		}
+		else
+		{
+			if(imm_offset)
+			{
+				_curr_code_sec->add_op(L"LDW X, (" + dst + L")"); //BE BYTE_OFFSET CE WORD_OFFSET
+				_curr_code_sec->add_op(L"POPW Y"); //90 85
+				_stack_ptr -= 2;
+				_curr_code_sec->add_op(L"LDW (" + Utils::str_tohex16(offset) + L", X), Y"); //EF BYTE_OFFSET DF WORD_OFFSET
+				_curr_code_sec->add_op(L"POPW Y"); //90 85
+				_stack_ptr -= 2;
+				_curr_code_sec->add_op(L"LDW (" + Utils::str_tohex16(offset) + L" + 2, X), Y"); //EF BYTE_OFFSET DF WORD_OFFSET
+			}
+			else
+			{
+				_curr_code_sec->add_op(L"ADDW X, (" + dst + L")"); //72 BB WORD_OFFSET
+				_curr_code_sec->add_op(L"POPW Y"); //90 85
+				_stack_ptr -= 2;
+				_curr_code_sec->add_op(L"LDW (X), Y"); // FF
+				_curr_code_sec->add_op(L"POPW Y"); //90 85
+				_stack_ptr -= 2;
+				_curr_code_sec->add_op(L"LDW(2, X), Y"); // EF BYTE_OFFSET
+			}
+		}
+	}
 
 	return C1STM8_T_ERROR::C1STM8_RES_OK;
 }
@@ -4025,6 +4501,12 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_un_op(const B1_CMP_CMD &cmd)
 			_curr_code_sec->add_op(L"NEGW X"); //50
 		}
 		else
+		if(cmd.args[1][0].type == B1Types::B1T_LONG)
+		{
+			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_AUX_NEG32"); //AD SIGNED_BYTE_OFFSET (CALLR)
+			_req_symbols.insert(L"__LIB_AUX_NEG32");
+		}
+		else
 		{
 			return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
 		}
@@ -4043,6 +4525,12 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_un_op(const B1_CMP_CMD &cmd)
 			_curr_code_sec->add_op(L"CPLW X"); //53
 		}
 		else
+		if(cmd.args[1][0].type == B1Types::B1T_LONG)
+		{
+			_curr_code_sec->add_op(L"CPLW Y"); //90 53
+			_curr_code_sec->add_op(L"CPLW X"); //53
+		}
+		else
 		{
 			return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
 		}
@@ -4057,56 +4545,6 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_un_op(const B1_CMP_CMD &cmd)
 	if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 	{
 		return err;
-	}
-
-	return C1STM8_T_ERROR::C1STM8_RES_OK;
-}
-
-C1STM8_T_ERROR C1STM8Compiler::stm8_arrange_types(const B1Types type_from, const B1Types type_to)
-{
-	if(type_from != type_to)
-	{
-		if(type_from == B1Types::B1T_BYTE)
-		{
-			// A -> X
-			_curr_code_sec->add_op(L"CLRW X"); //5F
-			_curr_code_sec->add_op(L"LD XL, A"); //97
-
-			if(type_to == B1Types::B1T_STRING)
-			{
-				// BYTE to STRING
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
-				_req_symbols.insert(L"__LIB_STR_STR_I");
-			}
-		}
-		else
-		if(type_from == B1Types::B1T_INT || type_from == B1Types::B1T_WORD)
-		{
-			if(type_to == B1Types::B1T_BYTE)
-			{
-				// X -> A
-				_curr_code_sec->add_op(L"LD A, XL"); //9F
-			}
-			else
-			if(type_to == B1Types::B1T_STRING)
-			{
-				if(type_from == B1Types::B1T_INT)
-				{
-					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
-					_req_symbols.insert(L"__LIB_STR_STR_I");
-				}
-				else
-				{
-					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_W"); //AD SIGNED_BYTE_OFFSET (CALLR)
-					_req_symbols.insert(L"__LIB_STR_STR_W");
-				}
-			}
-		}
-		else
-		{
-			// string, can't convert to any other type
-			return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
-		}
 	}
 
 	return C1STM8_T_ERROR::C1STM8_RES_OK;
@@ -4198,6 +4636,12 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 		{
 			_curr_code_sec->add_op(L"PUSHW X"); //89
 			_stack_ptr += 2;
+
+			if(com_type == B1Types::B1T_LONG)
+			{
+				_curr_code_sec->add_op(L"PUSHW Y"); // 90 89
+				_stack_ptr += 2;
+			}
 		}
 	}
 
@@ -4239,6 +4683,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 		}
 	}
 	else
+	if(com_type == B1Types::B1T_INT || com_type == B1Types::B1T_WORD)
 	{
 		if(imm_val)
 		{
@@ -4261,6 +4706,107 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 			_stack_ptr -= 2;
 		}
 	}
+	else
+	{
+		// LONG type
+		if(imm_val)
+		{
+			if(cmd.cmd == L"+")
+			{
+				_curr_code_sec->add_op(L"ADDW X, " + val + L".l"); //1C WORD_VALUE
+				const auto label = emit_label(true);
+				_curr_code_sec->add_op(L"JRNC " + label); //24 SIGNED_BYTE_OFFSET
+				_req_symbols.insert(label);
+				_curr_code_sec->add_op(L"INCW Y"); //90 5C
+				_curr_code_sec->add_lbl(label);
+				_all_symbols.insert(label);
+				_curr_code_sec->add_op(L"ADDW Y, " + val + L".h"); //72 A9 WORD_VALUE
+			}
+			else
+			{
+				_curr_code_sec->add_op(L"SUBW X, " + val + L".l"); //1D WORD_VALUE
+				_curr_code_sec->add_op(L"RRWA Y"); //90 01
+				_curr_code_sec->add_op(L"SBC A, " + val + L".hl"); //A2 BYTE_VALUE
+				_curr_code_sec->add_op(L"RRWA Y"); //90 01
+				_curr_code_sec->add_op(L"SBC A, " + val + L".hh"); //A2 BYTE_VALUE
+				_curr_code_sec->add_op(L"RRWA Y"); //90 01
+			}
+		}
+		else
+		if(mem_ref)
+		{
+			if(cmd.cmd == L"+")
+			{
+				_curr_code_sec->add_op(L"ADDW X, (" + val + L" + 2)"); //72 BB WORD_VALUE
+				const auto label = emit_label(true);
+				_curr_code_sec->add_op(L"JRNC " + label); //24 SIGNED_BYTE_OFFSET
+				_req_symbols.insert(label);
+				_curr_code_sec->add_op(L"INCW Y"); //90 5C
+				_curr_code_sec->add_lbl(label);
+				_all_symbols.insert(label);
+				_curr_code_sec->add_op(L"ADDW Y, (" + val + L")"); //72 B9 WORD_VALUE
+			}
+			else
+			{
+				_curr_code_sec->add_op(L"SUBW X, (" + val + L" + 2)"); //72 B0 WORD_VALUE
+				_curr_code_sec->add_op(L"RRWA Y"); //90 01
+				_curr_code_sec->add_op(L"SBC A, (" + val + L" + 1)"); //B2 BYTE_OFFSET C2 WORD_OFFSET
+				_curr_code_sec->add_op(L"RRWA Y"); //90 01
+				_curr_code_sec->add_op(L"SBC A, (" + val + L")"); //B2 BYTE_OFFSET C2 WORD_OFFSET
+				_curr_code_sec->add_op(L"RRWA Y"); //90 01
+			}
+		}
+		else
+		if(stk_ref)
+		{
+			if(cmd.cmd == L"+")
+			{
+				_curr_code_sec->add_op(L"ADDW X, (" + val + L" + 2, SP)"); //72 FB BYTE_OFFSET
+				const auto label = emit_label(true);
+				_curr_code_sec->add_op(L"JRNC " + label); //24 SIGNED_BYTE_OFFSET
+				_req_symbols.insert(label);
+				_curr_code_sec->add_op(L"INCW Y"); //90 5C
+				_curr_code_sec->add_lbl(label);
+				_all_symbols.insert(label);
+				_curr_code_sec->add_op(L"ADDW Y, (" + val + L", SP)"); //72 F9 WORD_VALUE
+			}
+			else
+			{
+				_curr_code_sec->add_op(L"SUBW X, (" + val + L" + 2, SP)"); //72 F0 WORD_VALUE
+				_curr_code_sec->add_op(L"RRWA Y"); //90 01
+				_curr_code_sec->add_op(L"SBC A, (" + val + L" + 1, SP)"); //12 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RRWA Y"); //90 01
+				_curr_code_sec->add_op(L"SBC A, (" + val + L", SP)"); //12 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RRWA Y"); //90 01
+			}
+		}
+		else
+		{
+			if(cmd.cmd == L"+")
+			{
+				_curr_code_sec->add_op(L"ADDW X, (0x3, SP)"); //72 FB BYTE_OFFSET
+				const auto label = emit_label(true);
+				_curr_code_sec->add_op(L"JRNC " + label); //24 SIGNED_BYTE_OFFSET
+				_req_symbols.insert(label);
+				_curr_code_sec->add_op(L"INCW Y"); //90 5C
+				_curr_code_sec->add_lbl(label);
+				_all_symbols.insert(label);
+				_curr_code_sec->add_op(L"ADDW Y, (0x1, SP)"); //72 F9 WORD_VALUE
+			}
+			else
+			{
+				_curr_code_sec->add_op(L"SUBW X, (0x3, SP)"); //72 F0 WORD_VALUE
+				_curr_code_sec->add_op(L"RRWA Y"); //90 01
+				_curr_code_sec->add_op(L"SBC A, (0x2, SP)"); //12 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RRWA Y"); //90 01
+				_curr_code_sec->add_op(L"SBC A, (0x1, SP)"); //12 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RRWA Y"); //90 01
+			}
+
+			_curr_code_sec->add_op(L"ADDW SP, 4"); //5B BYTE_VALUE
+			_stack_ptr -= 4;
+		}
+	}
 
 	err1 = stm8_arrange_types(com_type, cmd.args[2][0].type);
 	if(err1 != C1STM8_T_ERROR::C1STM8_RES_OK)
@@ -4277,7 +4823,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 	return C1STM8_T_ERROR::C1STM8_RES_OK;
 }
 
-// multiplicative operations
+// multiplicative operations (*, /, ^, MOD)
 C1STM8_T_ERROR C1STM8Compiler::stm8_mul_op(const B1_CMP_CMD &cmd)
 {
 	B1Types com_type;
@@ -4293,7 +4839,11 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_mul_op(const B1_CMP_CMD &cmd)
 
 	if(cmd.cmd == L"^")
 	{
-		com_type = B1Types::B1T_INT;
+		com_type = arg1[0].type;
+		if(com_type == B1Types::B1T_BYTE)
+		{
+			com_type = B1Types::B1T_WORD;
+		}
 	}
 	else
 	{
@@ -4306,7 +4856,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_mul_op(const B1_CMP_CMD &cmd)
 
 	if(com_type == B1Types::B1T_BYTE)
 	{
-		// two BYTE arguments
+		// two BYTE arguments and *, /, or MOD operator
 		auto err = stm8_load(arg1, com_type, LVT::LVT_REG);
 		if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 		{
@@ -4372,13 +4922,20 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_mul_op(const B1_CMP_CMD &cmd)
 	}
 	else
 	{
-		auto err = stm8_load(arg2, com_type, LVT::LVT_REG);
+		// here com_type cannot be BYTE
+		// power operator: exponent is always INT, not depending on base type
+		auto err = stm8_load(arg2, (com_type == B1Types::B1T_LONG && cmd.cmd == L"^") ? B1Types::B1T_INT : com_type, LVT::LVT_REG);
 		if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 		{
 			return err;
 		}
 		_curr_code_sec->add_op(L"PUSHW X"); //89
 		_stack_ptr += 2;
+		if(com_type == B1Types::B1T_LONG && cmd.cmd != L"^")
+		{
+			_curr_code_sec->add_op(L"PUSHW Y"); // 90 89
+			_stack_ptr += 2;
+		}
 
 		err = stm8_load(arg1, com_type, LVT::LVT_REG);
 		if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
@@ -4386,40 +4943,30 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_mul_op(const B1_CMP_CMD &cmd)
 			return err;
 		}
 
-		if(cmd.cmd == L"*")
-		{
-			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_COM_MUL16"); //AD SIGNED_BYTE_OFFSET (CALLR)
-			_req_symbols.insert(L"__LIB_COM_MUL16");
-			_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
-			_stack_ptr -= 2;
-		}
-		else
-		if(cmd.cmd == L"/")
-		{
-			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_COM_DIV16"); //AD SIGNED_BYTE_OFFSET (CALLR)
-			_req_symbols.insert(L"__LIB_COM_DIV16");
-			_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
-			_stack_ptr -= 2;
-		}
-		else
-		if(cmd.cmd == L"%")
-		{
-			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_COM_REM16"); //AD SIGNED_BYTE_OFFSET (CALLR)
-			_req_symbols.insert(L"__LIB_COM_REM16");
-			_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
-			_stack_ptr -= 2;
-		}
-		else
-		if(cmd.cmd == L"^")
-		{
-			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_COM_POW16"); //AD SIGNED_BYTE_OFFSET (CALLR)
-			_req_symbols.insert(L"__LIB_COM_POW16");
-			_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
-			_stack_ptr -= 2;
-		}
-		else
+		auto fn_name =	(cmd.cmd == L"*") ? L"__LIB_COM_MUL" :
+						(cmd.cmd == L"/") ? L"__LIB_COM_DIV" :
+						(cmd.cmd == L"%") ? L"__LIB_COM_REM" :
+						(cmd.cmd == L"^") ? L"__LIB_COM_POW" : std::wstring();
+
+		if(fn_name.empty())
 		{
 			return C1STM8_T_ERROR::C1STM8_RES_EUNKINST;
+		}
+
+		fn_name += (com_type == B1Types::B1T_LONG) ? L"32" : L"16";
+
+		_curr_code_sec->add_op(_call_stmt + L" " + fn_name); //AD SIGNED_BYTE_OFFSET (CALLR)
+		_req_symbols.insert(fn_name);
+
+		if(com_type == B1Types::B1T_LONG && cmd.cmd != L"^")
+		{
+			_curr_code_sec->add_op(L"ADDW SP, 4"); //5B BYTE_VALUE
+			_stack_ptr -= 4;
+		}
+		else
+		{
+			_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
+			_stack_ptr -= 2;
 		}
 	}
 
@@ -4515,6 +5062,11 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_bit_op(const B1_CMP_CMD &cmd)
 		{
 			_curr_code_sec->add_op(L"PUSHW X"); //89
 			_stack_ptr += 2;
+			if(com_type == B1Types::B1T_LONG)
+			{
+				_curr_code_sec->add_op(L"PUSHW Y"); //90 89
+				_stack_ptr += 2;
+			}
 		}
 	}
 
@@ -4556,34 +5108,94 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_bit_op(const B1_CMP_CMD &cmd)
 			_curr_code_sec->add_op(L"RLWA X"); //02
 			_curr_code_sec->add_op(inst + L" A, " + val + L".ll"); //A4/AA/A8 BYTE_VALUE
 			_curr_code_sec->add_op(L"RLWA X"); //02
+			if(com_type == B1Types::B1T_LONG)
+			{
+				_curr_code_sec->add_op(L"RLWA Y"); //90 02
+				_curr_code_sec->add_op(inst + L" A, " + val + L".hh"); //A4/AA/A8 BYTE_VALUE
+				_curr_code_sec->add_op(L"RLWA Y"); //90 02
+				_curr_code_sec->add_op(inst + L" A, " + val + L".hl"); //A4/AA/A8 BYTE_VALUE
+				_curr_code_sec->add_op(L"RLWA Y"); //90 02
+			}
 		}
 		else
 		if(mem_ref)
 		{
-			_curr_code_sec->add_op(L"RLWA X"); //02
-			_curr_code_sec->add_op(inst + L" A, (" + val + L")"); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
-			_curr_code_sec->add_op(L"RLWA X"); //02
-			_curr_code_sec->add_op(inst + L" A, (" + val + L" + 1)"); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
-			_curr_code_sec->add_op(L"RLWA X"); //02
+			if(com_type == B1Types::B1T_INT || com_type == B1Types::B1T_WORD)
+			{
+				_curr_code_sec->add_op(L"RLWA X"); //02
+				_curr_code_sec->add_op(inst + L" A, (" + val + L")"); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
+				_curr_code_sec->add_op(L"RLWA X"); //02
+				_curr_code_sec->add_op(inst + L" A, (" + val + L" + 1)"); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
+				_curr_code_sec->add_op(L"RLWA X"); //02
+			}
+			else
+			{
+				// LONG type
+				_curr_code_sec->add_op(L"RLWA X"); //02
+				_curr_code_sec->add_op(inst + L" A, (" + val + L" + 2)"); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
+				_curr_code_sec->add_op(L"RLWA X"); //02
+				_curr_code_sec->add_op(inst + L" A, (" + val + L" + 3)"); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
+				_curr_code_sec->add_op(L"RLWA X"); //02
+				_curr_code_sec->add_op(L"RLWA Y"); //90 02
+				_curr_code_sec->add_op(inst + L" A, (" + val + L")"); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
+				_curr_code_sec->add_op(L"RLWA Y"); //90 02
+				_curr_code_sec->add_op(inst + L" A, (" + val + L" + 1)"); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
+				_curr_code_sec->add_op(L"RLWA Y"); //90 02
+			}
 		}
 		else
 		if(stk)
 		{
-			_curr_code_sec->add_op(L"RLWA X"); //02
-			_curr_code_sec->add_op(inst + L" A, (" + val + L", SP)"); //14/1A/18 BYTE_OFFSET
-			_curr_code_sec->add_op(L"RLWA X"); //02
-			_curr_code_sec->add_op(inst + L" A, (" + val + L" + 1, SP)"); //14/1A/18 BYTE_OFFSET
-			_curr_code_sec->add_op(L"RLWA X"); //02
+			if(com_type == B1Types::B1T_INT || com_type == B1Types::B1T_WORD)
+			{
+				_curr_code_sec->add_op(L"RLWA X"); //02
+				_curr_code_sec->add_op(inst + L" A, (" + val + L", SP)"); //14/1A/18 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RLWA X"); //02
+				_curr_code_sec->add_op(inst + L" A, (" + val + L" + 1, SP)"); //14/1A/18 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RLWA X"); //02
+			}
+			else
+			{
+				// LONG type
+				_curr_code_sec->add_op(L"RLWA X"); //02
+				_curr_code_sec->add_op(inst + L" A, (" + val + L" + 2, SP)"); //14/1A/18 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RLWA X"); //02
+				_curr_code_sec->add_op(inst + L" A, (" + val + L" + 3, SP)"); //14/1A/18 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RLWA X"); //02
+				_curr_code_sec->add_op(L"RLWA Y"); //90 02
+				_curr_code_sec->add_op(inst + L" A, (" + val + L", SP)"); //14/1A/18 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RLWA Y"); //90 02
+				_curr_code_sec->add_op(inst + L" A, (" + val + L" + 1, SP)"); //14/1A/18 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RLWA Y"); //90 02
+			}
 		}
 		else
 		{
-			_curr_code_sec->add_op(L"RLWA X"); //02
-			_curr_code_sec->add_op(inst + L" A, (1, SP)"); //14/1A/18 BYTE_OFFSET
-			_curr_code_sec->add_op(L"RLWA X"); //02
-			_curr_code_sec->add_op(inst + L" A, (2, SP)"); //14/1A/18 BYTE_OFFSET
-			_curr_code_sec->add_op(L"RLWA X"); //02
-			_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
-			_stack_ptr -= 2;
+			if(com_type == B1Types::B1T_INT || com_type == B1Types::B1T_WORD)
+			{
+				_curr_code_sec->add_op(L"RLWA X"); //02
+				_curr_code_sec->add_op(inst + L" A, (1, SP)"); //14/1A/18 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RLWA X"); //02
+				_curr_code_sec->add_op(inst + L" A, (2, SP)"); //14/1A/18 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RLWA X"); //02
+				_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
+				_stack_ptr -= 2;
+			}
+			else
+			{
+				_curr_code_sec->add_op(L"RLWA X"); //02
+				_curr_code_sec->add_op(inst + L" A, (3, SP)"); //14/1A/18 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RLWA X"); //02
+				_curr_code_sec->add_op(inst + L" A, (4, SP)"); //14/1A/18 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RLWA X"); //02
+				_curr_code_sec->add_op(L"RLWA Y"); //90 02
+				_curr_code_sec->add_op(inst + L" A, (1, SP)"); //14/1A/18 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RLWA Y"); //90 02
+				_curr_code_sec->add_op(inst + L" A, (2, SP)"); //14/1A/18 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RLWA Y"); //90 02
+				_curr_code_sec->add_op(L"ADDW SP, 4"); //5B BYTE_VALUE
+				_stack_ptr -= 4;
+			}
 		}
 	}
 
@@ -4617,17 +5229,17 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_shift_op(const B1_CMP_CMD &cmd)
 
 	if(arg1[0].type == B1Types::B1T_BYTE)
 	{
-		inst = cmd.cmd == L"<<" ? L"SLL A" : L"SRL A";
+		inst = cmd.cmd == L"<<" ? L"SLL A" : L"SRL A"; //48/44
 	}
 	else
 	if(arg1[0].type == B1Types::B1T_WORD)
 	{
-		inst = cmd.cmd == L"<<" ? L"SLLW X" : L"SRLW X";
+		inst = cmd.cmd == L"<<" ? L"SLLW X" : L"SRLW X"; //58/54
 	}
-	// INT type
 	else
+	if(arg1[0].type == B1Types::B1T_INT)
 	{
-		inst = cmd.cmd == L"<<" ? L"SLAW X" : L"SRAW X";
+		inst = cmd.cmd == L"<<" ? L"SLAW X" : L"SRAW X"; //58/57
 	}
 
 	auto err = stm8_load(arg1, arg1[0].type, LVT::LVT_REG);
@@ -4636,81 +5248,184 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_shift_op(const B1_CMP_CMD &cmd)
 		return err;
 	}
 
-	int32_t n;
+	int32_t n = 0;
 	bool use_loop = true;
+	bool imm_arg = false;
 
 	if(arg2.size() == 1 && B1CUtils::is_num_val(arg2[0].value))
 	{
-		if(Utils::str2int32(arg2[0].value, n) == B1_RES_OK && n >= 0 && n <= 4)
+		if(Utils::str2int32(arg2[0].value, n) == B1_RES_OK)
 		{
-			use_loop = false;
+			imm_arg = true;
+			if(n >= 0 && n <= ((arg1[0].type == B1Types::B1T_LONG) ? 2 : 4))
+			{
+				use_loop = false;
+			}
 		}
 	}
 
 	if(use_loop)
 	{
-		if(arg1[0].type == B1Types::B1T_BYTE)
+		if(imm_arg)
 		{
-			_curr_code_sec->add_op(L"PUSH A"); //88
-			_stack_ptr++;
+			if(n != 0)
+			{
+				LVT lvt = LVT::LVT_NONE;
+				std::wstring res_val;
+
+				err = stm8_load(arg2, B1Types::B1T_BYTE, LVT::LVT_IMMVAL, &lvt, &res_val);
+				if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+				{
+					return err;
+				}
+
+				if(arg1[0].type == B1Types::B1T_BYTE)
+				{
+					_curr_code_sec->add_op(L"PUSH " + res_val); //4B BYTE_VALUE
+					_stack_ptr++;
+				}
+				else
+				{
+					_curr_code_sec->add_op(L"LD A, " + res_val); //A6 BYTE_VALUE
+				}
+				const auto loop_label = emit_label(true);
+				_curr_code_sec->add_lbl(loop_label);
+				_all_symbols.insert(loop_label);
+				if(arg1[0].type == B1Types::B1T_LONG)
+				{
+					if(cmd.cmd == L"<<")
+					{
+						_curr_code_sec->add_op(L"SLLW X"); //58
+						_curr_code_sec->add_op(L"RLCW Y"); //90 59
+					}
+					else
+					{
+						_curr_code_sec->add_op(L"SRAW Y"); //90 57
+						_curr_code_sec->add_op(L"RRCW X"); //56
+					}
+				}
+				else
+				if(arg1[0].type == B1Types::B1T_BYTE)
+				{
+					inst = cmd.cmd == L"<<" ? L"SLL (1, SP)" : L"SRL (1, SP)"; //08/04 BYTE_OFFSET
+					_curr_code_sec->add_op(inst);
+				}
+				else
+				{
+					_curr_code_sec->add_op(inst);
+				}
+
+				if(arg1[0].type == B1Types::B1T_BYTE)
+				{
+					_curr_code_sec->add_op(L"DEC (1, SP)"); //0A BYTE_OFFSET
+				}
+				else
+				{
+					_curr_code_sec->add_op(L"DEC A"); //4A
+				}
+				_curr_code_sec->add_op(L"JRNE " + loop_label); //26 SIGNED_BYTE_OFFSET
+				_req_symbols.insert(loop_label);
+				
+				if(arg1[0].type == B1Types::B1T_BYTE)
+				{
+					_curr_code_sec->add_op(L"ADDW SP, 1"); //5B BYTE_VALUE
+					_stack_ptr--;
+				}
+			}
 		}
 		else
 		{
-			_curr_code_sec->add_op(L"PUSHW X"); //89
-			_stack_ptr += 2;
-		}
+			if(arg1[0].type == B1Types::B1T_BYTE)
+			{
+				_curr_code_sec->add_op(L"PUSH A"); //88
+				_stack_ptr++;
+			}
+			else
+			{
+				_curr_code_sec->add_op(L"PUSHW X"); //89
+				_stack_ptr += 2;
+				if(arg1[0].type == B1Types::B1T_LONG)
+				{
+					_curr_code_sec->add_op(L"PUSHW Y"); //90 89
+					_stack_ptr += 2;
+				}
+			}
 
-		err = stm8_load(arg2, B1Types::B1T_BYTE, LVT::LVT_REG);
-		if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
-		{
-			return err;
-		}
+			err = stm8_load(arg2, B1Types::B1T_BYTE, LVT::LVT_REG);
+			if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+			{
+				return err;
+			}
 
-		if(arg1[0].type == B1Types::B1T_BYTE)
-		{
-			_curr_code_sec->add_op(L"LD XL, A"); //97
-			_curr_code_sec->add_op(L"POP A"); //84
-			_stack_ptr--;
-			_curr_code_sec->add_op(L"EXG A, XL"); //41
+			if(arg1[0].type != B1Types::B1T_BYTE)
+			{
+				if(arg1[0].type == B1Types::B1T_LONG)
+				{
+					_curr_code_sec->add_op(L"POPW Y"); //90 85
+					_stack_ptr -= 2;
+				}
+				_curr_code_sec->add_op(L"POPW X"); //85
+				_stack_ptr -= 2;
+			}
+
+			const auto loop_label = emit_label(true);
+			const auto loop_end_label = emit_label(true);
+
 			_curr_code_sec->add_op(L"TNZ A"); //4D
-		}
-		else
-		{
-			_curr_code_sec->add_op(L"POPW X"); //85
-			_stack_ptr -= 2;
-		}
-
-		auto loop_label = emit_label(true);
-		auto loop_end_label = emit_label(true);
-
-		_curr_code_sec->add_lbl(loop_label);
-		_all_symbols.insert(loop_label);
-		_curr_code_sec->add_op(L"JREQ " + loop_end_label); //27 SIGNED_BYTE_OFFSET
-		_req_symbols.insert(loop_end_label);
-		if(arg1[0].type == B1Types::B1T_BYTE)
-		{
-			_curr_code_sec->add_op(L"EXG A, XL"); //41
-		}
-		_curr_code_sec->add_op(inst);
-		if(arg1[0].type == B1Types::B1T_BYTE)
-		{
-			_curr_code_sec->add_op(L"EXG A, XL"); //41
-		}
-		_curr_code_sec->add_op(L"DEC A"); //4A
-		_curr_code_sec->add_op(L"JRNE " + loop_label); //26 SIGNED_BYTE_OFFSET
-		_req_symbols.insert(loop_label);
-		_curr_code_sec->add_lbl(loop_end_label);
-		_all_symbols.insert(loop_end_label);
-		if(arg1[0].type == B1Types::B1T_BYTE)
-		{
-			_curr_code_sec->add_op(L"LD A, XL"); //9F
+			_curr_code_sec->add_op(L"JREQ " + loop_end_label); //27 SIGNED_BYTE_OFFSET
+			_req_symbols.insert(loop_end_label);
+			_curr_code_sec->add_lbl(loop_label);
+			_all_symbols.insert(loop_label);
+			if(arg1[0].type == B1Types::B1T_LONG)
+			{
+				if(cmd.cmd == L"<<")
+				{
+					_curr_code_sec->add_op(L"SLLW X"); //58
+					_curr_code_sec->add_op(L"RLCW Y"); //90 59
+				}
+				else
+				{
+					_curr_code_sec->add_op(L"SRAW Y"); //90 57
+					_curr_code_sec->add_op(L"RRCW X"); //56
+				}
+			}
+			else
+			{
+				_curr_code_sec->add_op(inst);
+			}
+			_curr_code_sec->add_op(L"DEC A"); //4A
+			_curr_code_sec->add_op(L"JRNE " + loop_label); //26 SIGNED_BYTE_OFFSET
+			_req_symbols.insert(loop_label);
+			_curr_code_sec->add_lbl(loop_end_label);
+			_all_symbols.insert(loop_end_label);
+			if(arg1[0].type == B1Types::B1T_BYTE)
+			{
+				_curr_code_sec->add_op(L"POP A"); //84
+				_stack_ptr--;
+			}
 		}
 	}
 	else
 	{
 		for(; n > 0; n--)
 		{
-			_curr_code_sec->add_op(inst);
+			if(arg1[0].type == B1Types::B1T_LONG)
+			{
+				if(cmd.cmd == L"<<")
+				{
+					_curr_code_sec->add_op(L"SLLW X"); //58
+					_curr_code_sec->add_op(L"RLCW Y"); //90 59
+				}
+				else
+				{
+					_curr_code_sec->add_op(L"SRAW Y"); //90 57
+					_curr_code_sec->add_op(L"RRCW X"); //56
+				}
+			}
+			else
+			{
+				_curr_code_sec->add_op(inst);
+			}
 		}
 	}
 
@@ -4740,18 +5455,32 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_num_cmp_op(const B1_CMP_CMD &cmd)
 	bool mem_ref = false;
 	bool stk_ref = false;
 
-	B1_CMP_ARG arg1 = cmd.args[0];
-	B1_CMP_ARG arg2 = cmd.args[1];
+	auto err = B1CUtils::get_com_type(cmd.args[0][0].type, cmd.args[1][0].type, com_type, comp);
+	if(err != B1_RES_OK)
+	{
+		return static_cast<C1STM8_T_ERROR>(err);
+	}
+
+	B1_CMP_ARG arg1;
+	B1_CMP_ARG arg2;
+
+	if(com_type == B1Types::B1T_LONG && (cmd.cmd == L">" || cmd.cmd == L"<="))
+	{
+		// change order and use other comparison operators
+		arg1 = cmd.args[1];
+		arg2 = cmd.args[0];
+		_cmp_op = (cmd.cmd == L">") ? L"<" : L">=";
+	}
+	else
+	{
+		arg1 = cmd.args[0];
+		arg2 = cmd.args[1];
+		_cmp_op = cmd.cmd;
+	}
 
 	if(arg1[0].type == B1Types::B1T_STRING || arg2[0].type == B1Types::B1T_STRING)
 	{
 		return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
-	}
-
-	auto err = B1CUtils::get_com_type(arg1[0].type, arg2[0].type, com_type, comp);
-	if(err != B1_RES_OK)
-	{
-		return static_cast<C1STM8_T_ERROR>(err);
 	}
 
 	lvt = comp ? (LVT::LVT_REG | LVT::LVT_IMMVAL | LVT::LVT_MEMREF | LVT::LVT_STKREF) : (LVT::LVT_REG | LVT::LVT_IMMVAL);
@@ -4787,6 +5516,11 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_num_cmp_op(const B1_CMP_CMD &cmd)
 		{
 			_curr_code_sec->add_op(L"PUSHW X"); //89
 			_stack_ptr += 2;
+			if(com_type == B1Types::B1T_LONG)
+			{
+				_curr_code_sec->add_op(L"PUSHW Y"); //90 89
+				_stack_ptr += 2;
+			}
 		}
 	}
 
@@ -4820,10 +5554,11 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_num_cmp_op(const B1_CMP_CMD &cmd)
 		}
 	}
 	else
+	if(com_type == B1Types::B1T_INT || com_type == B1Types::B1T_WORD)
 	{
 		if(imm_val)
 		{
-			_curr_code_sec->add_op(L"CPW X, " + val); //A3 BYTE_VALUE
+			_curr_code_sec->add_op(L"CPW X, " + val); //A3 WORD_VALUE
 		}
 		else
 		if(mem_ref)
@@ -4842,9 +5577,100 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_num_cmp_op(const B1_CMP_CMD &cmd)
 			_stack_ptr -= 2;
 		}
 	}
+	else
+	{
+		// LONG type
+		if(cmd.cmd == L"==" || cmd.cmd == L"<>")
+		{
+			bool clr_stk = false;
+			const auto label = emit_label(true);
+
+			if(imm_val)
+			{
+				_curr_code_sec->add_op(L"CPW X, " + val + L".l"); //A3 WORD_VALUE
+				_curr_code_sec->add_op(L"JRNE " + label); //26 SIGNED_BYTE_OFFSET
+				_req_symbols.insert(label);
+				_curr_code_sec->add_op(L"CPW Y, " + val + L".h"); //90 A3 WORD_VALUE
+			}
+			else
+			if(mem_ref)
+			{
+				_curr_code_sec->add_op(L"CPW X, (" + val + L" + 2)"); //B3 BYTE_OFFSET C3 WORD_OFFSET
+				_curr_code_sec->add_op(L"JRNE " + label); //26 SIGNED_BYTE_OFFSET
+				_req_symbols.insert(label);
+				_curr_code_sec->add_op(L"CPW Y, (" + val + L")"); //90 B3 BYTE_OFFSET 90 C3 WORD_OFFSET
+			}
+			else
+			if(stk_ref)
+			{
+				_curr_code_sec->add_op(L"CPW X, (" + val + L" + 2, SP)"); //13 BYTE_OFFSET
+				_curr_code_sec->add_op(L"JRNE " + label); //26 SIGNED_BYTE_OFFSET
+				_req_symbols.insert(label);
+				_curr_code_sec->add_op(L"EXGW X, Y"); //51
+				_curr_code_sec->add_op(L"CPW X, (" + val + L", SP)"); //13 BYTE_OFFSET
+			}
+			else
+			{
+				_curr_code_sec->add_op(L"CPW X, (" + val + L" + 3, SP)"); //13 BYTE_OFFSET
+				_curr_code_sec->add_op(L"JRNE " + label); //26 SIGNED_BYTE_OFFSET
+				_req_symbols.insert(label);
+				_curr_code_sec->add_op(L"EXGW X, Y"); //51
+				_curr_code_sec->add_op(L"CPW X, (" + val + L" + 1, SP)"); //13 BYTE_OFFSET
+
+				clr_stk = true;
+			}
+
+			_curr_code_sec->add_lbl(label);
+			_all_symbols.insert(label);
+
+			if(clr_stk)
+			{
+				_curr_code_sec->add_op(L"ADDW SP, 4"); //5B BYTE_VALUE
+				_stack_ptr -= 4;
+			}
+		}
+		else
+		{
+			if(imm_val)
+			{
+				_curr_code_sec->add_op(L"CPW X, " + val + L".l"); //A3 WORD_VALUE
+				_curr_code_sec->add_op(L"LD A, YL"); //90 9F
+				_curr_code_sec->add_op(L"SBC A, " + val + L".hl"); //A2 BYTE_VALUE
+				_curr_code_sec->add_op(L"LD A, YH"); //90 9E
+				_curr_code_sec->add_op(L"SBC A, " + val + L".hh"); //A2 BYTE_VALUE
+			}
+			else
+			if(mem_ref)
+			{
+				_curr_code_sec->add_op(L"CPW X, (" + val + L" + 2)"); //B3 BYTE_OFFSET C3 WORD_OFFSET
+				_curr_code_sec->add_op(L"LD A, YL"); //90 9F
+				_curr_code_sec->add_op(L"SBC A, (" + val + L" + 1)"); //B2 BYTE_OFFSET C2 WORD_OFFSET
+				_curr_code_sec->add_op(L"LD A, YH"); //90 9E
+				_curr_code_sec->add_op(L"SBC A, (" + val + L")"); //B2 BYTE_OFFSET C2 WORD_OFFSET
+			}
+			else
+			if(stk_ref)
+			{
+				_curr_code_sec->add_op(L"CPW X, (" + val + L" + 2, SP)"); //13 BYTE_OFFSET
+				_curr_code_sec->add_op(L"LD A, YL"); //90 9F
+				_curr_code_sec->add_op(L"SBC A, (" + val + L" + 1, SP)"); //12 BYTE_OFFSET
+				_curr_code_sec->add_op(L"LD A, YH"); //90 9E
+				_curr_code_sec->add_op(L"SBC A, (" + val + L", SP)"); //12 BYTE_OFFSET
+			}
+			else
+			{
+				_curr_code_sec->add_op(L"CPW X, (" + val + L" + 3, SP)"); //13 BYTE_OFFSET
+				_curr_code_sec->add_op(L"LD A, YL"); //90 9F
+				_curr_code_sec->add_op(L"SBC A, (" + val + L" + 2, SP)"); //12 BYTE_OFFSET
+				_curr_code_sec->add_op(L"LD A, YH"); //90 9E
+				_curr_code_sec->add_op(L"SBC A, (" + val + L" + 1, SP)"); //12 BYTE_OFFSET
+				_curr_code_sec->add_op(L"ADDW SP, 4"); //5B BYTE_VALUE
+				_stack_ptr -= 4;
+			}
+		}
+}
 
 	_cmp_active = true;
-	_cmp_op = cmd.cmd;
 	_cmp_type = com_type;
 
 	return C1STM8_T_ERROR::C1STM8_RES_OK;
@@ -5185,6 +6011,12 @@ C1STM8_T_ERROR C1STM8Compiler::write_ioctl(std::list<B1_CMP_CMD>::const_iterator
 			{
 				_curr_code_sec->add_op(L"LDW X, " + std::to_wstring(values)); //AE WORD_VALUE
 			}
+			else
+			if(data_type == B1Types::B1T_LONG)
+			{
+				_curr_code_sec->add_op(L"LDW X, " + std::to_wstring(values & 0xFFFF)); //AE WORD_VALUE
+				_curr_code_sec->add_op(L"LDW Y, " + std::to_wstring((values >> 16) & 0xFFFF)); //90 AE WORD_VALUE
+			}
 		}
 
 		_curr_code_sec->add_op(_call_stmt + L" " + file_name);  //AD SIGNED_BYTE_OFFSET (CALLR)
@@ -5312,9 +6144,17 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 					_stack_ptr++;
 				}
 				else
+				if(_curr_udef_args_size == 2)
 				{
 					_curr_code_sec->add_op(L"PUSHW X"); //89
 					_stack_ptr += 2;
+				}
+				else
+				{
+					// LONG type
+					_curr_code_sec->add_op(L"PUSHW X"); //89
+					_curr_code_sec->add_op(L"PUSHW Y"); //90 89
+					_stack_ptr += 4;
 				}
 			}
 
@@ -5489,13 +6329,16 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 
 			if(_cmp_active)
 			{
-				// use PUSH/POP for LA/LF after compare operations (in order not to overwrite flags register)
 				if(size == 1)
 				{
-					_curr_code_sec->add_op(L"PUSH A"); //88
+					// B1T_BYTE
+					_curr_code_sec->add_op(L"SUB SP, 1"); //52 BYTE_VALUE
 				}
 				else
+				if(size == 2)
 				{
+					// use PUSH/POP for LA/LF after compare operations (in order not to overwrite flags register)
+					// B1T_INT, B1T_WORD or B1T_STRING
 					if(cmd.args[1][0].type == B1Types::B1T_STRING)
 					{
 						// string local variable must be emptied right after creation
@@ -5506,8 +6349,13 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 					}
 					else
 					{
-						_curr_code_sec->add_op(L"PUSHW X"); //89
+						_curr_code_sec->add_op(L"SUB SP, 2"); //52 BYTE_VALUE
 					}
+				}
+				else
+				{
+					// B1T_LONG
+					_curr_code_sec->add_op(L"SUB SP, 4"); //52 BYTE_VALUE
 				}
 			}
 			else
@@ -5562,9 +6410,10 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				// use PUSH/POP for LA/LF after compare operations (in order not to overwrite flags register)
 				if(size == 1)
 				{
-					_curr_code_sec->add_op(L"POP A"); //84
+					_curr_code_sec->add_op(L"ADDW SP, 1"); //5B BYTE_VALUE
 				}
 				else
+				if(size == 2)
 				{
 					if(loc.first.type == B1Types::B1T_STRING)
 					{
@@ -5581,8 +6430,12 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 					}
 					else
 					{
-						_curr_code_sec->add_op(L"POPW X"); //85
+						_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
 					}
+				}
+				else
+				{
+					_curr_code_sec->add_op(L"ADDW SP, 4"); //5B BYTE_VALUE
 				}
 			}
 			else
@@ -5604,6 +6457,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 							_stack_ptr -= 1;
 						}
 						else
+						if(_retval_type == B1Types::B1T_INT || _retval_type == B1Types::B1T_WORD || _retval_type == B1Types::B1T_STRING)
 						{
 							_curr_code_sec->add_op(L"PUSHW X"); //89
 							_stack_ptr += 2;
@@ -5612,6 +6466,19 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 							_req_symbols.insert(L"__LIB_STR_RLS");
 							_curr_code_sec->add_op(L"POPW X"); //85
 							_stack_ptr -= 2;
+						}
+						else
+						{
+							// LONG type
+							_curr_code_sec->add_op(L"PUSHW X"); //89
+							_curr_code_sec->add_op(L"PUSHW Y"); //90 89
+							_stack_ptr += 4;
+							_curr_code_sec->add_op(L"LDW X, (5, SP)"); //1E BYTE_OFFSET
+							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+							_req_symbols.insert(L"__LIB_STR_RLS");
+							_curr_code_sec->add_op(L"POPW Y"); //90 85
+							_curr_code_sec->add_op(L"POPW X"); //85
+							_stack_ptr -= 4;
 						}
 					}
 
@@ -5626,9 +6493,10 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			{
 				if(loc.first.type == B1Types::B1T_STRING)
 				{
+					_curr_code_sec->add_op(L"POPW X"); //85
+
 					if(!not_used)
 					{
-						_curr_code_sec->add_op(L"POPW X"); //85
 						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
 						_req_symbols.insert(L"__LIB_STR_RLS");
 					}
@@ -5687,15 +6555,26 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			_req_symbols.insert(L"__LIB_" + in_dev + L"_IN");
 			if(cmd.args[1][0].type == B1Types::B1T_BYTE)
 			{
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_VAL"); //AD SIGNED_BYTE_OFFSET (CALLR)
-				_req_symbols.insert(L"__LIB_STR_VAL");
-				_curr_code_sec->add_op(L"LD A, XL"); //9F
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CBYTE"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_req_symbols.insert(L"__LIB_STR_CBYTE");
 			}
 			else
-			if(cmd.args[1][0].type == B1Types::B1T_INT || cmd.args[1][0].type == B1Types::B1T_WORD)
+			if(cmd.args[1][0].type == B1Types::B1T_INT)
 			{
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_VAL"); //AD SIGNED_BYTE_OFFSET (CALLR)
-				_req_symbols.insert(L"__LIB_STR_VAL");
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CINT"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_req_symbols.insert(L"__LIB_STR_CINT");
+			}
+			else
+			if(cmd.args[1][0].type == B1Types::B1T_WORD)
+			{
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CWRD"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_req_symbols.insert(L"__LIB_STR_CWRD");
+			}
+			else
+			if(cmd.args[1][0].type == B1Types::B1T_LONG)
+			{
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CLNG"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_req_symbols.insert(L"__LIB_STR_CLNG");
 			}
 
 			// store value
@@ -5800,8 +6679,8 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 
 					_curr_code_sec->add_op(L"PUSH 2"); //4B BYTE_VALUE
 					_stack_ptr += 1;
-					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR"); //AD SIGNED_BYTE_OFFSET (CALLR)
-					_req_symbols.insert(L"__LIB_STR_STR");
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR16"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_req_symbols.insert(L"__LIB_STR_STR16");
 					_curr_code_sec->add_op(L"POP A"); //84
 					_stack_ptr -= 1;
 				}
@@ -5816,8 +6695,24 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 
 					_curr_code_sec->add_op(L"PUSH 3"); //4B BYTE_VALUE
 					_stack_ptr += 1;
-					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR"); //AD SIGNED_BYTE_OFFSET (CALLR)
-					_req_symbols.insert(L"__LIB_STR_STR");
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR16"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_req_symbols.insert(L"__LIB_STR_STR16");
+					_curr_code_sec->add_op(L"POP A"); //84
+					_stack_ptr -= 1;
+				}
+				else
+				if(cmd.args[1][0].type == B1Types::B1T_LONG)
+				{
+					auto err = stm8_load(cmd.args[1], B1Types::B1T_LONG, LVT::LVT_REG);
+					if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+					{
+						return err;
+					}
+
+					_curr_code_sec->add_op(L"PUSH 2"); //4B BYTE_VALUE
+					_stack_ptr += 1;
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR32"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_req_symbols.insert(L"__LIB_STR_STR32");
 					_curr_code_sec->add_op(L"POP A"); //84
 					_stack_ptr -= 1;
 				}
@@ -5898,6 +6793,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				_curr_code_sec->add_op(L"LDW (" + name_space + L"__DAT_PTR), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
 			}
 			else
+			if(cmd.args[1][0].type == B1Types::B1T_INT || cmd.args[1][0].type == B1Types::B1T_WORD || cmd.args[1][0].type == B1Types::B1T_STRING)
 			{
 				_curr_code_sec->add_op(L"LDW X, (" + name_space + L"__DAT_PTR)"); //BE SHORT_ADDRESS, CE LONG_ADDRESS
 				_curr_code_sec->add_op(L"PUSHW X"); // 89
@@ -5909,8 +6805,18 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				_stack_ptr -= 2;
 				_curr_code_sec->add_op(L"LDW X, (X)"); //FE
 			}
+			else
+			{
+				// LONG type
+				_curr_code_sec->add_op(L"LDW X, (" + name_space + L"__DAT_PTR)"); //BE SHORT_ADDRESS, CE LONG_ADDRESS
+				_curr_code_sec->add_op(L"LDW Y, X"); //90 93
+				_curr_code_sec->add_op(L"ADDW X, 4"); //1C WORD_VALUE
+				_curr_code_sec->add_op(L"LDW (" + name_space + L"__DAT_PTR), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+				_curr_code_sec->add_op(L"LDW X, Y"); //93
+				_curr_code_sec->add_op(L"LDW Y, (Y)"); //90 FE
+				_curr_code_sec->add_op(L"LDW X, (2, X)"); //EE BYTE_OFFSET
+			}
 			_req_symbols.insert(name_space + L"__DAT_PTR");
-
 
 			// store value
 			auto err = stm8_store(cmd.args[1]);
@@ -5972,6 +6878,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 						_stack_ptr -= 1;
 					}
 					else
+					if(_retval_type == B1Types::B1T_INT || _retval_type == B1Types::B1T_WORD || _retval_type == B1Types::B1T_STRING)
 					{
 						_curr_code_sec->add_op(L"PUSHW X"); //89
 						_stack_ptr += 2;
@@ -5981,6 +6888,20 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 						_req_symbols.insert(L"__LIB_STR_RLS");
 						_curr_code_sec->add_op(L"POPW X"); //85
 						_stack_ptr -= 2;
+					}
+					else
+					{
+						// LONG type
+						_curr_code_sec->add_op(L"PUSHW X"); //89
+						_curr_code_sec->add_op(L"PUSHW Y"); //90 89
+						_stack_ptr += 4;
+						offset = _stack_ptr - _curr_udef_args_size + 1;
+						_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
+						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+						_req_symbols.insert(L"__LIB_STR_RLS");
+						_curr_code_sec->add_op(L"POPW Y"); //90 85
+						_curr_code_sec->add_op(L"POPW X"); //85
+						_stack_ptr -= 4;
 					}
 				}
 			}
@@ -6002,6 +6923,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 						_stack_ptr -= 1;
 					}
 					else
+					if(_retval_type == B1Types::B1T_INT || _retval_type == B1Types::B1T_WORD || _retval_type == B1Types::B1T_STRING)
 					{
 						_curr_code_sec->add_op(L"PUSHW X"); //89
 						_stack_ptr += 2;
@@ -6012,22 +6934,28 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 						_curr_code_sec->add_op(L"POPW X"); //85
 						_stack_ptr -= 2;
 					}
+					else
+					{
+						// LONG type
+						_curr_code_sec->add_op(L"PUSHW X"); //89
+						_curr_code_sec->add_op(L"PUSHW Y"); //90 89
+						_stack_ptr += 4;
+						offset = _stack_ptr + _ret_addr_size + sa;
+						_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
+						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+						_req_symbols.insert(L"__LIB_STR_RLS");
+						_curr_code_sec->add_op(L"POPW Y"); //90 85
+						_curr_code_sec->add_op(L"POPW X"); //85
+						_stack_ptr -= 4;
+					}
 				}
 			}
 
 			// temporary solution for a single argument case: function prologue code stores it in stack
 			if(_curr_udef_arg_offsets.size() == 1)
 			{
-				if(_curr_udef_args_size == 1)
-				{
-					_curr_code_sec->add_op(L"ADDW SP, 1"); //5B BYTE_VALUE
-					_stack_ptr--;
-				}
-				else
-				{
-					_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
-					_stack_ptr -= 2;
-				}
+				_curr_code_sec->add_op(L"ADDW SP, " + std::to_wstring(_curr_udef_args_size)); //5B BYTE_VALUE
+				_stack_ptr -= _curr_udef_args_size;
 			}
 
 			if(_stack_ptr != 0)
@@ -6231,7 +7159,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			else
 			if(_cmp_op == L">")
 			{
-				if(_cmp_type == B1Types::B1T_INT || _cmp_type == B1Types::B1T_STRING)
+				if(_cmp_type == B1Types::B1T_INT || _cmp_type == B1Types::B1T_STRING || _cmp_type == B1Types::B1T_LONG)
 				{
 					// signed comparison
 					if(cmd.cmd == L"JT")
@@ -6259,7 +7187,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			else
 			if(_cmp_op == L">=")
 			{
-				if(_cmp_type == B1Types::B1T_INT || _cmp_type == B1Types::B1T_STRING)
+				if(_cmp_type == B1Types::B1T_INT || _cmp_type == B1Types::B1T_STRING || _cmp_type == B1Types::B1T_LONG)
 				{
 					// signed comparison
 					if(cmd.cmd == L"JT")
@@ -6287,7 +7215,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			else
 			if(_cmp_op == L"<")
 			{
-				if(_cmp_type == B1Types::B1T_INT || _cmp_type == B1Types::B1T_STRING)
+				if(_cmp_type == B1Types::B1T_INT || _cmp_type == B1Types::B1T_STRING || _cmp_type == B1Types::B1T_LONG)
 				{
 					// signed comparison
 					if(cmd.cmd == L"JT")
@@ -6315,7 +7243,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			else
 			if(_cmp_op == L"<=")
 			{
-				if(_cmp_type == B1Types::B1T_INT || _cmp_type == B1Types::B1T_STRING)
+				if(_cmp_type == B1Types::B1T_INT || _cmp_type == B1Types::B1T_STRING || _cmp_type == B1Types::B1T_LONG)
 				{
 					// signed comparison
 					if(cmd.cmd == L"JT")

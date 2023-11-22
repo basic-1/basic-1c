@@ -1,0 +1,49 @@
+INI,__LIB_ERR_LAST_ERR
+IMP,__LIB_ERR_HANDLER
+IMP,__LIB_AUX_CVT_CHR
+IMP,__LIB_STR_RLS
+
+; converts string representation of a WORD value to binary form
+; A - characters number, X - input data address, returns WORD value in X
+:__LIB_AUX_CVT_WRD
+ASM
+:::__LBL_ROM_STR
+PUSH A ; string length (1)
+TNZ A
+JREQ ::__LBL_INV_STR
+EXGW X, Y
+CLRW X
+
+; here Y - address of the next character in input string, X - the resulting integer
+:::__LBL_CVT_LOOP
+; mul 10
+CLR A
+SLLW X
+RLC A
+PUSHW X
+SLLW X
+RLC A
+SLLW X
+RLC A
+ADDW X, (1, SP)
+ADDW SP, 2
+RLC A
+JRNE ::__LBL_INV_STR
+
+CALLR __LIB_AUX_CVT_CHR
+TNZ A
+JREQ ::__LBL_INV_STR
+
+DEC (1, SP)
+JRNE ::__LBL_CVT_LOOP
+JRA ::__LBL_EXIT
+
+:::__LBL_INV_STR
+MOV (__LIB_ERR_LAST_ERR), B1C_RTE_STR_INV_NUM
+CALLR __LIB_ERR_HANDLER
+CLRW X
+
+:::__LBL_EXIT
+POP A
+RET
+ENDASM

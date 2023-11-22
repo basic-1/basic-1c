@@ -1,0 +1,69 @@
+IMP,__LIB_AUX_NEG32
+
+; divides two signed 32-bit integers
+; Y:X - dividend, stack1 - divisor, returns 32-bit quotient in Y:X
+:__LIB_COM_DIV32
+ASM
+CLR A
+TNZW Y
+JRPL ::__LBL_DIVD_POS
+CALLR __LIB_AUX_NEG32
+CPL A
+
+:::__LBL_DIVD_POS
+PUSHW X ; dividend (10, 12)
+PUSHW Y
+LDW X, (__RET_ADDR_SIZE + 7, SP)
+LDW Y, (__RET_ADDR_SIZE + 5, SP)
+JRPL ::__LBL_DIVS_POS
+CALLR __LIB_AUX_NEG32
+CPL A
+
+:::__LBL_DIVS_POS
+PUSHW X ; divisor (6, 8)
+PUSHW Y
+CLRW X
+PUSHW X ; remainder (2, 4)
+PUSHW X
+PUSH A ; neg. quotient (1)
+LD A, 32 ; counter
+
+:::__LBL_DIV_LOOP
+LDW X, (12, SP) ; dividend <<= 1
+SLAW X
+LDW (12, SP), X
+LDW X, (10, SP)
+RLCW X
+LDW (10, SP), X
+LDW X, (4, SP) ; (rem <<= 1) + carry
+RLCW X
+LDW (4, SP), X
+LDW X, (2, SP)
+RLCW X
+LDW (2, SP), X
+LDW Y, (4, SP) ; rem -= divisor
+SUBW Y, (8, SP)
+RRWA X
+SBC A, (7, SP)
+RRWA X
+SBC A, (6, SP)
+RRWA X
+JRULT ::__LBL_SHIFT_NEXT
+LDW (4, SP), Y ; save rem
+LDW (2, SP), X
+INC (13, SP) ; dividend |= 1
+
+:::__LBL_SHIFT_NEXT
+DEC A
+JRNE ::__LBL_DIV_LOOP
+
+LDW Y, (10, SP) ; load quotient
+LDW X, (12, SP)
+TNZ (1, SP)
+JREQ ::__LBL_QUOT_POS
+CALLR __LIB_AUX_NEG32
+
+:::__LBL_QUOT_POS
+ADDW SP, 13
+RET
+ENDASM

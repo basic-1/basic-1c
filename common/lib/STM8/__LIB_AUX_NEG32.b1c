@@ -1,0 +1,11 @@
+; negates 32-bit integer value, must not change A
+; Y:X - an integer value to negate, returns 32-bit negated value in Y:X
+:__LIB_AUX_NEG32
+ASM
+NEGW X
+JRNC ::__LBL_NO_BORROW
+INCW Y
+:::__LBL_NO_BORROW
+NEGW Y
+RET
+ENDASM

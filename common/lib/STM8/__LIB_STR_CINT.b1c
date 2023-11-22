@@ -1,0 +1,60 @@
+INI,__LIB_ERR_LAST_ERR
+IMP,__LIB_ERR_HANDLER
+IMP,__LIB_AUX_CVT_WRD
+IMP,__LIB_STR_RLS
+
+; converts string representation of an INT value to the binary form
+; X - input string, returns INT value in X
+:__LIB_STR_CINT
+ASM
+PUSHW X ; original string (2)
+PUSH 0 ; neg. value flag (1)
+TNZW X
+JRMI ::__LBL_ROM_STR
+; RAM string
+INCW X
+
+:::__LBL_ROM_STR
+LD A, (X) ; init. string length
+JREQ ::__LBL_INV_STR
+INCW X
+PUSH A
+LD A, (X)
+CP A, 45 ; '-'
+POP A
+JRNE ::__LBL_DO_CVT
+; negative value
+INC (1, SP)
+INCW X
+DEC A
+
+:::__LBL_DO_CVT
+CALLR __LIB_AUX_CVT_WRD
+CPW X, 0x8000
+JRULE ::__LBL_TST_NEG
+
+:::__LBL_INV_STR
+MOV (__LIB_ERR_LAST_ERR), B1C_RTE_STR_INV_NUM
+CALLR __LIB_ERR_HANDLER
+CLRW X
+JRA ::__LBL_EXIT
+
+:::__LBL_TST_NEG
+TNZ (1, SP)
+JRNE ::__LBL_NEG
+TNZW X
+JRMI ::__LBL_INV_STR
+NEGW X
+
+:::__LBL_NEG
+NEGW X
+
+:::__LBL_EXIT
+POP A
+POPW Y
+PUSHW X
+LDW X, Y
+CALLR __LIB_STR_RLS
+POPW X
+RET
+ENDASM

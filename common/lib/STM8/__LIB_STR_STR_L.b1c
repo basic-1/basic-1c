@@ -1,0 +1,11 @@
+IMP,__LIB_STR_STR32
+
+; converts signed 32-bit integer value to string
+; Y:X - integer value, returns string address in X
+:__LIB_STR_STR_L
+ASM
+PUSH 0
+CALLR __LIB_STR_STR32
+POP A
+RET
+ENDASM

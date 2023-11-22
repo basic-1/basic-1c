@@ -1,0 +1,53 @@
+INI,__LIB_ERR_LAST_ERR
+IMP,__LIB_ERR_HANDLER
+IMP,__LIB_AUX_CVT_CHR
+IMP,__LIB_STR_RLS
+
+; converts string representation of a BYTE value to the binary form
+; X - input string, returns integer value in A
+:__LIB_STR_CBYTE
+ASM
+PUSHW X ; initial string address
+TNZW X
+JRMI ::__LBL_ROM_STR
+; RAM string
+INCW X
+
+:::__LBL_ROM_STR
+LD A, (X) ; init. string length
+PUSH A
+JREQ ::__LBL_INV_STR
+
+INCW X
+EXGW X, Y
+CLRW X ; X - resulting value, Y - pointer to the next converting character
+
+:::__LBL_CVT_LOOP
+LD A, 10
+MUL X, A
+
+CALLR __LIB_AUX_CVT_CHR
+TNZ A
+JREQ ::__LBL_INV_STR
+
+CPW X, 255
+JRUGT ::__LBL_INV_STR
+
+DEC (1, SP)
+JRNE ::__LBL_CVT_LOOP
+LD A, XL
+JRA ::__LBL_EXIT
+
+:::__LBL_INV_STR
+MOV (__LIB_ERR_LAST_ERR), B1C_RTE_STR_INV_NUM
+CALLR __LIB_ERR_HANDLER
+CLR A
+
+:::__LBL_EXIT
+ADDW SP, 1
+POPW X
+PUSH A
+CALLR __LIB_STR_RLS
+POP A
+RET
+ENDASM

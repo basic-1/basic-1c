@@ -102,7 +102,7 @@ Labels are used to create symbolic constants to refer to specific code or data l
   
 Data definition directives are used to allocate memory and initialize it with some data.  
 **Syntax:** `<data_definition_directive> [(<size>)] [<init_value0>[,<init_value1>..<init_valueN>]]`  
-The assembler supports two data definition directives: `DB` to declare 1-byte data and `DW` to declare two-byte (word) data.  
+The assembler supports three data definition directives: `DB` to declare 1-byte data, `DW` to declare two-byte (word) data and `DD` to declare four-byte (double word) data.  
 `<size>` should be a numeric constant to specify number of bytes or words to allocate. `<init_value0>, ..<init_valueN>` clause should be used to specify initial values for the memory area. Initial values are not allowed for RAM sections (`.DATA`, `.HEAP` and `.STACK`). Non-initialized data in `.CONST` and `.CODE` sections is initialized with zeroes.  
 **Samples:**  
 `.DATA`  
@@ -114,6 +114,7 @@ The assembler supports two data definition directives: `DB` to declare 1-byte da
 `DB (10)` - reserve 10 bytes initialized with zeroes in `.CONST` section  
 `DB (10) "DATA"` - reserve another 10 bytes block, first 4 bytes are initialized with "DATA" text and the rest with zeroes  
 `DW 0xAAAA, 0xBBBB, 0xCCCC` - three words (6 bytes) initialized with 0xAAAA, 0xBBBB and 0xCCCC  
+`DD -1` - a double word  
   
 ### CPU instructions  
   

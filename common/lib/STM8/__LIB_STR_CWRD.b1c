@@ -1,0 +1,24 @@
+IMP,__LIB_AUX_CVT_WRD
+IMP,__LIB_STR_RLS
+
+; converts string representation of a WORD value to the binary form
+; X - input string, returns WORD value in X
+:__LIB_STR_CWRD
+ASM
+PUSHW X ; original string (1)
+TNZW X
+JRMI ::__LBL_ROM_STR
+; RAM string
+INCW X
+
+:::__LBL_ROM_STR
+LD A, (X) ; init. string length
+INCW X
+CALLR __LIB_AUX_CVT_WRD
+POPW Y
+PUSHW X
+LDW X, Y
+CALLR __LIB_STR_RLS
+POPW X
+RET
+ENDASM

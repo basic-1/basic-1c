@@ -38,7 +38,7 @@ enum class B1Types
 class Utils
 {
 public:
-	static B1_T_ERROR str2int32(const std::wstring &str, int32_t &num, B1Types *type = nullptr);
+	static B1_T_ERROR str2int32(const std::wstring &str, int32_t &num);
 	[[nodiscard]]
 	static std::string wstr2str(const std::wstring &str);
 	[[nodiscard]]

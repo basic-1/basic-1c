@@ -135,8 +135,11 @@ private:
 	int32_t _stack_ptr;
 	std::vector<std::pair<B1_TYPED_VALUE, int32_t>> _local_offset;
 
+	// total size of all arguments of the current UDEF
 	int32_t _curr_udef_args_size;
+	// offsets of the current user-defined function's arguments passed in stack (e.g. {5, 3, 1})
 	std::vector<int32_t> _curr_udef_arg_offsets;
+	// offsets of the current UDEF's string arguments
 	std::vector<int32_t> _curr_udef_str_arg_offsets;
 
 	int32_t _ret_addr_size;
@@ -228,6 +231,8 @@ private:
 
 	C1STM8_T_ERROR calc_array_size(const B1_CMP_VAR &var, int32_t size1);
 	C1STM8_T_ERROR stm8_st_gf(const B1_CMP_VAR &var, bool is_ma);
+	C1STM8_T_ERROR stm8_arrange_types(const B1Types type_from, const B1Types type_to);
+	C1STM8_T_ERROR stm8_load_from_stack(int32_t offset, const B1Types init_type, const B1Types req_type, LVT req_valtype, LVT &rvt, std::wstring &rv);
 	C1STM8_T_ERROR stm8_load(const B1_TYPED_VALUE &tv, const B1Types req_type, LVT req_valtype, LVT *res_valtype = nullptr, std::wstring *res_val = nullptr);
 	C1STM8_T_ERROR stm8_arr_alloc_def(const B1_CMP_ARG &arg, const B1_CMP_VAR &var);
 	C1STM8_T_ERROR stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_offset, int32_t &offset);
@@ -237,7 +242,6 @@ private:
 	C1STM8_T_ERROR stm8_store(const B1_TYPED_VALUE &tv);
 	C1STM8_T_ERROR stm8_store(const B1_CMP_ARG &arg);
 	C1STM8_T_ERROR stm8_un_op(const B1_CMP_CMD &cmd);
-	C1STM8_T_ERROR stm8_arrange_types(const B1Types type_from, const B1Types type_to);
 	C1STM8_T_ERROR stm8_add_op(const B1_CMP_CMD &cmd);
 	C1STM8_T_ERROR stm8_mul_op(const B1_CMP_CMD &cmd);
 	C1STM8_T_ERROR stm8_bit_op(const B1_CMP_CMD &cmd);

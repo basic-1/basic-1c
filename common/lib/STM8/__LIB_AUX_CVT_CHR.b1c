@@ -1,0 +1,24 @@
+; an auxiliary function, converts an ASCII digit from (Y) to its value
+; and adds the value to X, increases Y by 1: X += (Y++) - '0'
+; returns A = 0 in case of invalid character or X overflow
+:__LIB_AUX_CVT_CHR
+ASM
+LD A, (Y)
+INCW Y
+SUB A, 48 ; '0'
+CP A, 9
+JRULE ::__LBL_CHK_OK
+
+:::__LBL_INV_STR
+CLR A
+RET
+
+:::__LBL_CHK_OK
+PUSH A
+INC A ; make A != 0
+PUSH 0
+ADDW X, (1, SP)
+ADDW SP, 2
+JRC ::__LBL_INV_STR
+RET
+ENDASM

@@ -2841,12 +2841,9 @@ B1_T_ERROR B1FileCompiler::st_next()
 		}
 	}
 
-	if(!inc1 || B1CUtils::is_num_min_max(_state.second[1]))
-	{
-		// the condition is needed to process integer overflow, e.g. for INT I: FOR I = 0 TO 72767
-		emit_command(L"==", std::vector<std::wstring>({ _state.second[0], _state.second[1] }));
-		emit_command(L"JT", _state.second[6]);
-	}
+	// the condition is needed to process integer overflow, e.g. for INT I: FOR I = 0 TO 32767
+	emit_command(L"==", std::vector<std::wstring>({ _state.second[0], _state.second[1] }));
+	emit_command(L"JT", _state.second[6]);
 
 	emit_command(L"+", std::vector<std::wstring>({ _state.second[0], _state.second[2], _state.second[0] }));
 	emit_command(L"JMP", _state.second[3]);
@@ -3939,19 +3936,30 @@ B1C_T_ERROR B1FileCompiler::remove_duplicate_assigns(bool &changed)
 			continue;
 		}
 
+		std::set<std::wstring> jumps;
+		std::set<std::wstring> labels;
+
 		for(auto j = std::next(i); j != cend(); j++)
 		{
 			const auto &cmd1 = *j;
 
 			if(B1CUtils::is_label(cmd1))
 			{
+				labels.insert(cmd1.cmd);
 				continue;
 			}
 
-			if(cmd1.cmd == L"JMP" || cmd1.cmd == L"JT" || cmd1.cmd == L"JF" || cmd1.cmd == L"CALL" || cmd1.cmd == L"END" || cmd1.cmd == L"RET" || cmd1.cmd == L"ERR")
+			if(cmd1.cmd == L"JMP" || cmd1.cmd == L"JT" || cmd1.cmd == L"JF" || cmd1.cmd == L"ERR")
+			{
+				jumps.insert(cmd1.args[cmd1.cmd == L"ERR" ? 1 : 0][0].value);
+			}
+
+			if(cmd1.cmd == L"CALL" || cmd1.cmd == L"END" || cmd1.cmd == L"RET")
 			{
 				break;
 			}
+
+			bool is_local = false;
 
 			if(dstarg->size() > 1)
 			{
@@ -3978,6 +3986,10 @@ B1C_T_ERROR B1FileCompiler::remove_duplicate_assigns(bool &changed)
 					break;
 				}
 			}
+			else
+			{
+				is_local = is_gen_local((*dstarg)[0].value);
+			}
 
 			if(B1CUtils::arg_is_src(cmd1, *dstarg))
 			{
@@ -3988,16 +4000,18 @@ B1C_T_ERROR B1FileCompiler::remove_duplicate_assigns(bool &changed)
 			// =,10,A
 			// =,DOSOMETHING(B),C  ->  do not delete the first line because DOSOMETHING fn can use it
 			// =,15,A
-			if(is_udef_used(cmd1))
+			if(!is_local && is_udef_used(cmd1))
 			{
 				break;
 			}
 
-			if(B1CUtils::arg_is_dst(cmd1, *dstarg))
+			if(B1CUtils::arg_is_dst(cmd1, *dstarg, is_local))
 			{
-				erase(i--);
-
-				changed = true;
+				if(std::includes(labels.cbegin(), labels.cend(), jumps.cbegin(), jumps.cend()))
+				{
+					erase(i--);
+					changed = true;
+				}
 				break;
 			}
 		}
@@ -4080,7 +4094,8 @@ B1C_T_ERROR B1FileCompiler::remove_self_assigns(bool &changed)
 				continue;
 			}
 
-			if(cmd.args[1][0].type == B1Types::B1T_BYTE && cmd.args[0][0].type != B1Types::B1T_BYTE)
+			if(	(cmd.args[1][0].type == B1Types::B1T_BYTE && cmd.args[0][0].type != B1Types::B1T_BYTE) ||
+				(cmd.args[1][0].type != B1Types::B1T_LONG && cmd.args[0][0].type == B1Types::B1T_LONG))
 			{
 				continue;
 			}
@@ -4484,6 +4499,12 @@ B1C_T_ERROR B1FileCompiler::remove_redundant_comparisons(bool &changed)
 
 			if(proceed)
 			{
+				if(vtype == B1Types::B1T_LONG)
+				{
+					min = INT32_MIN;
+					max = INT32_MAX;
+				}
+				else
 				if(vtype == B1Types::B1T_INT)
 				{
 					min = -32768;
@@ -4891,7 +4912,7 @@ std::wstring B1FileCompiler::set_to_init_value(B1_CMP_CMD &cmd, const std::map<s
 	return L"";
 }
 
-// remove excessive GA, GF and =,<var>,0
+// remove excessive GA, GF and =,0,<var>
 B1C_T_ERROR B1FileCompiler::reuse_imm_values(bool init, bool &changed)
 {
 	std::map<std::wstring, std::pair<bool, std::wstring>> modified_vars;
@@ -5529,12 +5550,23 @@ B1C_T_ERROR B1FileCompiler::put_types()
 			{
 				if(err == B1_RES_ETYPMISM && is_gen_local(cmd.args[2][0].value))
 				{
-					bool comp = false;
 					B1Types com_type = B1Types::B1T_UNKNOWN;
-					err = B1CUtils::get_com_type(cmd.args[0][0].type, cmd.args[1][0].type, com_type, comp);
-					if(err != B1_RES_OK)
+					if(cmd.cmd == L"^")
 					{
-						return static_cast<B1C_T_ERROR>(err);
+						com_type = cmd.args[0][0].type;
+						if(com_type == B1Types::B1T_UNKNOWN || com_type == B1Types::B1T_INVALID)
+						{
+							return static_cast<B1C_T_ERROR>(B1_RES_ETYPMISM);
+						}
+					}
+					else
+					{
+						bool comp = false;
+						err = B1CUtils::get_com_type(cmd.args[0][0].type, cmd.args[1][0].type, com_type, comp);
+						if(err != B1_RES_OK)
+						{
+							return static_cast<B1C_T_ERROR>(err);
+						}
 					}
 
 					if(cmd.args[2][0].type == B1Types::B1T_COMMON)
@@ -5647,8 +5679,10 @@ B1C_T_ERROR B1FileCompiler::inline_fns(bool &changed)
 	changed = false;
 
 	// remove unnecessary ASC, VAL, CHR$ and STR$ function calls
-	for(auto &cmd: *this)
+	for(auto i = begin(); i != end(); i++)
 	{
+		auto &cmd = *i;
+
 		if(B1CUtils::is_label(cmd))
 		{
 			continue;
@@ -5663,6 +5697,22 @@ B1C_T_ERROR B1FileCompiler::inline_fns(bool &changed)
 			if(a.size() == 2 && ((a[0].value == L"VAL" && a[1].type != B1Types::B1T_STRING) || (a[0].value == L"STR$" && a[1].type == B1Types::B1T_STRING)))
 			{
 				a.erase(a.begin());
+				changed = true;
+			}
+			else
+			if(a.size() == 2 && a[1].type != B1Types::B1T_STRING && (a[0].value == L"CBYTE" || a[0].value == L"CINT" || a[0].value == L"CWRD" || a[0].value == L"CLNG") && B1CUtils::is_num_val(a[1].value))
+			{
+				auto type = a[0].type;
+				int32_t n;
+
+				if(Utils::str2int32(a[1].value, n) == B1_RES_OK)
+				{
+					correct_int_value(n, type);
+					a[1].value = std::to_wstring(n);
+				}
+				a.erase(a.begin());
+				a[0].type = type;
+
 				changed = true;
 			}
 			else
@@ -5722,10 +5772,11 @@ B1C_T_ERROR B1FileCompiler::inline_fns(bool &changed)
 			{
 				const auto a1 = arg[1];
 
-				auto local = emit_local(a1.type, i);
+				auto ltype = arg[0].type;
+				auto local = emit_local(ltype, i);
 
 				// change original command
-				i->args[a][0].type = a1.type;
+				i->args[a][0].type = ltype;
 				i->args[a][0].value = local;
 				i->args[a].pop_back();
 
@@ -5733,31 +5784,51 @@ B1C_T_ERROR B1FileCompiler::inline_fns(bool &changed)
 
 				if(a1.type == B1Types::B1T_BYTE || a1.type == B1Types::B1T_WORD)
 				{
-					emit_command(L"=", i, { B1_TYPED_VALUE(L"0", a1.type), B1_TYPED_VALUE(local, a1.type) });
-					emit_command(L"==", i, { a1, B1_TYPED_VALUE(L"0", a1.type) });
+					// =,SGN(A),B -> LA,local0
+					//               =,0,local0
+					//               ==,A,0
+					//               JT,label0
+					//               +,local0,1,local0
+					//               :label0
+					//               =,local0,B
+					//               LF,local0
+					emit_command(L"=", i, { B1_TYPED_VALUE(L"0", B1Types::B1T_BYTE), B1_TYPED_VALUE(local, ltype) });
+					emit_command(L"==", i, { a1, B1_TYPED_VALUE(L"0", B1Types::B1T_BYTE) });
 					auto label = emit_label(true);
 					emit_command(L"JT", i, label);
-					emit_command(L"+", i, { B1_TYPED_VALUE(local, a1.type), B1_TYPED_VALUE(L"1", a1.type), B1_TYPED_VALUE(local, a1.type) });
+					emit_command(L"=", i, { B1_TYPED_VALUE(L"1", B1Types::B1T_BYTE), B1_TYPED_VALUE(local, ltype) });
 					emit_label(label, i);
 				}
 				else
 				{
-					emit_command(L"=", i, { B1_TYPED_VALUE(L"0", a1.type), B1_TYPED_VALUE(local, a1.type) });
-					emit_command(L"==", i, { a1, B1_TYPED_VALUE(L"0", a1.type) });
+					// =,SGN(A),B -> LA,local0
+					//               =,0,local0
+					//               ==,A,0
+					//               JT,label0
+					//               <,A,0
+					//               JT,label1
+					//               +,local0,2,local0
+					//               :label1
+					//               -,local0,1,local0
+					//               :label0
+					//               =,local0,B
+					//               LF,local0
+					emit_command(L"=", i, { B1_TYPED_VALUE(L"0", B1Types::B1T_BYTE), B1_TYPED_VALUE(local, ltype) });
+					emit_command(L"==", i, { a1, B1_TYPED_VALUE(L"0", B1Types::B1T_BYTE) });
 					auto label1 = emit_label(true);
 					auto label2 = emit_label(true);
 					emit_command(L"JT", i, label2);
-					emit_command(L"<", i, { a1, B1_TYPED_VALUE(L"0", a1.type) });
+					emit_command(L"<", i, { a1, B1_TYPED_VALUE(L"0", B1Types::B1T_BYTE) });
 					emit_command(L"JT", i, label1);
-					emit_command(L"+", i, { B1_TYPED_VALUE(local, a1.type), B1_TYPED_VALUE(L"2", a1.type), B1_TYPED_VALUE(local, a1.type) });
+					emit_command(L"=", i, { B1_TYPED_VALUE(L"2", B1Types::B1T_BYTE), B1_TYPED_VALUE(local, ltype) });
 					emit_label(label1, i);
-					emit_command(L"-", i, { B1_TYPED_VALUE(local, a1.type), B1_TYPED_VALUE(L"1", a1.type), B1_TYPED_VALUE(local, a1.type) });
+					emit_command(L"-", i, { B1_TYPED_VALUE(local, ltype), B1_TYPED_VALUE(L"1", B1Types::B1T_BYTE), B1_TYPED_VALUE(local, ltype) });
 					emit_label(label2, i);
 				}
 
-				i--;
-
 				changed = true;
+
+				i--;
 				break;
 			}
 
@@ -5782,7 +5853,6 @@ B1C_T_ERROR B1FileCompiler::inline_fns(bool &changed)
 					//               :label0
 					//               =,local0,B
 					//               LF,local0
-
 					auto local = emit_local(a1.type, i);
 
 					// change original command
@@ -5793,16 +5863,16 @@ B1C_T_ERROR B1FileCompiler::inline_fns(bool &changed)
 					emit_command(L"LF", std::next(i), local);
 
 					emit_command(L"=", i, { a1, B1_TYPED_VALUE(local, a1.type) });
-					emit_command(L"<", i, { B1_TYPED_VALUE(local, a1.type), B1_TYPED_VALUE(L"0", a1.type) });
+					emit_command(L"<", i, { B1_TYPED_VALUE(local, a1.type), B1_TYPED_VALUE(L"0", B1Types::B1T_BYTE) });
 					auto label = emit_label(true);
 					emit_command(L"JF", i, label);
 					emit_command(L"-", i, { B1_TYPED_VALUE(local, a1.type), B1_TYPED_VALUE(local, a1.type) });
 					emit_label(label, i);
 				}
 
-				i--;
-
 				changed = true;
+
+				i--;
 				break;
 			}
 		}
@@ -5943,6 +6013,65 @@ B1C_T_ERROR B1FileCompiler::reuse_locals(bool &changed)
 
 		s0 = std::next(la0);
 	}
+
+	// =,local1,local2
+	// lf,local1
+	// +,local2,1,local2
+	// ...
+	// lf,local2
+	// ->
+	// +,local1,1,local1
+	// ...
+	// lf,local1
+	// lf,local2
+	for(auto i = begin(); i != end(); i++)
+	{
+		if(B1CUtils::is_label(*i))
+		{
+			continue;
+		}
+
+		auto inext = std::next(i);
+
+		if(	i->cmd == L"=" &&
+			i->args[0].size() == 1 &&
+			i->args[1].size() == 1 &&
+			is_gen_local(i->args[0][0].value) &&
+			is_gen_local(i->args[1][0].value) &&
+			i->args[0][0].value != i->args[1][0].value &&
+			inext != end() &&
+			inext->cmd == L"LF" &&
+			inext->args[0][0].value == i->args[0][0].value)
+		{
+			auto last_repl = end();
+
+			for(auto i1 = std::next(inext); i1 != end(); i1++)
+			{
+				if(B1CUtils::is_label(*i1))
+				{
+					continue;
+				}
+
+				if(i1->cmd == L"LF" && i1->args[0][0].value == i->args[1][0].value)
+				{
+					if(last_repl != end())
+					{
+						splice(std::next(last_repl), *this, inext);
+					}
+					inext = std::next(i);
+					erase(i);
+					i = std::prev(inext);
+					break;
+				}
+
+				if(B1CUtils::replace_all(*i1, i->args[1][0].value, i->args[0][0], true))
+				{
+					last_repl = i1;
+				}
+			}
+		}
+	}
+
 
 	// reuse locals
 	s0 = begin(), e0 = end();
@@ -6107,19 +6236,33 @@ bool B1FileCompiler::eval_imm_fn_arg(B1_CMP_ARG &a)
 			auto err = B1CUtils::get_string_data(a[1].value, sval);
 			if(err == B1_RES_OK)
 			{
-				int32_t n;
+				B1Types type = B1Types::B1T_INVALID;
 
-				if(Utils::str2int32(sval, n) == B1_RES_OK)
+				if(B1CUtils::get_num_min_type(sval, type, sval) == B1_RES_OK)
 				{
-					correct_int_value(n, fn->rettype);
 					a.pop_back();
-					a[0].value = std::to_wstring(n);
+					a[0].value = sval;
+					a[0].type = type;
 					changed = true;
 				}
 			}
 		}
 		else
-		if(fn->name == L"STR$" && (a[1].type == B1Types::B1T_INT || a[1].type == B1Types::B1T_WORD || a[1].type == B1Types::B1T_BYTE) && B1CUtils::is_num_val(a[1].value))
+		if((fn->name == L"CBYTE" || fn->name == L"CINT" || fn->name == L"CWRD" || fn->name == L"CLNG") && a[1].type == B1Types::B1T_STRING && B1CUtils::is_str_val(a[1].value))
+		{
+			std::wstring sval;
+
+			auto err = B1CUtils::get_string_data(a[1].value, sval);
+			if(err == B1_RES_OK)
+			{
+				a.pop_back();
+				a[0].value = sval;
+				a[0].type = fn->rettype;
+				changed = true;
+			}
+		}
+		else
+		if(fn->name == L"STR$" && (a[1].type == B1Types::B1T_INT || a[1].type == B1Types::B1T_WORD || a[1].type == B1Types::B1T_BYTE || a[1].type == B1Types::B1T_LONG) && B1CUtils::is_num_val(a[1].value))
 		{
 			int32_t n;
 
@@ -6180,17 +6323,22 @@ B1C_T_ERROR B1FileCompiler::eval_imm_exps(bool &changed)
 			if(is_n1)
 			{
 				is_n1 = Utils::str2int32(cmd.args[0][0].value, n1) == B1_RES_OK;
+				if(is_n1)
+				{
+					correct_int_value(n1, cmd.args[0][0].type);
+				}
 			}
 			if(is_n2)
 			{
 				is_n2 = Utils::str2int32(cmd.args[1][0].value, n2) == B1_RES_OK;
+				if(is_n2)
+				{
+					correct_int_value(n2, cmd.args[1][0].type);
+				}
 			}
 
 			if(is_n1 && is_n2)
 			{
-				correct_int_value(n1, cmd.args[0][0].type);
-				correct_int_value(n2, cmd.args[1][0].type);
-
 				// process numeric values
 				switch(cmd.cmd.front())
 				{
@@ -6231,21 +6379,30 @@ B1C_T_ERROR B1FileCompiler::eval_imm_exps(bool &changed)
 						break;
 				}
 
-				
-				const auto type = cmd.args[2][0].type;
-				B1_TYPED_VALUE tv(L"", type);
+				B1Types com_type = B1Types::B1T_UNKNOWN;
 
-				if(type == B1Types::B1T_STRING)
+				if(cmd.cmd.front() == L'^')
+				{
+					com_type = cmd.args[0][0].type;
+				}
+				else
 				{
 					bool comp_types = false;
-					B1Types com_type = B1Types::B1T_UNKNOWN;
 					B1CUtils::get_com_type(cmd.args[0][0].type, cmd.args[1][0].type, com_type, comp_types);
-					correct_int_value(n1, com_type);
+				}
+
+				correct_int_value(n1, com_type);
+
+				const auto res_type = cmd.args[2][0].type;
+				B1_TYPED_VALUE tv(L"", res_type);
+
+				if(res_type == B1Types::B1T_STRING)
+				{
 					tv.value = L"\"" + std::to_wstring(n1) + L"\"";
 				}
 				else
 				{
-					correct_int_value(n1, type);
+					correct_int_value(n1, res_type);
 					tv.value = std::to_wstring(n1);
 				}
 
@@ -6270,14 +6427,12 @@ B1C_T_ERROR B1FileCompiler::eval_imm_exps(bool &changed)
 				s1 = cmd.args[0][0].value;
 				if(is_n1)
 				{
-					correct_int_value(n1, cmd.args[0][0].type);
 					s1 = L"\"" + std::to_wstring(n1) + L"\"";
 				}
 
 				s2 = cmd.args[1][0].value;
 				if(is_n2)
 				{
-					correct_int_value(n2, cmd.args[1][0].type);
 					s2 = L"\"" + std::to_wstring(n2) + L"\"";
 				}
 
@@ -6299,7 +6454,6 @@ B1C_T_ERROR B1FileCompiler::eval_imm_exps(bool &changed)
 			{
 				if(is_n1)
 				{
-					correct_int_value(n1, cmd.args[0][0].type);
 					cmd.args[0][0].value = L"\"" + std::to_wstring(n1) + L"\"";
 					cmd.args[0][0].type = B1Types::B1T_STRING;
 
@@ -6308,7 +6462,6 @@ B1C_T_ERROR B1FileCompiler::eval_imm_exps(bool &changed)
 				else
 				if(is_n2)
 				{
-					correct_int_value(n2, cmd.args[1][0].type);
 					cmd.args[1][0].value = L"\"" + std::to_wstring(n2) + L"\"";
 					cmd.args[1][0].type = B1Types::B1T_STRING;
 
@@ -6700,7 +6853,7 @@ B1C_T_ERROR B1FileCompiler::check_MA_stmts()
 		{
 			int32_t n;
 
-			if(is_ma && ((*a)[0].type != B1Types::B1T_INT && (*a)[0].type != B1Types::B1T_WORD && (*a)[0].type != B1Types::B1T_BYTE))
+			if(is_ma && ((*a)[0].type != B1Types::B1T_INT && (*a)[0].type != B1Types::B1T_WORD && (*a)[0].type != B1Types::B1T_BYTE && (*a)[0].type != B1Types::B1T_LONG))
 			{
 				return static_cast<B1C_T_ERROR>(B1_RES_ETYPMISM);
 			}
@@ -7906,7 +8059,7 @@ B1C_T_ERROR B1FileCompiler::put_fn_def_values(B1_CMP_ARG &arg)
 {
 	if(fn_exists(arg[0].value))
 	{
-		auto *fn = get_fn(arg);
+		auto fn = get_fn(arg);
 
 		if(fn == nullptr)
 		{

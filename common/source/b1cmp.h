@@ -36,8 +36,6 @@ public:
 	// gets string data encoded according to BASIC1 rules (embraced by double-quotes, internal double-quotes are doubled): "string ""data""" -> string "data"
 	static B1_T_ERROR get_string_data(const std::wstring &str, std::wstring &sdata, bool quoted_string = true);
 	
-	static B1Types get_type(uint8_t b1_type);
-
 	static bool is_str_val(const std::wstring &val);
 	static bool is_num_val(const std::wstring &val);
 	static bool is_imm_val(const std::wstring &val);
@@ -70,7 +68,8 @@ public:
 	static bool replace_all(B1_CMP_CMD &cmd, const std::wstring &val, const B1_TYPED_VALUE &tv, bool preserve_type = false);
 
 	static bool arg_is_src(const B1_CMP_CMD &cmd, const B1_CMP_ARG &arg);
-	static bool arg_is_dst(const B1_CMP_CMD &cmd, const B1_CMP_ARG &arg);
+	// if is_local = true, the function compares variable by name only (because locals can be reused with different types)
+	static bool arg_is_dst(const B1_CMP_CMD &cmd, const B1_CMP_ARG &arg, bool is_local);
 
 	static std::wstring get_dst_var_name(const B1_CMP_CMD &cmd);
 
@@ -86,9 +85,6 @@ public:
 	static bool is_bin_op(const B1_CMP_CMD &cmd);
 
 	static bool get_asm_type(const B1Types type, std::wstring *asmtype = nullptr, int32_t *size = nullptr, int32_t *rep = nullptr, int32_t dimnum = 0);
-
-	// checks if the numeric value can be the minimal or maximal integer value (-32768, 0, 255, 32767, 65535)
-	static bool is_num_min_max(const std::wstring &val);
 };
 
 

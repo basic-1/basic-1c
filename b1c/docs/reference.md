@@ -44,7 +44,7 @@ Constant is a part of BASIC program representing a number or a text string. Stri
   
 ## Identifiers  
   
-Identifier is a text string used to name function or variable. Identifier must start from a Latin letter, can consist of Lating letters, digits and underscore character, can end with a type specifier and must not be longer than 31 characters. Type specifier character is mandatory for identifiers representing string variables or functions returing string values. String type specifier is `$` character. Numeric type specifiers are optional. Identifiers are case-insensitive so identifiers `var1`, `Var1` and `VAR1` all refer to the same function or variable.  
+Identifier is a text string used to name function or variable. Identifier must start from a Latin letter, can consist of Latin letters, digits and underscore character, can end with a type specifier and must not be longer than 31 characters. Type specifier character is mandatory for identifiers representing string variables or functions returing string values. String type specifier is `$` character. Numeric type specifiers are optional. Identifiers are case-insensitive so identifiers `var1`, `Var1` and `VAR1` all refer to the same function or variable.  
   
 **Examples of identifiers:**  
 `a` - can be a numeric variable name or a function returning numeric value  
@@ -65,11 +65,12 @@ Variable is a named program object used for storing values. In BASIC program ide
   
 Data types supported by BASIC1 compiler:  
 - `STRING` - used for storing textual data  
-- `INT` - 16-bit integer  
+- `INT` - 16-bit signed integer  
 - `WORD` - 16-bit unsigned integer  
 - `BYTE` - 8-bit unsigned integer  
+- `LONG` - 32-bit signed integer  
   
-Every constant, variable, function or function argument is processed according to its data type. Default numeric data type is `INT`. String constants has to be enclosed in double-quotes. String variables names, names of functions returning string values or names of function string arguments must end with `$` character. Operands of every operator are converted to their common data type. Common data type is selected according to data types priority: `STRING` (the highest priority), `WORD`, `INT`, `BYTE` (the lowest priority). When assigning a value to a variable the value is converted to the variable's data type if possibly.  
+Every constant, variable, function or function argument is processed according to its data type. Default numeric data type is `INT`. String constants has to be enclosed in double-quotes. String variables names, names of functions returning string values or names of function string arguments must end with `$` character. Operands of every operator are converted to their common data type. Common data type is selected according to data types priority: `STRING` (the highest priority), `LONG`, `WORD`, `INT`, `BYTE` (the lowest priority). When assigning a value to a variable the value is converted to the variable's data type if possibly.  
   
 **Examples:**  
 `s$ = "text"` - assign string constant to `s$` string variable  
@@ -186,6 +187,10 @@ There are two types of functions in BASIC1: built-in functions and user-defined 
 - `LCASE$(<string>)` - converts all string letters to lower case  
 - `RCASE$(<string>)` - converts all string letters to upper case  
 - `SET$(<string>, <numeric>)` - returns a string consisting of several repeatitions of the same character, the first argument is a character to repeat (the first character of the string is used) and the second argument is number of character repeatitions.  
+- `CBYTE(<string> | <numeric>)` - converts numeric value or textual representation of a numeric value to `BYTE` integer value  
+- `CINT(<string> | <numeric>)` - converts numeric value or textual representation of a numeric value to `INT` integer value  
+- `CWRD(<string> | <numeric>)` - converts numeric value or textual representation of a numeric value to `WORD` integer value  
+- `CLNG(<string> | <numeric>)` - converts numeric value or textual representation of a numeric value to `LONG` integer value  
   
 **Examples:**  
 `POS = INSTR(, "BASIC1", "BASIC")` 'look for "BASIC" in "BASIC1" string  
@@ -194,6 +199,9 @@ There are two types of functions in BASIC1: built-in functions and user-defined 
 `MIN = IIF(A > B, B, A)` 'get the minimum of two values  
 `C% = IIF(B% = 0%, 0%, A% / B%)` 'avoid division by zero error using `IIF` function  
 `S$ = SET$("ABC", 10)` '`S$` variable is assigned a string "AAAAAAAAAA"  
+`A = CINT("-1")` 'variable `A` is assigned -1 value of type `INT`  
+`A = CBYTE("-1")` 'error: -1 value cannot be represented with `BYTE` data type  
+`A = CBYTE(300)` '`A` is assigned 44 value (300 converted to `BYTE` type)  
   
 ## Statements  
   
@@ -206,7 +214,7 @@ There are two types of functions in BASIC1: built-in functions and user-defined 
 `READ <var_name1>[, <var_name2>, ... <var_nameM>]`  
 `RESTORE [<line_number>]`  
   
-`DATA` statement specifies a set of comma-delimited constant values. Textual constants have to be enclosed in double-quotes: such values have to meet the rules of BASIC regular string constants definition. Optional data types list can be specified after `DATA` keyword in parentheses: complier uses them to distinguish between values of different numeric types (`INT`, `WORD`, `BYTE`). A program can have multiple `DATA` statements. The values are read in the same order as they are defined in program. BASIC1 program has internal next value pointer: at the program start it points to the first value defined with `DATA` statements. Every reading operation changes the pointer making it referring the next value. `READ` statement reads values specified with `DATA` statements. `READ` keyword must be followed by comma-separated list of variable names to read values into. `RESTORE` statement sets the next value pointer to the first value of a `DATA` statement identified with the line number coming after `RESTORE` statement keyword. `RESTORE` statement without line number sets the pointer to the first value in the program (like at the program execution start).  
+`DATA` statement specifies a set of comma-delimited constant values. Textual constants have to be enclosed in double-quotes: such values have to meet the rules of BASIC regular string constants definition. Optional data types list can be specified after `DATA` keyword in parentheses: complier uses them to distinguish between values of different numeric types (`INT`, `WORD`, `BYTE`, `LONG`). A program can have multiple `DATA` statements. The values are read in the same order as they are defined in program. BASIC1 program has internal next value pointer: at the program start it points to the first value defined with `DATA` statements. Every reading operation changes the pointer making it referring the next value. `READ` statement reads values specified with `DATA` statements. `READ` keyword must be followed by comma-separated list of variable names to read values into. `RESTORE` statement sets the next value pointer to the first value of a `DATA` statement identified with the line number coming after `RESTORE` statement keyword. `RESTORE` statement without line number sets the pointer to the first value in the program (like at the program execution start).  
   
 **Examples:**  
 `10 DATA "a", "b", "c"` 'three textual constants consisting of single 'a', 'b' and 'c' letters  

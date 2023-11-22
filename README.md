@@ -28,6 +28,7 @@ Supported STM8 microcontrollers list:
 - INT (16-bit integer)  
 - WORD (16-bit unsigned integer)  
 - BYTE (8-bit unsigned integer)  
+- LONG (32-bit signed integer)  
   
 # Statements  
   
@@ -63,7 +64,7 @@ Supported STM8 microcontrollers list:
 - one-, two- and three-dimensional arrays  
 - relational operators can be used with strings  
 - automatic numeric to string conversion  
-- functions: ABS, INT, SGN, LEN, ASC, CHR$, STR$, VAL, IIF, IIF$  
+- functions: ABS, INT, SGN, LEN, ASC, CHR$, STR$, VAL, IIF, IIF$, CBYTE, CINT, CWRD, CLNG  
 - more functions: MID$, INSTR, LTRIM$, RTRIM$, LEFT$, RIGHT$, LSET$, RSET$, SET$, UCASE$, LCASE$  
 
 # Building and usage  

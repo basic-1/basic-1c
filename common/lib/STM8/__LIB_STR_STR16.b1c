@@ -1,0 +1,96 @@
+IMP,__LIB_MEM_ALC
+
+; converts 16-bit integer value to string
+; X - integer value, stack1 (byte) - flags (bit 0 - signed value, bit 1 - add spaces), returns string address in X
+:__LIB_STR_STR16
+ASM
+LD A, (__RET_ADDR_SIZE + 1, SP) ; load flags
+BCP A, 1
+JREQ ::__LBL_CALC_MEM_SIZE
+TNZW X
+JRPL ::__LBL_POS_VALUE
+NEGW X
+JRA ::__LBL_CALC_MEM_SIZE
+
+:::__LBL_POS_VALUE
+DEC A
+
+:::__LBL_CALC_MEM_SIZE
+; here A - modified flags (bit 0 - negative value, bit 1 - add spaces)
+; calc. memory amount to allocate
+PUSH A ; flags (4)
+PUSHW X ; value to convert (2)
+CP A, 0x3
+JRNE ::__LBL_SIZE_OK
+DEC A
+
+:::__LBL_SIZE_OK
+PUSH A ; string length (1)
+
+:::__LBL_CALC_STR_LEN
+INC (1, SP)
+LD A, 10
+DIV X, A
+JRNE ::__LBL_CALC_STR_LEN
+
+LD A, (1, SP) ; string length
+ADD A, 2
+; X = 0 here
+LD XL, A
+CALLR __LIB_MEM_ALC
+TNZW X
+JREQ ::__LBL_RET
+LD A, 1
+LD (X), A ; string usage counter
+INCW X
+LD A, (1, SP)
+LD (X), A ; string length
+
+; make X point to the last character of the string
+PUSH 0
+ADDW X, (1, SP)
+POP A
+
+; add trailing space if necessary
+LD A, (4, SP)
+BCP A, 0x2
+JREQ ::__LBL_NO_SPACES
+LD A, 32
+LD (X), A
+DECW X
+
+:::__LBL_NO_SPACES
+LDW Y, (2, SP)
+
+:::__LBL_DIV_LOOP
+LD A, 10
+DIV Y, A
+ADD A, 48 ; '0'
+LD (X), A
+DECW X
+TNZW Y
+JRNE ::__LBL_DIV_LOOP
+
+; add leading space or minus sign if necessary
+LD A, (4, SP)
+SRL A
+JRNC ::__LBL_NO_MINUS
+LD A, 45 ; minus sign
+JRA ::__LBL_ADD_LEAD_CHAR
+
+:::__LBL_NO_MINUS
+SRL A
+JRNC ::__LBL_RST_STR_PTR
+LD A, 32 ; space character
+
+:::__LBL_ADD_LEAD_CHAR
+LD (X), A
+DECW X
+
+:::__LBL_RST_STR_PTR
+DECW X
+
+:::__LBL_RET
+ADDW SP, 4
+RET
+ENDASM

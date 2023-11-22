@@ -1,0 +1,26 @@
+; multiplies 32-bit integer on 10
+; Y:X - multiplier, returns product in Y:X, A != 0 on overflow
+:__LIB_AUX_MUL10
+ASM
+CLR A
+SLLW X
+RLCW Y
+RLC A
+PUSHW X
+PUSHW Y ; multiplier * 2 (1)
+SLLW X
+RLCW Y
+RLC A
+SLLW X
+RLCW Y
+RLC A
+ADDW X, (3, SP)
+RRWA Y
+ADC A, (2, SP)
+RRWA Y
+ADC A, (1, SP)
+RRWA Y
+RLC A
+ADDW SP, 4
+RET
+ENDASM

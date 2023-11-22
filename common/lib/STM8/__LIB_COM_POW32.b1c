@@ -1,0 +1,80 @@
+IMP,__LIB_COM_MUL32
+
+; calculates power of a 32-bit integer number
+; Y:X - base, stack1 - 16-bit exponent, returns 32-bit power in Y:X
+:__LIB_COM_POW32
+ASM
+TNZW X
+JRNE ::__LBL_NON_ZERO_BASE
+TNZW Y
+JRNE ::__LBL_NON_ZERO_BASE
+RET ; 0 ^ y
+
+:::__LBL_NON_ZERO_BASE
+PUSHW X
+LDW X, (__RET_ADDR_SIZE + 3, SP) ; exp
+JRPL ::__LBL_POS_EXP
+INCW X
+POPW X
+JRNE ::__LBL_RET_ZERO ; x ^ y, where y < -1
+
+; 1 ^ -1
+CPW X, 1
+JRNE ::__LBL_TEST_MINUS_1
+TNZW Y
+JRNE ::__LBL_TEST_MINUS_1
+RET
+
+:::__LBL_TEST_MINUS_1
+; -1 ^ -1
+CPW X, -1
+JRNE ::__LBL_RET_ZERO
+CPW Y, -1
+JRNE ::__LBL_RET_ZERO
+RET
+
+; x ^ -1, where x is not -1, 0 or 1
+:::__LBL_RET_ZERO
+CLRW X
+CLRW Y
+RET
+
+:::__LBL_POS_EXP
+POPW X
+PUSHW X ; exp (9)
+CLR A
+PUSH 1
+PUSH A
+PUSH A
+PUSH A ; power (5)
+PUSHW X
+PUSHW Y ; base (1)
+LDW X, (__RET_ADDR_SIZE + 11, SP) ; exp
+LDW (9, SP), X
+
+:::__LBL_EXP_LOOP
+LDW X, (9, SP)
+JREQ ::__LBL_EXIT
+SRLW X
+LDW (9, SP), X
+JRNC ::__LBL_MUL_BASE
+LDW Y, (5, SP)
+LDW X, (7, SP)
+CALLR __LIB_COM_MUL32
+LDW (5, SP), Y
+LDW (7, SP), X
+
+:::__LBL_MUL_BASE
+LDW Y, (1, SP)
+LDW X, (3, SP)
+CALLR __LIB_COM_MUL32
+LDW (1, SP), Y
+LDW (3, SP), X
+JRA ::__LBL_EXP_LOOP
+
+:::__LBL_EXIT
+LDW Y, (5, SP)
+LDW X, (7, SP)
+ADDW SP, 10
+RET
+ENDASM

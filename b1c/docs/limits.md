@@ -13,9 +13,10 @@ Line number range: \[1 ... 65530\]
 Default subscript lower boundary value: 0  
 Default subscript upper boundary value: 10  
 
-Integer `INT` data type range: \[−32768 ... 32767\]  
+Integer `INT` data type range: \[-32768 ... 32767\]  
 Integer `WORD` data type range: \[0 ... 65535\]  
 Integer `BYTE` data type range: \[0 ... 255\]  
+Integer `LONG` data type range: \[-2147483648 ... 2147483647\]  
 Character type range: \[0 ... 255\]  
-Subscript range: \[−32768 ... 32767\]  
+Subscript range: \[-32768 ... 32767\]  
   

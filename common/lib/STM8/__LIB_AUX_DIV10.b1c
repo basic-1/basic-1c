@@ -1,0 +1,28 @@
+; divides unsigned 32-bit integer by 10
+; Y:X - dividend, returns 32-bit quotient in Y:X and remainder in A
+:__LIB_AUX_DIV10
+ASM
+PUSH 32 ; shift counter
+CLR A ; remainder
+
+:::__LBL_DIV_LOOP
+SLA A ; rem <<= 1
+SLAW X ; dividend <<= 1
+RLCW Y
+JRNC ::__LBL_NO_REM_LSB
+INC A ; rem |= 1
+
+:::__LBL_NO_REM_LSB
+CP A, 10
+JRULT ::__LBL_SHIFT_NEXT
+; rem -= divisor
+SUB A, 10
+INCW X
+
+:::__LBL_SHIFT_NEXT
+DEC (1, SP)
+JRNE ::__LBL_DIV_LOOP
+
+ADDW SP, 1
+RET
+ENDASM

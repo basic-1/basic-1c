@@ -1,3 +1,11 @@
+b1c (1.0.0-18) unstable; urgency=low
+
+  * LONG (32-bit signed integer) data type support added
+  * new data type conversion functions: CBYTE, CINT, CWRD, CLNG
+  * multiple optimizations and bugfixes
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Wed, 22 Nov 2023 19:04:20 +0300
+
 b1c (1.0.0-17) unstable; urgency=low
 
   * bugfix: use proper implementation of / and MOD operators for WORD data type

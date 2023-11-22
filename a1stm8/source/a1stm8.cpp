@@ -447,7 +447,7 @@ public:
 
 	static A1STM8_T_ERROR QStringToString(const std::wstring &qstr, std::wstring &str)
 	{
-		str.empty();
+		str.clear();
 
 		for(auto ci = qstr.begin() + 1; ci != qstr.end() - 1; ci++)
 		{
@@ -1128,36 +1128,50 @@ public:
 
 
 protected:
-	USGN _usgn;
-	bool _resolved;
 	int32_t _val;
+	bool _resolved;
+	USGN _usgn;
 	std::wstring _symbol;
+	std::wstring _postfix;
+
 
 public:
 	EVal() = delete;
 
-	EVal(int32_t val)
-	: _usgn(USGN::US_NONE)
-	, _resolved(true)
-	, _val(val)
-	, _symbol(L"<no symbol>")
+	EVal(int32_t val, USGN usgn = USGN::US_NONE)
+	: _resolved(true)
+	, _usgn(usgn)
 	{
+		if(_usgn == USGN::US_MINUS)
+		{
+			_val = -val;
+		}
+		else
+		if(_usgn == USGN::US_NOT)
+		{
+			_val = ~val;
+		}
+		else
+		{
+			_val = val;
+		}
 	}
 
-	EVal(const std::wstring &name, USGN usgn)
-	: _usgn(usgn)
+	EVal(const std::wstring &symbol, USGN usgn)
+	: _val(-1)
 	, _resolved(false)
-	, _val(-1)
-	, _symbol(name)
+	, _usgn(usgn)
 	{
-	}
-
-	EVal(int32_t val, const std::wstring &name, USGN usgn)
-	: _usgn(usgn)
-	, _resolved(true)
-	, _val(val)
-	, _symbol(name)
-	{
+		auto pos = symbol.rfind(L'.');
+		if(pos != std::wstring::npos)
+		{
+			_postfix = symbol.substr(pos + 1);
+			_symbol = symbol.substr(0, pos);
+		}
+		else
+		{
+			_symbol = symbol;
+		}
 	}
 
 	bool IsResolved() const
@@ -1165,81 +1179,85 @@ public:
 		return _resolved;
 	}
 
-	static int32_t ConvertValue(int32_t val, USGN usgn, B1Types type)
+	A1STM8_T_ERROR Resolve(const std::map<std::wstring, MemRef> &symbols = std::map<std::wstring, MemRef>())
 	{
-		val = (usgn == EVal::USGN::US_MINUS) ? -val : (usgn == EVal::USGN::US_NOT) ? ~val : val;
-
-		switch (type)
+		if(_resolved)
 		{
-			case B1Types::B1T_BYTE:
-				val &= 0xFF;
-				break;
-			case B1Types::B1T_INT:
-			case B1Types::B1T_WORD:
-				val &= 0xFFFF;
-				break;
+			return A1STM8_T_ERROR::A1STM8_RES_OK;
 		}
 
-		return val;
-	}
+		int32_t n;
 
-	A1STM8_T_ERROR Resolve(const std::map<std::wstring, MemRef> &symbols)
-	{
-		wchar_t c = L'\0', c1 = L'\0';
-
-		auto s = GetSymbol();
-		if(s.size() > 2 && s[s.size() - 2] == L'.')
+		// process -2147483648 separately, because Utils::str2int32() function returns error on attempt
+		// to parse positive "2147483648" string (numeric overflow)
+		if(_usgn == EVal::USGN::US_MINUS && (_symbol == L"2147483648" || Utils::str_toupper(_symbol) == L"0X80000000") && _postfix.empty())
 		{
-			c = s[s.size() - 1];
-			s.erase(s.size() - 2);
+			_val = INT32_MIN;
+			_resolved = true;
+			return A1STM8_T_ERROR::A1STM8_RES_OK;
+		}
+
+		if(std::iswdigit(_symbol[0]))
+		{
+			// numeric value
+			auto err = Utils::str2int32(_symbol, n);
+			if(err != B1_RES_OK)
+			{
+				return static_cast<A1STM8_T_ERROR>(err);
+			}
 		}
 		else
-		if(s.size() > 3 && s[s.size() - 3] == L'.')
 		{
-			c = s[s.size() - 2];
-			c1 = s[s.size() - 1];
-			s.erase(s.size() - 3);
-		}
-
-		const auto &ref = symbols.find(s);
-		if(ref == symbols.end())
-		{
-			return A1STM8_T_ERROR::A1STM8_RES_EUNRESSYMB;
-		}
-
-		B1Types type = B1Types::B1T_LONG;
-		int32_t val = ref->second.GetAddress();
-
-		if(c != L'\0')
-		{
-			type = B1Types::B1T_BYTE;
-
-			if(c == L'l' || c == L'L')
+			const auto &ref = symbols.find(_symbol);
+			if(ref == symbols.end())
 			{
-				val = (uint16_t)val;
+				return A1STM8_T_ERROR::A1STM8_RES_EUNRESSYMB;
+			}
+
+			n = ref->second.GetAddress();
+		}
+
+		if(_usgn == USGN::US_MINUS)
+		{
+			n = -n;
+		}
+		else
+		if(_usgn == USGN::US_NOT)
+		{
+			n = ~n;
+		}
+
+		if(!_postfix.empty())
+		{
+			if(_postfix.size() > 2)
+			{
+				return A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
+			}
+
+			if(_postfix[0] == L'l' || _postfix[0] == L'L')
+			{
+				n = (uint16_t)n;
 			}
 			else
-			if(c == L'h' || c == L'H')
+			if(_postfix[0] == L'h' || _postfix[0] == L'H')
 			{
-				val = (uint16_t)(val >> 16);
+				n = (uint16_t)(n >> 16);
 			}
 			else
 			{
 				return A1STM8_T_ERROR::A1STM8_RES_ESYNTAX;
 			}
 
-			if(c1 != L'\0')
+			if(_postfix.size() > 1)
 			{
-				type = B1Types::B1T_WORD;
-
-				if(c1 == L'l' || c1 == L'L')
+				if(_postfix[1] == L'l' || _postfix[1] == L'L')
 				{
-					val = (uint8_t)val;
+					n = (uint8_t)n;
 				}
 				else
-				if(c1 == L'h' || c1 == L'H')
+				if(_postfix[1] == L'h' || _postfix[1] == L'H')
 				{
-					val = (uint8_t)(val >> 8);
+					n = (uint8_t)(n >> 8);
 				}
 				else
 				{
@@ -1247,8 +1265,9 @@ public:
 				}
 			}
 		}
-
-		_val = ConvertValue(val, _usgn, type);
+		
+		_val = n;
+		_resolved = true;
 
 		return A1STM8_T_ERROR::A1STM8_RES_OK;
 	}
@@ -1258,19 +1277,9 @@ public:
 		return _val;
 	}
 
-	std::wstring GetSymbol() const
+	const std::wstring &GetSymbol() const
 	{
 		return _symbol;
-	}
-
-	bool operator==(const std::wstring &str) const
-	{
-		return operator std::wstring() == str;
-	}
-
-	operator std::wstring() const
-	{
-		return (_usgn == USGN::US_MINUS) ? (L"-" + _symbol) : (_usgn == USGN::US_NOT) ? (L"!" + _symbol) : _symbol;
 	}
 };
 
@@ -1323,21 +1332,15 @@ public:
 					if(start->GetType() == TokType::TT_NUMBER)
 					{
 						auto tok = start->GetToken();
-						
-						B1Types type = B1Types::B1T_UNKNOWN;
-						auto err = Utils::str2int32(tok, n, &type);
-						if(err != B1_RES_OK)
+
+						EVal val(tok, usgn);
+						auto err = val.Resolve();
+						if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
 						{
-							return static_cast<A1STM8_T_ERROR>(err);
+							return err;
 						}
 
-						if(usgn == EVal::USGN::US_MINUS && n == INT32_MIN)
-						{
-							return A1STM8_T_ERROR::A1STM8_RES_ENUMOVF;
-						}
-
-						n = EVal::ConvertValue(n, usgn, type);
-						exp.AddVal(EVal(n, tok, usgn));
+						exp.AddVal(val);
 					}
 					else
 					{
@@ -1347,8 +1350,7 @@ public:
 
 						if(_global_settings.GetValue(tok, value))
 						{
-							B1Types type = B1Types::B1T_UNKNOWN;
-							auto err = Utils::str2int32(value, n, &type);
+							auto err = Utils::str2int32(value, n);
 							if(err != B1_RES_OK)
 							{
 								exp.AddVal(EVal(value, usgn));
@@ -1360,24 +1362,21 @@ public:
 									return A1STM8_T_ERROR::A1STM8_RES_ENUMOVF;
 								}
 
-								n = EVal::ConvertValue(n, usgn, type);
-								exp.AddVal(EVal(n, value, usgn));
+								exp.AddVal(EVal(n, usgn));
 							}
 						}
 						else
 						if(_RTE_errors.find(tok) != _RTE_errors.end())
 						{
 							n = static_cast<std::underlying_type_t<B1C_T_RTERROR>>(_RTE_errors[tok]);
-							n = EVal::ConvertValue(n, usgn, RTE_ERROR_TYPE);
-							exp.AddVal(EVal(n, value, usgn));
+							exp.AddVal(EVal(n, usgn));
 						}
 						else
 						if(_B1C_consts.find(tok) != _B1C_consts.end())
 						{
 							const auto &c = _B1C_consts[tok];
 							n = c.first;
-							n = EVal::ConvertValue(n, usgn, c.second);
-							exp.AddVal(EVal(n, value, usgn));
+							exp.AddVal(EVal(n, usgn));
 						}
 						else
 						{
@@ -1631,14 +1630,30 @@ public:
 		return A1STM8_T_ERROR::A1STM8_RES_OK;
 	}
 
-	bool operator==(const std::wstring &str) const
+	bool IsRegister(std::wstring *reg_name = nullptr) const
 	{
-		return operator std::wstring() == str;
-	}
+		static const std::vector<const wchar_t*> _regs = { L"A", L"X", L"XL", L"XH", L"Y", L"YL", L"YH", L"SP", L"CC" };
 
-	operator std::wstring() const
-	{
-		return (_ops.empty() && _vals.size() == 1) ? (std::wstring)_vals[0] : L"";
+		if(_ops.size() == 0 && _vals.size() == 1)
+		{
+			for(auto r:_regs)
+			{
+				if(r == _vals[0].GetSymbol())
+				{
+					if(reg_name != nullptr)
+					{
+						*reg_name = r;
+					}
+					return true;
+				}
+			}
+		}
+
+		if(reg_name != nullptr)
+		{
+			reg_name->clear();
+		}
+		return false;
 	}
 };
 
@@ -1683,6 +1698,11 @@ public:
 		if(tok == L"DW")
 		{
 			size1 = 2;
+		}
+		else
+		if(tok == L"DD")
+		{
+			size1 = 4;
 		}
 		else
 		{
@@ -1821,9 +1841,15 @@ public:
 
 				for(const auto c: str)
 				{
-					if(_size1 == 2)
+					if(_size1 == 4)
 					{
-						_data.push_back(((uint16_t)c) >> 8);
+						_data.push_back((uint8_t)(((uint32_t)c) >> 24));
+						_data.push_back((uint8_t)(((uint32_t)c) >> 16));
+					}
+
+					if(_size1 >= 2)
+					{
+						_data.push_back((uint8_t)(((uint16_t)c) >> 8));
 					}
 
 					_data.push_back((uint8_t)c);
@@ -1854,7 +1880,13 @@ public:
 					_exps.push_back({ (int32_t)_data.size(), exp });
 				}
 
-				if(_size1 == 2)
+				if(_size1 == 4)
+				{
+					_data.push_back((uint8_t)(num >> 24));
+					_data.push_back((uint8_t)(num >> 16));
+				}
+
+				if(_size1 >= 2)
 				{
 					_data.push_back(((uint16_t)num) >> 8);
 				}
@@ -1910,7 +1942,13 @@ public:
 
 			auto i = exp.first;
 
-			if(_size1 == 2)
+			if(_size1 == 4)
+			{
+				_data[i++] = ((uint8_t)(val >> 24));
+				_data[i++] = ((uint8_t)(val >> 16));
+			}
+
+			if(_size1 >= 2)
 			{
 				_data[i++] = (((uint16_t)val) >> 8);
 			}
@@ -3126,10 +3164,24 @@ protected:
 					return err;
 				}
 
-				if(bit_arg || exp == L"A" || exp == L"X" || exp == L"XL" || exp == L"XH" || exp == L"Y" || exp == L"YL" || exp == L"YH" || exp == L"SP" || exp == L"CC")
+				// check if the expression is a register
+				std::wstring reg_name;
+
+				if(exp.IsRegister(&reg_name))
 				{
-					// register or bit argument
-					argsign += exp;
+					argsign += reg_name;
+				}
+				else
+				if(bit_arg)
+				{
+					// bit argument
+					int32_t n = -1;
+					auto err = exp.Eval(n);
+					if(err != A1STM8_T_ERROR::A1STM8_RES_OK)
+					{
+						return err;
+					}
+					argsign += std::to_wstring(n);
 				}
 				else
 				{
@@ -3181,7 +3233,7 @@ public:
 
 		const auto op_name = start->GetToken();
 
-		if(op_name == L"DB" || op_name == L"DW")
+		if(op_name == L"DB" || op_name == L"DW" || op_name == L"DD")
 		{
 			return ConstStmt::Read(start, end, memrefs, file_name);
 		}
