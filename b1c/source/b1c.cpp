@@ -22,6 +22,7 @@
 #include "../../common/source/gitrev.h"
 #include "../../common/source/Utils.h"
 #include "../../common/source/moresym.h"
+#include "../../common/source/stm8.h"
 
 
 #include "b1c.h"
@@ -41,7 +42,7 @@ static const B1_T_CHAR _NOCHECK[] = { 7, 'N', 'O', 'C', 'H', 'E', 'C', 'K' };
 
 
 // default values: 2 kB of RAM, 16 kB of FLASH, 256 bytes of stack
-Settings _global_settings = { 0x0, 0x0800, 0x8000, 0x4000, 0x100, 0x0 };
+Settings _global_settings = { 0x0, 0x0800, 0x8000, 0x4000, 0x100, 0x0, STM8_RET_ADDR_SIZE_MM_SMALL };
 
 
 B1C_T_ERROR B1FileCompiler::put_var_name(const std::wstring &name, const B1Types type, int dims, bool global, bool volat, bool mem_var, bool stat)
@@ -2829,21 +2830,28 @@ B1_T_ERROR B1FileCompiler::st_next()
 	// state: control variable, limit, increment, loop label, loop stmt label, continue label, end label
 	emit_label(_state.second[5]);
 	
-	// check if increment is a fixed 1 or -1 value
-	bool inc1 = false;
+	// optimize: try to remove the equality check for some simple cases
+	bool eq_check = true;
 
-	if(B1CUtils::is_num_val(_state.second[2]))
+	if(B1CUtils::is_num_val(_state.second[2]) && B1CUtils::is_num_val(_state.second[1]))
 	{
 		int32_t n = 0;
 		if(Utils::str2int32(_state.second[2], n) == B1_RES_OK && (n == 1 || n == -1))
 		{
-			inc1 = true;
+			n = 0;
+			if(Utils::str2int32(_state.second[1], n) == B1_RES_OK && n >= 1 && n <= 254)
+			{
+				eq_check = false;
+			}
 		}
 	}
 
-	// the condition is needed to process integer overflow, e.g. for INT I: FOR I = 0 TO 32767
-	emit_command(L"==", std::vector<std::wstring>({ _state.second[0], _state.second[1] }));
-	emit_command(L"JT", _state.second[6]);
+	// the check is needed to process integer overflow, e.g. for INT I: FOR I = 0 TO 32767
+	if(eq_check)
+	{
+		emit_command(L"==", std::vector<std::wstring>({ _state.second[0], _state.second[1] }));
+		emit_command(L"JT", _state.second[6]);
+	}
 
 	emit_command(L"+", std::vector<std::wstring>({ _state.second[0], _state.second[2], _state.second[0] }));
 	emit_command(L"JMP", _state.second[3]);
@@ -9441,10 +9449,12 @@ int main(int argc, char **argv)
 			if(argv[i][2] == 'S' || argv[i][2] == 's')
 			{
 				_global_settings.SetMemModelSmall();
+				_global_settings.SetRetAddressSize(STM8_RET_ADDR_SIZE_MM_SMALL);
 			}
 			else
 			{
 				_global_settings.SetMemModelLarge();
+				_global_settings.SetRetAddressSize(STM8_RET_ADDR_SIZE_MM_LARGE);
 			}
 
 			args = args + " " + argv[i];

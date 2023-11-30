@@ -142,7 +142,6 @@ private:
 	// offsets of the current UDEF's string arguments
 	std::vector<int32_t> _curr_udef_str_arg_offsets;
 
-	int32_t _ret_addr_size;
 	// simple call statement
 	std::wstring _call_stmt;
 	// return statement
@@ -245,6 +244,7 @@ private:
 	C1STM8_T_ERROR stm8_add_op(const B1_CMP_CMD &cmd);
 	C1STM8_T_ERROR stm8_mul_op(const B1_CMP_CMD &cmd);
 	C1STM8_T_ERROR stm8_bit_op(const B1_CMP_CMD &cmd);
+	C1STM8_T_ERROR stm8_add_shift_op(const std::wstring &shift_cmd, const B1Types type);
 	C1STM8_T_ERROR stm8_shift_op(const B1_CMP_CMD &cmd);
 	C1STM8_T_ERROR stm8_num_cmp_op(const B1_CMP_CMD &cmd);
 	C1STM8_T_ERROR stm8_str_cmp_op(const B1_CMP_CMD &cmd);
@@ -256,7 +256,7 @@ private:
 
 public:
 	C1STM8Compiler() = delete;
-	C1STM8Compiler(bool out_src_lines, bool opt_nocheck, int32_t ret_addr_size);
+	C1STM8Compiler(bool out_src_lines, bool opt_nocheck);
 	~C1STM8Compiler();
 
 	// loads files with b1c instructions

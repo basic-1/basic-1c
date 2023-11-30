@@ -1,15 +1,15 @@
 /*
- STM8 assembler
+ A1 assembler
  Copyright (c) 2021-2023 Nikolay Pletnev
  MIT license
 
- errors.cpp: STM8 error messages and error reporting functions
+ a1errors.cpp: error messages and error reporting functions
 */
 
 
 #include <string>
 
-#include "errors.h"
+#include "a1errors.h"
 
 
 static const std::string err_msgs[] =
@@ -72,7 +72,7 @@ static const std::string err_msgs[] =
 	"numeric overflow",
 	"unresolved symbol",
 	"wrong section size",
-	"section absent",
+	"wrong section name",
 	"wrong statement size",
 	"duplicate symbol",
 	"relative offset out of range",
@@ -81,6 +81,7 @@ static const std::string err_msgs[] =
 	"wrong data block size",
 	"file close error",
 	".ERROR: ",
+	"internal error",
 
 	"the last message"
 };
@@ -101,14 +102,14 @@ static const std::string wrn_msgs[] =
 };
 
 
-void a1stm8_print_error(A1STM8_T_ERROR err_code, int line_cnt, const std::string &file_name, bool print_err_desc, const std::string &custom_err_msg)
+void a1_print_error(A1_T_ERROR err_code, int line_cnt, const std::string &file_name, bool print_err_desc, const std::string &custom_err_msg)
 {
 	if(!file_name.empty())
 	{
 		fprintf(stderr, "%s: ", file_name.c_str());
 	}
 
-	int err_ind = static_cast<std::underlying_type_t<A1STM8_T_ERROR>>(err_code);
+	int err_ind = static_cast<std::underlying_type_t<A1_T_ERROR>>(err_code);
 
 	fprintf(stderr, "error: %d", err_ind);
 	
@@ -118,25 +119,25 @@ void a1stm8_print_error(A1STM8_T_ERROR err_code, int line_cnt, const std::string
 	}
 
 	int err_fst = static_cast<int>(B1_RES_FIRSTERRCODE);
-	int err_lst = static_cast<std::underlying_type_t<A1STM8_T_ERROR>>(A1STM8_T_ERROR::A1STM8_RES_LASTERRCODE);
+	int err_lst = static_cast<std::underlying_type_t<A1_T_ERROR>>(A1_T_ERROR::A1_RES_LASTERRCODE);
 
 	if(print_err_desc && err_ind >= err_fst && err_ind < err_lst)
 	{
-		const std::string msg = err_msgs[err_ind - err_fst].c_str() + ((err_code == A1STM8_T_ERROR::A1STM8_RES_EERRDIR) ? custom_err_msg : "");
+		const std::string msg = err_msgs[err_ind - err_fst].c_str() + ((err_code == A1_T_ERROR::A1_RES_EERRDIR) ? custom_err_msg : "");
 		fprintf(stderr, " (%s)", msg.c_str());
 	}
 
 	fputs("\n", stderr);
 }
 
-void a1stm8_print_warning(A1STM8_T_WARNING wrn_code, int line_cnt, const std::string &file_name, bool print_wrn_desc)
+void a1_print_warning(A1_T_WARNING wrn_code, int line_cnt, const std::string &file_name, bool print_wrn_desc)
 {
 	if(!file_name.empty())
 	{
 		fprintf(stderr, "%s: ", file_name.c_str());
 	}
 
-	int wrn_ind = static_cast<std::underlying_type_t<A1STM8_T_WARNING>>(wrn_code);
+	int wrn_ind = static_cast<std::underlying_type_t<A1_T_WARNING>>(wrn_code);
 
 	fprintf(stderr, "warning: %d", wrn_ind);
 
@@ -145,8 +146,8 @@ void a1stm8_print_warning(A1STM8_T_WARNING wrn_code, int line_cnt, const std::st
 		fprintf(stderr, " at line %d", line_cnt);
 	}
 
-	int wrn_fst = static_cast<std::underlying_type_t<A1STM8_T_WARNING>>(A1STM8_T_WARNING::A1STM8_WRN_FIRSTWRNCODE);
-	int wrn_lst = static_cast<std::underlying_type_t<A1STM8_T_WARNING>>(A1STM8_T_WARNING::A1STM8_WRN_LASTWRNCODE);
+	int wrn_fst = static_cast<std::underlying_type_t<A1_T_WARNING>>(A1_T_WARNING::A1_WRN_FIRSTWRNCODE);
+	int wrn_lst = static_cast<std::underlying_type_t<A1_T_WARNING>>(A1_T_WARNING::A1_WRN_LASTWRNCODE);
 
 	if(print_wrn_desc && wrn_ind >= wrn_fst && wrn_ind < wrn_lst)
 	{

@@ -156,6 +156,8 @@ protected:
 
 	bool _mem_model_small;
 
+	int _ret_address_size;
+
 	bool _fix_addresses;
 
 	bool _fix_ret_stk_ptr;
@@ -180,12 +182,14 @@ public:
 				int32_t ROM_start,
 				int32_t ROM_size,
 				int32_t stack_size,
-				int32_t heap_size)
+				int32_t heap_size,
+				int ret_addr_size)
 	: _print_warnings(true)
 	, _print_warning_desc(true)
 	, _print_error_desc(true)
 
 	, _mem_model_small(true)
+	, _ret_address_size(ret_addr_size)
 	, _fix_addresses(false)
 	, _fix_ret_stk_ptr(false)
 
@@ -219,14 +223,17 @@ public:
 	void SetMemModelSmall() { _mem_model_small = true;  }
 	void SetMemModelLarge() { _mem_model_small = false; }
 
-	bool GetMemModelSmall() { return _mem_model_small; }
-	bool GetMemModelLarge() { return !_mem_model_small; }
+	bool GetMemModelSmall() const { return _mem_model_small; }
+	bool GetMemModelLarge() const { return !_mem_model_small; }
+
+	void SetRetAddressSize(int ret_addr_size) { _ret_address_size = ret_addr_size;  }
+	int GetRetAddressSize() const { return _ret_address_size; }
 
 	void SetFixAddresses() { _fix_addresses = true; }
-	bool GetFixAddresses() { return _fix_addresses; }
+	bool GetFixAddresses() const { return _fix_addresses; }
 
 	void SetFixRetStackPtr() { _fix_ret_stk_ptr = true; }
-	bool GetFixRetStackPtr() { return _fix_ret_stk_ptr; }
+	bool GetFixRetStackPtr() const { return _fix_ret_stk_ptr; }
 
 	bool GetPrintWarnings() const { return _print_warnings; }
 	bool GetPrintWarningDesc() const { return _print_warning_desc; }

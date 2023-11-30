@@ -27,7 +27,7 @@ static const char *version = B1_CMP_VERSION;
 
 
 // default values: 2 kB of RAM, 16 kB of FLASH, 256 bytes of stack
-Settings _global_settings = { 0x0, 0x0800, 0x8000, 0x4000, 0x100, 0x0 };
+Settings _global_settings = { 0x0, 0x0800, 0x8000, 0x4000, 0x100, 0x0, STM8_RET_ADDR_SIZE_MM_SMALL };
 
 
 C1STM8_T_ERROR C1STM8Compiler::find_first_of(const std::wstring &str, const std::wstring &delimiters, size_t &off) const
@@ -2888,7 +2888,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 		{
 			int arg_num = B1CUtils::get_fn_arg_index(tv.value);
 			int arg_off = _curr_udef_arg_offsets[arg_num];
-			offset = _stack_ptr + _ret_addr_size + arg_off;
+			offset = _stack_ptr + _global_settings.GetRetAddressSize() + arg_off;
 		}
 
 		auto err = stm8_load_from_stack(offset, init_type, req_type, req_valtype, rvt, rv);
@@ -5214,32 +5214,70 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_bit_op(const B1_CMP_CMD &cmd)
 	return C1STM8_T_ERROR::C1STM8_RES_OK;
 }
 
+C1STM8_T_ERROR C1STM8Compiler::stm8_add_shift_op(const std::wstring &shift_cmd, const B1Types type)
+{
+	if(type == B1Types::B1T_BYTE)
+	{
+		if(shift_cmd == L"<<")
+		{
+			_curr_code_sec->add_op(L"SLL A"); //48
+		}
+		else
+		{
+			_curr_code_sec->add_op(L"SRL A"); //44
+		}
+	}
+	else
+	if(type == B1Types::B1T_INT)
+	{
+		if(shift_cmd == L"<<")
+		{
+			_curr_code_sec->add_op(L"SLAW X"); //58
+		}
+		else
+		{
+			_curr_code_sec->add_op(L"SRAW X"); //57
+		}
+	}
+	else
+	if(type == B1Types::B1T_WORD)
+	{
+		if(shift_cmd == L"<<")
+		{
+			_curr_code_sec->add_op(L"SLLW X"); //58
+		}
+		else
+		{
+			_curr_code_sec->add_op(L"SRLW X"); //54
+		}
+	}
+	else
+	{
+		// LONG type
+		if(shift_cmd == L"<<")
+		{
+			_curr_code_sec->add_op(L"SLLW X"); //58
+			_curr_code_sec->add_op(L"RLCW Y"); //90 59
+		}
+		else
+		{
+			_curr_code_sec->add_op(L"SRAW Y"); //90 57
+			_curr_code_sec->add_op(L"RRCW X"); //56
+		}
+	}
+
+	return C1STM8_T_ERROR::C1STM8_RES_OK;
+}
+
 // shift operations
 C1STM8_T_ERROR C1STM8Compiler::stm8_shift_op(const B1_CMP_CMD &cmd)
 {
-	std::wstring inst;
-
 	B1_CMP_ARG arg1 = cmd.args[0];
 	B1_CMP_ARG arg2 = cmd.args[1];
 
 	if(arg1[0].type == B1Types::B1T_STRING || arg2[0].type == B1Types::B1T_STRING)
 	{
 		return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
-	}
-
-	if(arg1[0].type == B1Types::B1T_BYTE)
-	{
-		inst = cmd.cmd == L"<<" ? L"SLL A" : L"SRL A"; //48/44
-	}
-	else
-	if(arg1[0].type == B1Types::B1T_WORD)
-	{
-		inst = cmd.cmd == L"<<" ? L"SLLW X" : L"SRLW X"; //58/54
-	}
-	else
-	if(arg1[0].type == B1Types::B1T_INT)
-	{
-		inst = cmd.cmd == L"<<" ? L"SLAW X" : L"SRAW X"; //58/57
 	}
 
 	auto err = stm8_load(arg1, arg1[0].type, LVT::LVT_REG);
@@ -5281,43 +5319,22 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_shift_op(const B1_CMP_CMD &cmd)
 
 				if(arg1[0].type == B1Types::B1T_BYTE)
 				{
-					_curr_code_sec->add_op(L"PUSH " + res_val); //4B BYTE_VALUE
-					_stack_ptr++;
+					_curr_code_sec->add_op(L"LDW X, " + res_val + L".ll"); //AE WORD_VALUE
 				}
 				else
 				{
 					_curr_code_sec->add_op(L"LD A, " + res_val); //A6 BYTE_VALUE
 				}
+
 				const auto loop_label = emit_label(true);
 				_curr_code_sec->add_lbl(loop_label);
 				_all_symbols.insert(loop_label);
-				if(arg1[0].type == B1Types::B1T_LONG)
-				{
-					if(cmd.cmd == L"<<")
-					{
-						_curr_code_sec->add_op(L"SLLW X"); //58
-						_curr_code_sec->add_op(L"RLCW Y"); //90 59
-					}
-					else
-					{
-						_curr_code_sec->add_op(L"SRAW Y"); //90 57
-						_curr_code_sec->add_op(L"RRCW X"); //56
-					}
-				}
-				else
-				if(arg1[0].type == B1Types::B1T_BYTE)
-				{
-					inst = cmd.cmd == L"<<" ? L"SLL (1, SP)" : L"SRL (1, SP)"; //08/04 BYTE_OFFSET
-					_curr_code_sec->add_op(inst);
-				}
-				else
-				{
-					_curr_code_sec->add_op(inst);
-				}
+
+				stm8_add_shift_op(cmd.cmd, arg1[0].type);
 
 				if(arg1[0].type == B1Types::B1T_BYTE)
 				{
-					_curr_code_sec->add_op(L"DEC (1, SP)"); //0A BYTE_OFFSET
+					_curr_code_sec->add_op(L"DECW X"); //5A
 				}
 				else
 				{
@@ -5325,20 +5342,31 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_shift_op(const B1_CMP_CMD &cmd)
 				}
 				_curr_code_sec->add_op(L"JRNE " + loop_label); //26 SIGNED_BYTE_OFFSET
 				_req_symbols.insert(loop_label);
-				
-				if(arg1[0].type == B1Types::B1T_BYTE)
-				{
-					_curr_code_sec->add_op(L"ADDW SP, 1"); //5B BYTE_VALUE
-					_stack_ptr--;
-				}
 			}
 		}
 		else
 		{
+			const auto loop_label = emit_label(true);
+			const auto loop_end_label = emit_label(true);
+
 			if(arg1[0].type == B1Types::B1T_BYTE)
 			{
 				_curr_code_sec->add_op(L"PUSH A"); //88
 				_stack_ptr++;
+
+				err = stm8_load(arg2, B1Types::B1T_INT, LVT::LVT_REG);
+				if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+				{
+					return err;
+				}
+
+				_curr_code_sec->add_op(L"POP A"); //84
+				_stack_ptr--;
+
+				_curr_code_sec->add_op(L"TNZW X"); //5D
+				_curr_code_sec->add_op(L"JREQ " + loop_end_label); //27 SIGNED_BYTE_OFFSET
+				_req_symbols.insert(loop_end_label);
+
 			}
 			else
 			{
@@ -5349,16 +5377,13 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_shift_op(const B1_CMP_CMD &cmd)
 					_curr_code_sec->add_op(L"PUSHW Y"); //90 89
 					_stack_ptr += 2;
 				}
-			}
 
-			err = stm8_load(arg2, B1Types::B1T_BYTE, LVT::LVT_REG);
-			if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
-			{
-				return err;
-			}
+				err = stm8_load(arg2, B1Types::B1T_BYTE, LVT::LVT_REG);
+				if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+				{
+					return err;
+				}
 
-			if(arg1[0].type != B1Types::B1T_BYTE)
-			{
 				if(arg1[0].type == B1Types::B1T_LONG)
 				{
 					_curr_code_sec->add_op(L"POPW Y"); //90 85
@@ -5366,66 +5391,37 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_shift_op(const B1_CMP_CMD &cmd)
 				}
 				_curr_code_sec->add_op(L"POPW X"); //85
 				_stack_ptr -= 2;
+
+				_curr_code_sec->add_op(L"TNZ A"); //4D
+				_curr_code_sec->add_op(L"JREQ " + loop_end_label); //27 SIGNED_BYTE_OFFSET
+				_req_symbols.insert(loop_end_label);
 			}
 
-			const auto loop_label = emit_label(true);
-			const auto loop_end_label = emit_label(true);
-
-			_curr_code_sec->add_op(L"TNZ A"); //4D
-			_curr_code_sec->add_op(L"JREQ " + loop_end_label); //27 SIGNED_BYTE_OFFSET
-			_req_symbols.insert(loop_end_label);
 			_curr_code_sec->add_lbl(loop_label);
 			_all_symbols.insert(loop_label);
-			if(arg1[0].type == B1Types::B1T_LONG)
+
+			stm8_add_shift_op(cmd.cmd, arg1[0].type);
+
+			if(arg1[0].type == B1Types::B1T_BYTE)
 			{
-				if(cmd.cmd == L"<<")
-				{
-					_curr_code_sec->add_op(L"SLLW X"); //58
-					_curr_code_sec->add_op(L"RLCW Y"); //90 59
-				}
-				else
-				{
-					_curr_code_sec->add_op(L"SRAW Y"); //90 57
-					_curr_code_sec->add_op(L"RRCW X"); //56
-				}
+				_curr_code_sec->add_op(L"DECW X"); //5A
 			}
 			else
 			{
-				_curr_code_sec->add_op(inst);
+				_curr_code_sec->add_op(L"DEC A"); //4A
 			}
-			_curr_code_sec->add_op(L"DEC A"); //4A
+
 			_curr_code_sec->add_op(L"JRNE " + loop_label); //26 SIGNED_BYTE_OFFSET
 			_req_symbols.insert(loop_label);
 			_curr_code_sec->add_lbl(loop_end_label);
 			_all_symbols.insert(loop_end_label);
-			if(arg1[0].type == B1Types::B1T_BYTE)
-			{
-				_curr_code_sec->add_op(L"POP A"); //84
-				_stack_ptr--;
-			}
 		}
 	}
 	else
 	{
 		for(; n > 0; n--)
 		{
-			if(arg1[0].type == B1Types::B1T_LONG)
-			{
-				if(cmd.cmd == L"<<")
-				{
-					_curr_code_sec->add_op(L"SLLW X"); //58
-					_curr_code_sec->add_op(L"RLCW Y"); //90 59
-				}
-				else
-				{
-					_curr_code_sec->add_op(L"SRAW Y"); //90 57
-					_curr_code_sec->add_op(L"RRCW X"); //56
-				}
-			}
-			else
-			{
-				_curr_code_sec->add_op(inst);
-			}
+			stm8_add_shift_op(cmd.cmd, arg1[0].type);
 		}
 	}
 
@@ -6915,7 +6911,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 					{
 						_curr_code_sec->add_op(L"PUSH A"); //88
 						_stack_ptr += 1;
-						offset = _stack_ptr + _ret_addr_size + sa;
+						offset = _stack_ptr + _global_settings.GetRetAddressSize() + sa;
 						_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
 						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
 						_req_symbols.insert(L"__LIB_STR_RLS");
@@ -6927,7 +6923,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 					{
 						_curr_code_sec->add_op(L"PUSHW X"); //89
 						_stack_ptr += 2;
-						offset = _stack_ptr + _ret_addr_size + sa;
+						offset = _stack_ptr + _global_settings.GetRetAddressSize() + sa;
 						_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
 						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
 						_req_symbols.insert(L"__LIB_STR_RLS");
@@ -6940,7 +6936,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 						_curr_code_sec->add_op(L"PUSHW X"); //89
 						_curr_code_sec->add_op(L"PUSHW Y"); //90 89
 						_stack_ptr += 4;
-						offset = _stack_ptr + _ret_addr_size + sa;
+						offset = _stack_ptr + _global_settings.GetRetAddressSize() + sa;
 						_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
 						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
 						_req_symbols.insert(L"__LIB_STR_RLS");
@@ -7386,13 +7382,12 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 }
 
 
-C1STM8Compiler::C1STM8Compiler(bool out_src_lines, bool opt_nocheck, int32_t ret_addr_size)
+C1STM8Compiler::C1STM8Compiler(bool out_src_lines, bool opt_nocheck)
 : B1_CMP_CMDS(L"", 32768, 32768)
 , _data_size(0)
 , _const_size(0)
 , _stack_ptr(0)
 , _curr_udef_args_size(0)
-, _ret_addr_size(ret_addr_size)
 , _out_src_lines(out_src_lines)
 , _opt_nocheck(opt_nocheck)
 , _cmp_active(false)
@@ -7403,7 +7398,7 @@ C1STM8Compiler::C1STM8Compiler(bool out_src_lines, bool opt_nocheck, int32_t ret
 , _page0(true)
 , _next_temp_namespace_id(32768)
 {
-	if(_ret_addr_size == 2)
+	if(_global_settings.GetRetAddressSize() == 2)
 	{
 		_call_stmt = L"CALLR";
 		_ret_stmt = L"RET";
@@ -7974,10 +7969,12 @@ int main(int argc, char** argv)
 			if(argv[i][2] == 'S' || argv[i][2] == 's')
 			{
 				_global_settings.SetMemModelSmall();
+				_global_settings.SetRetAddressSize(STM8_RET_ADDR_SIZE_MM_SMALL);
 			}
 			else
 			{
 				_global_settings.SetMemModelLarge();
+				_global_settings.SetRetAddressSize(STM8_RET_ADDR_SIZE_MM_LARGE);
 			}
 
 			args = args + " " + argv[i];
@@ -8382,7 +8379,7 @@ int main(int argc, char** argv)
 		ofn += tmp;
 	}
 
-	C1STM8Compiler c1stm8(out_src_lines, opt_nocheck, _global_settings.GetMemModelSmall() ? 2 : 3);
+	C1STM8Compiler c1stm8(out_src_lines, opt_nocheck);
 
 	std::set<std::wstring> undef;
 	std::set<std::wstring> resolved;
