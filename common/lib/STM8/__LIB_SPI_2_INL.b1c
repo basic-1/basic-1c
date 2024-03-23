@@ -1,0 +1,14 @@
+INI,__LIB_SPI_SS_PIN
+INI,__LIB_SPI_SS_PORT
+
+; select slave pin configuration for master mode (SSPIN)
+; {VALUE,0,2} - port, {VALUE,2,1} - pin number
+ASM
+.IF {VALUE} == NONE
+CLR (__LIB_SPI_SS_PIN)
+.ELSE
+MOV (__LIB_SPI_SS_PIN), 1 << {VALUE,2,1}
+LDW X, {VALUE,0,2}_ODR
+LDW (__LIB_SPI_SS_PORT), X
+.ENDIF
+ENDASM

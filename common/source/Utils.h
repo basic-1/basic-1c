@@ -17,6 +17,7 @@ extern "C"
 #include <string>
 #include <vector>
 #include <map>
+#include <set>
 
 
 enum class B1Types
@@ -31,6 +32,7 @@ enum class B1Types
 
 	// special types
 	B1T_LABEL = 1000, // used with IOCTL
+	B1T_TEXT, // used with IOCTL
 	B1T_COMMON, // used when choosing type of IIF pseudo-function
 };
 
@@ -112,6 +114,7 @@ public:
 		B1Types data_type;
 		bool predef_only;
 		std::map<std::wstring, std::wstring> values;
+		std::wstring def_val;
 
 		IoCmd()
 		: id(-1)
@@ -129,11 +132,13 @@ public:
 			id = -1;
 			call_type = IoCmdCallType::CT_CALL;
 			code_place = IoCmdCodePlacement::CP_CURR_POS;
+			file_name.clear();
 			mask = 0;
 			accepts_data = false;
 			data_type = B1Types::B1T_UNKNOWN;
 			predef_only = true;
 			values.clear();
+			def_val.clear();
 		}
 	};
 
@@ -146,6 +151,8 @@ protected:
 	std::map<std::wstring, std::wstring> _settings;
 
 	std::map<std::wstring, std::map<std::wstring, IoCmd>> _io_settings;
+
+	mutable std::map<std::wstring, std::set<std::wstring>> _io_dev_options;
 
 	std::map<std::string, int32_t> _int_names;
 
@@ -257,6 +264,8 @@ public:
 	std::string GetInterruptName(const std::string &file_name, std::string &real_file_name) const;
 
 	std::vector<std::wstring> GetDevList() const;
-	std::wstring GetCommonDeviceName(const std::wstring &real_dev_name) const;
+	std::wstring GetDefaultDeviceName(const std::wstring &real_dev_name) const;
 	std::vector<std::wstring> GetDevCmdsList(const std::wstring &dev_name) const;
+	std::vector<std::wstring> GetIoDevList() const;
+	const std::set<std::wstring> *GetDeviceOptions(const std::wstring &dev_name) const;
 };

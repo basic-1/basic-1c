@@ -1,15 +1,14 @@
 10 REM INPUT and PRINT sample (8N1 9600 baud)
-20 IOCTL "UART", "PINS", "DEFAULT"
-30 IOCTL "UART", "ENABLE"
-40 IOCTL "UART", "START"
-50 WHILE 1 > 0
-60 IOCTL "UART", "INPUTECHO", "ON"
-70 INPUT "Enter login: ", SL$
-80 IOCTL "UART", "INPUTECHO", "OFF"
-90 INPUT "Enter password: ", SP$
-100 PRINT
-110 PRINT "Your login is: "; SL$
-120 PRINT "Your password is: "; SP$
-130 PRINT
-140 WEND
-150 END
+20 IOCTL "UART", "ENABLE"
+30 IOCTL "UART", "START"
+40 WHILE 1 > 0
+50 IOCTL "UART", "INPUTECHO", "ON"
+60 INPUT "Enter login: ", SL$
+70 IOCTL "UART", "INPUTECHO", "OFF"
+80 INPUT "Enter password: ", SP$
+90 PRINT
+100 PRINT "Your login is: "; SL$
+110 PRINT "Your password is: "; SP$
+120 PRINT
+130 WEND
+140 END

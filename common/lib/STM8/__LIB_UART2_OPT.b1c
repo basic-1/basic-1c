@@ -2,5 +2,7 @@
 ; bit 1 - input echo (enabled by default)
 ; bit 2 - RX (enabled by default)
 ; bit 3 - TX (enabled by default)
-; bits 4, 5, 6, 7 - reserved
-=,15<BYTE>,__LIB_UART2_OPT<BYTE>
+; bit 4 - simplex mode (duplex is default)
+; bit 6 - configure GPIO pins (enabled by default)
+; bits 5, 7 - reserved
+=,79<BYTE>,__LIB_UART2_OPT<BYTE>

@@ -1,0 +1,15 @@
+INI,__LIB_SPI_OPT
+
+; set SPI options (MODE, MASTER, PRESCALER, FRAMEMFT)
+; bit 0 - CPHA (0 by default, default SPI mode is 0)
+; bit 1 - CPOL (0 by default, default SPI mode is 0)
+; bit 2 - master or slave: 0 - slave, 1 - master (slave by default)
+; bits 3..5 - clock prescaler (0 by default, corresponds to fMASTER / 2) 
+; bit 6 - reserved
+; bit 7 - frame format: 0 - MSB first, 1 - LSB first (MSB first by default)
+ASM
+LD A, (__LIB_SPI_OPT)
+AND A, !{MASK}.ll
+OR A, {VALUE} & {MASK}
+LD (__LIB_SPI_OPT), A
+ENDASM

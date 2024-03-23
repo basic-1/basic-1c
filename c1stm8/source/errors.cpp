@@ -86,6 +86,7 @@ static const std::string c1stm8_err_msgs[] =
 	"unknown IO device",
 	"unknown interrupt name",
 	"multiple handlers for a single interrupt",
+	"wrong device type",
 
 	"the last message"
 };

@@ -1,0 +1,24 @@
+INI,__LIB_SPI_SS_PIN
+INI,__LIB_SPI_SS_PORT
+
+; configure NSS pin (slave, input)
+:__LIB_SPI_NSS_CFG_IN
+ASM
+LDW X, (__LIB_SPI_SS_PORT)
+INCW X
+INCW X
+LD A, (__LIB_SPI_SS_PIN)
+CPL A
+PUSH A
+AND A, (X) ; Px_DDR
+LD (X), A
+INCW X
+LD A, (1, SP)
+AND A, (X) ; Px_CR1
+LD (X), A
+INCW X
+POP A
+AND A, (X) ; Px_CR2
+LD (X), A
+RET
+ENDASM

@@ -1,0 +1,12 @@
+INI,__LIB_SPI_SS_PIN
+INI,__LIB_SPI_SS_PORT
+
+; set NSS pin high
+:__LIB_SPI_NSS_HI
+ASM
+; *ptr = *ptr | pin_mask
+LD A, (__LIB_SPI_SS_PIN)
+OR A, [__LIB_SPI_SS_PORT]
+LD [__LIB_SPI_SS_PORT], A
+RET
+ENDASM

@@ -329,6 +329,8 @@ const Token Token::ENDIF_DIR(TokType::TT_DIR, L".ENDIF", -1);
 
 const Token Token::ERROR_DIR(TokType::TT_DIR, L".ERROR", -1);
 
+const Token Token::DEF_DIR(TokType::TT_DIR, L".DEF", -1);
+
 
 A1_T_ERROR SrcFile::ReadChar(wchar_t &chr)
 {
@@ -1404,7 +1406,7 @@ bool DataStmt::IsDataStmt(const Token &token, int *data_size /*= nullptr*/)
 	return false;
 }
 
-A1_T_ERROR DataStmt::Read(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, const std::map<std::wstring, MemRef> &memrefs, const std::string &file_name, const A1Settings &)
+A1_T_ERROR DataStmt::Read(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, const std::map<std::wstring, MemRef> &memrefs, const std::string &file_name, const A1Settings &settings)
 {
 	if(start == end)
 	{
@@ -1434,7 +1436,15 @@ A1_T_ERROR DataStmt::Read(std::vector<Token>::const_iterator &start, const std::
 		start++;
 
 		int32_t rep = -1;
-		auto err = Exp::CalcSimpleExp(start, end, rep, { Token(TokType::TT_OPER, L")", -1) });
+		Exp exp;
+
+		auto err = Exp::BuildExp(start, end, exp, { Token(TokType::TT_OPER, L")", -1) }, &settings);
+		if(err != A1_T_ERROR::A1_RES_OK)
+		{
+			return err;
+		}
+
+		err = exp.Eval(rep, memrefs);
 		if(err != A1_T_ERROR::A1_RES_OK)
 		{
 			return err;
@@ -1828,7 +1838,7 @@ A1_T_ERROR Sections::ReadStmt(std::vector<Token>::const_iterator &start, const s
 
 		auto refn = mr.GetName();
 
-		if(_memrefs.find(refn) != _memrefs.end())
+		if(_memrefs.find(refn) != _memrefs.cend())
 		{
 			return A1_T_ERROR::A1_RES_EDUPSYM;
 		}
@@ -1876,8 +1886,61 @@ A1_T_ERROR Sections::ReadStmt(std::vector<Token>::const_iterator &start, const s
 A1_T_ERROR Sections::CheckIFDir(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, bool &res)
 {
 	int32_t resl = 0, resr = 0;
+	bool not_def = false;
 
-	Exp expl, expr;
+	start++;
+
+	if(start != end && start->IsString() && start->GetToken() == L"NOT")
+	{
+		not_def = true;
+		start++;
+	}
+
+	if(start != end && start->IsString() && start->GetToken() == L"DEFINED")
+	{
+		start++;
+		if(start == end || *start != Token(TokType::TT_OPER, L"(", -1))
+		{
+			A1_T_ERROR::A1_RES_ESYNTAX;
+		}
+
+		start++;
+		if(start == end || !start->IsString())
+		{
+			A1_T_ERROR::A1_RES_ESYNTAX;
+		}
+
+		const auto symbol = start->GetToken();
+
+		start++;
+		if(start == end || *start != Token(TokType::TT_OPER, L")", -1))
+		{
+			A1_T_ERROR::A1_RES_ESYNTAX;
+		}
+
+		start++;
+		if(start != end && !start->IsEOL())
+		{
+			A1_T_ERROR::A1_RES_ESYNTAX;
+		}
+
+		res = (_memrefs.find(symbol) != _memrefs.cend());
+
+		if(not_def)
+		{
+			res = !res;
+		}
+
+		return A1_T_ERROR::A1_RES_OK;
+	}
+
+	if(not_def)
+	{
+		A1_T_ERROR::A1_RES_ESYNTAX;
+	}
+
+	Exp exp_l, exp_r;
+	std::wstring sval_l, sval_r;
 	std::vector<Token> terms;
 
 	terms.push_back(Token(TokType::TT_OPER, L"==", -1));
@@ -1887,18 +1950,24 @@ A1_T_ERROR Sections::CheckIFDir(std::vector<Token>::const_iterator &start, const
 	terms.push_back(Token(TokType::TT_OPER, L">=", -1));
 	terms.push_back(Token(TokType::TT_OPER, L"<=", -1));
 
-	start++;
-
-	auto err = Exp::BuildExp(start, end, expl, terms, &_settings);
+	auto err = Exp::BuildExp(start, end, exp_l, terms, &_settings);
 	if(err != A1_T_ERROR::A1_RES_OK)
 	{
 		return err;
 	}
 
-	err = expl.Eval(resl, _memrefs);
+	err = exp_l.Eval(resl, _memrefs);
 	if(err != A1_T_ERROR::A1_RES_OK)
 	{
-		return err;
+		// allow simple expressions like ".IF SOMETEXT == SOMETEXT"
+		if(err != A1_T_ERROR::A1_RES_EUNRESSYMB || !exp_l.GetSimpleValue(sval_l))
+		{
+			return err;
+		}
+		if(sval_l.empty())
+		{
+			return A1_T_ERROR::A1_RES_EUNRESSYMB;
+		}
 	}
 
 	const auto &cmp_op = *start;
@@ -1907,18 +1976,44 @@ A1_T_ERROR Sections::CheckIFDir(std::vector<Token>::const_iterator &start, const
 	terms.clear();
 	terms.push_back(Token(TokType::TT_EOL, L"", -1));
 		
-	err = Exp::BuildExp(start, end, expr, terms, &_settings);
+	err = Exp::BuildExp(start, end, exp_r, terms, &_settings);
 	if(err != A1_T_ERROR::A1_RES_OK)
 	{
 		return err;
 	}
 
-	err = expr.Eval(resr, _memrefs);
+	err = exp_r.Eval(resr, _memrefs);
 	if(err != A1_T_ERROR::A1_RES_OK)
 	{
-		return err;
+		// allow simple expressions like ".IF SOMETEXT == SOMETEXT"
+		if(err != A1_T_ERROR::A1_RES_EUNRESSYMB || !exp_r.GetSimpleValue(sval_r))
+		{
+			return err;
+		}
+		if(sval_r.empty())
+		{
+			return A1_T_ERROR::A1_RES_EUNRESSYMB;
+		}
 	}
 
+	// allow simple expressions like ".IF SOMETEXT == SOMETEXT"
+	if(!sval_l.empty())
+	{
+		if(cmp_op.GetToken() == L"==")
+		{
+			res = (sval_l == sval_r);
+		}
+		else
+		if(cmp_op.GetToken() == L"!=")
+		{
+			res = (sval_l != sval_r);
+		}
+		else
+		{
+			return A1_T_ERROR::A1_RES_ESYNTAX;
+		}
+	}
+	else
 	if(cmp_op.GetToken() == L"==")
 	{
 		res = (resl == resr);
@@ -1929,22 +2024,22 @@ A1_T_ERROR Sections::CheckIFDir(std::vector<Token>::const_iterator &start, const
 		res = (resl != resr);
 	}
 	else
-	if (cmp_op.GetToken() == L">")
+	if(cmp_op.GetToken() == L">")
 	{
 		res = (resl > resr);
 	}
 	else
-	if (cmp_op.GetToken() == L"<")
+	if(cmp_op.GetToken() == L"<")
 	{
 		res = (resl < resr);
 	}
 	else
-	if (cmp_op.GetToken() == L">=")
+	if(cmp_op.GetToken() == L">=")
 	{
 		res = (resl >= resr);
 	}
 	else
-	if (cmp_op.GetToken() == L"<=")
+	if(cmp_op.GetToken() == L"<=")
 	{
 		res = (resl <= resr);
 	}
@@ -1974,10 +2069,55 @@ A1_T_ERROR Sections::ReadUntil(std::vector<Token>::const_iterator &start, const 
 				}
 			}
 
+			if(*start == Token::DEF_DIR)
+			{
+				start++;
+				if(start == end || start->GetType() != TokType::TT_STRING)
+				{
+					A1_T_ERROR::A1_RES_ESYNTAX;
+				}
+
+				const auto symbol = start->GetToken();
+
+				if(_memrefs.find(symbol) != _memrefs.cend())
+				{
+					return A1_T_ERROR::A1_RES_EDUPSYM;
+				}
+
+				MemRef mr;
+				mr.SetName(symbol);
+				mr.SetAddress(0);
+
+				start++;
+				if(start != end && !start->IsEOL())
+				{
+					Exp exp;
+					int32_t res = 0;
+
+					auto err = Exp::BuildExp(start, end, exp, { Token(TokType::TT_EOL, L"", -1) }, &_settings);
+					if(err != A1_T_ERROR::A1_RES_OK)
+					{
+						return err;
+					}
+
+					err = exp.Eval(res, _memrefs);
+					if(err != A1_T_ERROR::A1_RES_OK)
+					{
+						return err;
+					}
+
+					mr.SetAddress(res);
+				}
+
+				_memrefs.emplace(std::make_pair(symbol, mr));
+
+				continue;
+			}
+			else
 			if(*start == Token::ERROR_DIR)
 			{
 				start++;
-				if(start != end || start->GetType() != TokType::TT_QSTRING)
+				if(start == end || start->GetType() != TokType::TT_QSTRING)
 				{
 					A1_T_ERROR::A1_RES_ESYNTAX;
 				}
@@ -2072,6 +2212,7 @@ A1_T_ERROR Sections::ReadSingleIFDir(bool is_else, std::vector<Token>::const_ite
 	while(start != end)
 	{
 		auto err = skip || !if_res ?
+			//                    .IF, .ELIF, .ELSE, .ENDIF
 			SkipUntil(start, end, std::next(Sections::ALL_DIRS.cbegin(), 5), std::next(Sections::ALL_DIRS.cbegin(), 9)) :
 			ReadUntil(start, end, std::next(Sections::ALL_DIRS.cbegin(), 5), std::next(Sections::ALL_DIRS.cbegin(), 9));
 		if(err != A1_T_ERROR::A1_RES_OK)
@@ -2160,6 +2301,7 @@ A1_T_ERROR Sections::ReadSection(std::vector<Token>::const_iterator &start, cons
 	while(start != end)
 	{
 		auto err = skip ? 
+			//                    .DATA, .CONST, .CODE, .STACK, .HEAP, .IF
 			SkipUntil(start, end, Sections::ALL_DIRS.cbegin(), std::next(Sections::ALL_DIRS.cbegin(), 6)) :
 			ReadUntil(start, end, Sections::ALL_DIRS.cbegin(), std::next(Sections::ALL_DIRS.cbegin(), 6));
 		if(err != A1_T_ERROR::A1_RES_OK)
@@ -2213,9 +2355,23 @@ A1_T_ERROR Sections::ReadSections(int32_t file_num, SectType sec_type, const std
 		ti++;
 	}
 
+	if(ti->IsDir())
+	{
+		// allow program start from section declaration directive only
+		for(auto d = std::next(ALL_DIRS.cbegin(), 5); d != ALL_DIRS.cend(); d++)
+		{
+			if(*ti == *d)
+			{
+				_curr_line_num = ti->GetLineNum();
+				return A1_T_ERROR::A1_RES_ESYNTAX;
+			}
+		}
+	}
+
 	while(ti != tok_file.cend())
 	{
 		// find the next section start
+		//                    .DATA, .CONST, .CODE, .STACK, .HEAP
 		auto err = SkipUntil(ti, tok_file.cend(), Sections::ALL_DIRS.cbegin(), std::next(Sections::ALL_DIRS.cbegin(), 5));
 		if(err != A1_T_ERROR::A1_RES_OK)
 		{
@@ -2291,7 +2447,7 @@ A1_T_ERROR Sections::ReadSections(int32_t file_num, SectType sec_type, const std
 			return A1_T_ERROR::A1_RES_ESYNTAX;
 		}
 
-		if(ti->IsEOL())
+		if(ti != tok_file.cend())
 		{
 			ti++;
 		}
@@ -2850,4 +3006,6 @@ const std::vector<std::reference_wrapper<const Token>> Sections::ALL_DIRS =
 	Token::ENDIF_DIR,
 
 	Token::ERROR_DIR,
+
+	Token::DEF_DIR,
 };

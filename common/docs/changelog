@@ -1,3 +1,14 @@
+b1c (1.0.0-21) unstable; urgency=low
+
+  * assembler: added .DEF directive and [NOT] DEFINED() special function
+  * implemented SPI bus support
+  * added PUT, GET and TRANSFER statements
+  * libs: possibility to turn off UART pins configuration (CFGPINS)
+  * libs: UART simplex mode (TRANSMODE SIMPLEX|DUPLEX)
+  * various bugfixes and improvements
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Sat, 23 Mar 2024 18:00:47 +0300
+
 b1c (1.0.0-20) unstable; urgency=low
 
   * use the latest b1core

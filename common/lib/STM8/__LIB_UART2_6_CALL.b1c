@@ -3,9 +3,14 @@ INI,__LIB_UART2_OPT
 INI,__LIB_UART2_SPEED
 
 ; start UART2
+; A - RX/TX mode in case of simplex transmisson mode (RX: A = 4, TX: A = 8)
 :__LIB_UART2_6_CALL
 ASM
-; START
+BTJT (__LIB_UART2_OPT), 4, ::__LBL_SIMPLEX
+; duplex mode
+LD A, UART2_CR2_REN + UART2_CR2_TEN
+:::__LBL_SIMPLEX
+PUSH A
 ; set parity control and word lenth
 ; now the only supported mode is 8N1
 CLR (UART2_CR1)
@@ -38,9 +43,20 @@ LD (UART2_BRR2), A
 POP A
 LD A, XL
 LD (UART2_BRR1), A
-; enable RX/TX
+; configure GPIO pins and enable RX/TX
 LD A, (__LIB_UART2_OPT)
-AND A, 0xC
-LD (UART2_CR2), A
+AND A, 0xF3
+OR A, (1, SP)
+LD (__LIB_UART2_OPT), A
+BCP A, 0x20
+JREQ ::__LBL_ENABLE_RX_TX
+ENDASM
+
+; configure GPIO pins
+INL,__LIB_UART2_CFG_PINS
+
+ASM
+:::__LBL_ENABLE_RX_TX
+POP (UART2_CR2) ; enable TX or/and RX
 RET
 ENDASM

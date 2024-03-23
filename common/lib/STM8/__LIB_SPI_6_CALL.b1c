@@ -1,0 +1,42 @@
+INI,__LIB_SPI_OPT
+INI,__LIB_SPI_OPT1
+INI,__LIB_SPI_SS_PIN
+IMP,__LIB_SPI_NSS_HI
+
+; stop SPI (STOP)
+:__LIB_SPI_6_CALL
+ASM
+LD A, (__LIB_SPI_OPT1)
+BCP A, 8
+; disabling SPI in case of master half-duplex RX or master simplex RX-only mode
+; is not implemented (because the procedure is a bit odd)
+JRNE ::__LBL_DISABLE_SLAVE
+
+BCP A, 3
+JREQ ::__LBL_WAIT_SPI_TXE ; full-duplex mode
+BCP A, 0x10
+JREQ ::__LBL_WAIT_SPI_BSY ; slave simplex RX-only, slave half-duplex RX mode
+; master or slave simplex TX-only or master or slave simplex TX mode
+
+:::__LBL_WAIT_SPI_TXE
+BTJF (SPI_SR), SPI_SR_TXE_POS, ::__LBL_WAIT_SPI_TXE
+
+:::__LBL_WAIT_SPI_BSY
+BTJT (SPI_SR), SPI_SR_BSY_POS, ::__LBL_WAIT_SPI_BSY
+
+; clear OVR flag
+LD A, (SPI_DR)
+LD A, (SPI_SR)
+
+BRES (SPI_CR1), SPI_CR1_SPE_POS
+; set NSS pin high (disable slave device)
+BTJF (__LIB_SPI_OPT), 2, ::__LBL_EXIT
+
+:::__LBL_DISABLE_SLAVE
+TNZ (__LIB_SPI_SS_PIN)
+JREQ ::__LBL_EXIT
+CALLR __LIB_SPI_NSS_HI
+
+:::__LBL_EXIT
+RET
+ENDASM

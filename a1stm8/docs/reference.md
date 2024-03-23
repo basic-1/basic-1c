@@ -53,14 +53,14 @@ Multiple `.STACK` sections are not combined into one, assembler uses the largest
   
 Comment is a text used to describe a piece of code. Comments are ignored by assembler. Use semicolon character to start new single line comment (the rest of the string is ignored).  
 **Syntax:** `;<comment text>`  
-**Samples:**  
+**Examples:**  
 `; a comment`  
 `.DATA ; this is a .DATA section`  
   
 ## Numeric constants  
   
 Numeric constants are numbers written with one or more digits. Decimal and hexadecimal numbers are supported by this assembler implementation. Hexadecimal numbers have to start from `0x` prefix. Use unary minus sign to specify negative values.  
-**Samples:**  
+**Examples:**  
 `100`  
 `-1000`  
 `0xFF`  
@@ -78,7 +78,7 @@ Suffixes to extract bytes:
 `.lh` - high byte of low word  
 `.hl` - low byte of high word  
 `.hh` - high byte of high word  
-**Samples:**  
+**Examples:**  
 `0x27FFF.hl` - `2`  
 `0xFFAA.lh` - `0xFF`  
 `0xFFAA.ll` - `0xAA`  
@@ -94,7 +94,7 @@ Statement is a label, data definition directive or CPU instruction. Every statem
   
 Labels are used to create symbolic constants to refer to specific code or data location (assembler resolves the constants to memory addresses). A label starts with a colon character.  
 **Syntax:**: `:<label_name>`  
-**Samples:**  
+**Examples:**  
 `:label1` - a label named `label1`  
 `::another_label` - a label named `:another_label`  
   
@@ -104,7 +104,7 @@ Data definition directives are used to allocate memory and initialize it with so
 **Syntax:** `<data_definition_directive> [(<size>)] [<init_value0>[,<init_value1>..<init_valueN>]]`  
 The assembler supports three data definition directives: `DB` to declare 1-byte data, `DW` to declare two-byte (word) data and `DD` to declare four-byte (double word) data.  
 `<size>` should be a numeric constant to specify number of bytes or words to allocate. `<init_value0>, ..<init_valueN>` clause should be used to specify initial values for the memory area. Initial values are not allowed for RAM sections (`.DATA`, `.HEAP` and `.STACK`). Non-initialized data in `.CONST` and `.CODE` sections is initialized with zeroes.  
-**Samples:**  
+**Examples:**  
 `.DATA`  
 `:word_var`  
 `DW` - declare a `.DATA` section with a single word variable that can be referenced by `word_var` label  
@@ -130,7 +130,7 @@ Refer to STMicroelectronics' "PM0044 Programming Manual" for CPU instructions sy
 - `^` (bitwise XOR)  
 - `|` (bitwise OR)  - lowest precedence
   
-**Samples:**  
+**Examples:**  
 `LD A, #5` -> `LD A, 5` - do not use hash character for immediate value  
 `LD A, 5` -> `LD A, (5)` - use parentheses for direct addressing  
 `LDW X, $5000` -> `LDW X, (0x5000)` - use parentheses for direct addressing  
@@ -153,9 +153,9 @@ Conditional assembly directives provides a way excluding specific code portions 
 `<source_linesN>`  
 `.ENDIF`  
   
-Assembler keeps source code lines between the first directive with true condition and the next one. If all conditions are false the source code lines between `.ELSE` and `.ENDIF` directives are selected (if `.ELSE` clause exists).  
+Assembler keeps source code lines between the first directive with true condition and the next one. If all condition expressions are false the source code lines between `.ELSE` and `.ENDIF` directives are selected (if `.ELSE` clause exists).  
   
-The next comparison operators can be used in the conditions:  
+The next comparison operators can be used in the condition expressions:  
 - `==` - equality check  
 - `!=` - inequality check  
 - `>` - greater than check  
@@ -163,14 +163,20 @@ The next comparison operators can be used in the conditions:
 - `>=` - greater than or equal check  
 - `<=` - less than equal check  
   
-**Samples:**  
+**Examples:**  
 `.IF __RET_ADDR_SIZE == 2`  
 `RET`  
 `.ELSE`  
 `RETF`  
 `.ENDIF`  
   
-Expressions on the left and right sides of the operators can be simple expressions (without parentheses) described [here](#CPU-instructions).  
+Expressions on the left and right sides of the comparison operators can be simple expressions (without parentheses) described [here](#CPU-instructions). Another type of condition is `DEFINED()` function, which returns true if its argument is an existing symbolic constant. The function can be used with `NOT` operator to negate its result.  
+  
+**Examples:**  
+`.IF NOT DEFINED(_SIZE)`  
+`.DEF _SIZE 128`  
+`.ENDIF`  
+`DB (_SIZE)`  
   
 ## .ERROR directive  
   
@@ -178,16 +184,34 @@ Expressions on the left and right sides of the operators can be simple expressio
   
 **Syntax:**  
 `.ERROR <double_quoted_error_message>`  
-**Samples:**  
+**Examples:**  
 `.IF __HEAP_SIZE < 2`  
 `.ERROR "insufficient heap size"`  
-`.END`  
+`.ENDIF`  
   
 # Usage  
   
 Executable file name of the assempler is `a1stm8.exe` or `a1stm8` depending on target platform. Command line syntax:  
 `a1stm8 [options] <filename> [<filename1> .. <filenameN>]`  
 Here `<filename>` .. `<filenameN>` are names of source files. Possible options are listed below.  
+  
+## .DEF directive  
+  
+`.DEF` directive creates new symbolic constant and assigns it a numeric value. A constant with omitted expression part is assigned zero value. After definition the constant can be used in expressions.  
+  
+**Syntax:**  
+`DEF <constant_name> [<expression>]`  
+**Examples:**  
+`.DEF PORTA_BASE 0x5000`  
+`.DEF PORTA_DDR PORTA_BASE + 2`  
+...  
+...  
+...  
+`.IF DEFINED(PORTA_DDR)`  
+`MOV (PORTA_DDR), 0`  
+`.ELSE`  
+`.ERROR "PORTA_DDR is not defined"`  
+`.ENDIF`  
   
 ## Command-line options  
   
@@ -206,7 +230,7 @@ Here `<filename>` .. `<filenameN>` are names of source files. Possible options a
 `-t` or `/t` - sets target (default STM8), e.g.: `-t STM8`  
 `-v` or `/v` - shows assembler version and terminates  
   
-**Samples:**  
+**Examples:**  
 `a1stm8.exe -d -mu first.asm`  
 `a1stm8.exe -d -mu blink.asm`  
 `a1stm8.exe -d -mu -m STM8S103F3 blink1.asm`  

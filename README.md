@@ -8,7 +8,7 @@
 - command-line compiler built for Windows x86, Windows x64, Linux i386, Linux amd64, Linux armhf  
 - produces a kind of intermediate code that can be compiled into STM8 assembler code  
 - static and dynamic memory allocation  
-- some essential peripherals support (GPIO, timer, UART)  
+- some essential peripherals support (GPIO, timer, UART, SPI)  
 - interrupts handling  
 - includes STM8 assembler  
 - licensed under MIT license  
@@ -41,6 +41,7 @@ Supported STM8 microcontrollers list:
 - ELSEIF ... THEN  
 - ERASE  
 - FOR ... TO ... \[STEP\]  
+- GET  
 - GOTO  
 - GOSUB  
 - IF ... THEN  
@@ -50,10 +51,12 @@ Supported STM8 microcontrollers list:
 - NEXT  
 - OPTION BASE | EXPLICIT | NOCHECK  
 - PRINT  
+- PUT  
 - READ  
 - REM  
 - RESTORE  
 - RETURN  
+- TRANSFER  
 - WHILE ... WEND  
   
 # More features  
@@ -98,3 +101,13 @@ BASIC1 compiler includes three executable modules: `b1c` - compiler translating 
 `c1stm8` - intermediate code compiler, produces STM8 assembly language code  
 `a1stm8` - STM8 assembler  
   
+# More information  
+  
+[BASIC1 language reference](./b1c/docs/reference.md)  
+[BASIC1 language limitations](./b1c/docs/limits.md)  
+[IOCTL statement commands](./b1c/docs/ioctl.md)  
+[BASIC1 program examples](./b1c/docs/samples)  
+[STM8 assembler reference](./a1stm8/docs/reference.md)  
+[Assembler program examples](./a1stm8/docs/samples)  
+[Change log](./common/docs/changelog)  
+[Download compiler distribution packages for Windows and Linux](./distr)  

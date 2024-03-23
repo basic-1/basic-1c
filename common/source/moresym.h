@@ -1,6 +1,6 @@
 /*
  BASIC1 compiler
- Copyright (c) 2021-2023 Nikolay Pletnev
+ Copyright (c) 2021-2024 Nikolay Pletnev
  MIT license
 
  moresym.h: common symbols and constants (classes and variables declaration)
@@ -16,6 +16,13 @@
 
 
 #define RTE_ERROR_TYPE (B1Types::B1T_BYTE)
+
+// IO device supports text mode (PRINT, INPUT)
+#define B1C_DEV_OPT_TXT L"TXT"
+// IO device supports binary mode (PUT, GET, TRANSFER)
+#define B1C_DEV_OPT_BIN L"BIN"
+// binary statements are implemented as inline code (not subroutines)
+#define B1C_DEV_OPT_INL L"INL"
 
 
 // run-time errors

@@ -879,7 +879,7 @@ C1STM8_T_ERROR C1STM8Compiler::load_next_command(const std::wstring &line, const
 			_curr_name_space = tv.value;
 		}
 		else
-		if(cmd == L"OUT" || cmd == L"IN")
+		if(cmd == L"OUT" || cmd == L"IN" || cmd == L"GET" || cmd == L"PUT" || cmd == L"TRR")
 		{
 			if(offset == std::wstring::npos)
 			{
@@ -898,6 +898,12 @@ C1STM8_T_ERROR C1STM8Compiler::load_next_command(const std::wstring &line, const
 			{
 				return err;
 			}
+
+			if((cmd == L"GET" || cmd == L"TRR") && arg[0].type == B1Types::B1T_STRING)
+			{
+				return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
+			}
+
 			args.push_back(arg);
 		}
 		else
@@ -947,16 +953,33 @@ C1STM8_T_ERROR C1STM8Compiler::load_next_command(const std::wstring &line, const
 			}
 			if(iocmd.accepts_data)
 			{
+				bool def_val = false;
+
 				if(offset == std::wstring::npos)
 				{
-					return static_cast<C1STM8_T_ERROR>(B1_RES_ESYNTAX);
+					if(iocmd.predef_only && !iocmd.def_val.empty())
+					{
+						def_val = true;
+					}
+					else
+					{
+						return static_cast<C1STM8_T_ERROR>(B1_RES_ESYNTAX);
+					}
 				}
 
-				// read data
-				err = get_arg(line, arg, offset);
-				if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+				if(def_val)
 				{
-					return err;
+					arg.clear();
+					arg.push_back(L"\"" + iocmd.def_val + L"\"");
+				}
+				else
+				{
+					// read data
+					err = get_arg(line, arg, offset);
+					if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+					{
+						return err;
+					}
 				}
 
 				if(iocmd.predef_only)
@@ -984,6 +1007,12 @@ C1STM8_T_ERROR C1STM8Compiler::load_next_command(const std::wstring &line, const
 						}
 						_req_symbols.insert(label);
 						arg[0].value = label;
+					}
+					else
+					if(iocmd.data_type == B1Types::B1T_TEXT)
+					{
+						const auto text = (arg[0].value.length() >= 3 && arg[0].value[0] == L'\"') ? arg[0].value.substr(1, arg[0].value.length() - 2) : arg[0].value;
+						arg[0].value = text;
 					}
 					else
 					if(!B1CUtils::are_types_compatible(arg[0].type, iocmd.data_type))
@@ -1786,6 +1815,39 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 			continue;
 		}
 
+		if(cmd.cmd == L"PUT")
+		{
+			auto err = check_arg(cmd.args[1]);
+			if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+			{
+				return err;
+			}
+
+			continue;
+		}
+
+		if(cmd.cmd == L"GET")
+		{
+			auto err = check_arg(cmd.args[1]);
+			if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+			{
+				return err;
+			}
+
+			continue;
+		}
+
+		if(cmd.cmd == L"TRR")
+		{
+			auto err = check_arg(cmd.args[1]);
+			if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+			{
+				return err;
+			}
+
+			continue;
+		}
+
 		if(cmd.cmd == L"RETVAL")
 		{
 			auto err = check_arg(cmd.args[0]);
@@ -1831,7 +1893,7 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 					return static_cast<C1STM8_T_ERROR>(B1_RES_ESYNTAX);
 				}
 
-				if(iocmd.data_type != B1Types::B1T_LABEL)
+				if(!(iocmd.data_type == B1Types::B1T_LABEL || iocmd.data_type == B1Types::B1T_TEXT))
 				{
 					auto err = check_arg(cmd.args[2]);
 					if (err != C1STM8_T_ERROR::C1STM8_RES_OK)
@@ -1962,6 +2024,38 @@ C1STM8_T_ERROR C1STM8Compiler::process_imm_str_values()
 			continue;
 		}
 
+		if(cmd.cmd == L"PUT")
+		{
+			auto err = process_imm_str_value(cmd.args[1]);
+			if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+			{
+				return err;
+			}
+			continue;
+		}
+
+		if(cmd.cmd == L"GET")
+		{
+			auto err = process_imm_str_value(cmd.args[1]);
+			if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+			{
+				return err;
+			}
+
+			continue;
+		}
+
+		if(cmd.cmd == L"TRR")
+		{
+			auto err = process_imm_str_value(cmd.args[1]);
+			if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+			{
+				return err;
+			}
+
+			continue;
+		}
+
 		if(cmd.cmd == L"RETVAL")
 		{
 			auto err = process_imm_str_value(cmd.args[0]);
@@ -2005,7 +2099,7 @@ C1STM8_T_ERROR C1STM8Compiler::process_imm_str_values()
 					return static_cast<C1STM8_T_ERROR>(B1_RES_ESYNTAX);
 				}
 
-				if(!iocmd.predef_only && iocmd.data_type != B1Types::B1T_LABEL)
+				if(!iocmd.predef_only && !(iocmd.data_type == B1Types::B1T_LABEL || iocmd.data_type == B1Types::B1T_TEXT))
 				{
 					auto err = process_imm_str_value(cmd.args[2]);
 					if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
@@ -2037,7 +2131,7 @@ C1STM8_T_ERROR C1STM8Compiler::process_imm_str_values()
 
 C1STM8_T_ERROR C1STM8Compiler::write_data_sec()
 {
-	B1_ASM_OPS *data = &_page0_sec;
+	B1_ASM_OPS *data = _page0 ? &_page0_sec : &_data_sec;
 
 	for(const auto &vn: _vars_order)
 	{
@@ -5816,7 +5910,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_ioctl(std::list<B1_CMP_CMD>::const_iterator
 	bool pre_cmd = false; // command(-s) with predefined value(-s)
 	int32_t mask = 0;
 	int32_t values = 0;
-	std::wstring label_value;
+	std::wstring str_value;
 	bool accepts_data = false;
 	auto call_type = Settings::IoCmd::IoCmdCallType::CT_CALL;
 	auto code_place = Settings::IoCmd::IoCmdCodePlacement::CP_CURR_POS;
@@ -5898,9 +5992,9 @@ C1STM8_T_ERROR C1STM8Compiler::write_ioctl(std::list<B1_CMP_CMD>::const_iterator
 			code_place = iocmd.code_place;
 			file_name = iocmd.file_name;
 
-			if(iocmd.data_type == B1Types::B1T_LABEL)
+			if(iocmd.data_type == B1Types::B1T_LABEL || iocmd.data_type == B1Types::B1T_TEXT)
 			{
-				label_value = cmd->args[2][0].value;
+				str_value = cmd->args[2][0].value;
 			}
 			else
 			{
@@ -6035,7 +6129,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_ioctl(std::list<B1_CMP_CMD>::const_iterator
 		// inline code
 		std::map<std::wstring, std::wstring> params =
 		{
-			{ L"VALUE", (data_type == B1Types::B1T_LABEL) ? label_value : std::to_wstring(values) },
+			{ L"VALUE", (data_type == B1Types::B1T_LABEL || data_type == B1Types::B1T_TEXT) ? str_value : std::to_wstring(values) },
 			{ L"MASK", std::to_wstring(mask) },
 			{ L"DEV_NAME", dev_name },
 			{ L"ID", std::to_wstring(id) },
@@ -6087,6 +6181,28 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 	for(auto ci = cbegin(); ci != cend(); ci++)
 	{
 		const auto &cmd = *ci;
+
+		for(auto si = _store_at.cbegin(); si != _store_at.cend(); si++)
+		{
+			if(std::get<0>(*si) == ci)
+			{
+				_curr_src_file_id = std::get<2>(*si);
+				_curr_line_cnt = std::get<3>(*si);
+
+				auto err = stm8_store(std::get<1>(*si));
+				if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+				{
+					return err;
+				}
+
+				_store_at.erase(si);
+
+				_cmp_active = false;
+				_retval_active = false;
+
+				break;
+			}
+		}
 
 		_curr_src_file_id = cmd.src_file_id;
 		_curr_line_cnt = cmd.line_cnt;
@@ -6187,7 +6303,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 					if(trimmed.length() >= 2)
 					{
 						auto first2 = trimmed.substr(0, 2);
-						if(first2 == L"DB" || first2 == L"DW")
+						if(first2 == L"DB" || first2 == L"DW" || first2 == L"DD")
 						{
 							_curr_code_sec->add_data(trimmed);
 						}
@@ -6287,6 +6403,65 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			_retval_active = false;
 
 			_allocated_arrays.erase(cmd.args[0][0].value);
+
+			continue;
+		}
+
+		if(cmd.cmd == L"GET")
+		{
+			if(_out_src_lines)
+			{
+				_curr_code_sec->add_comment(Utils::str_trim(_src_lines[cmd.src_line_id]));
+			}
+
+			auto in_dev = _global_settings.GetIoDeviceName(cmd.args[0][0].value);
+
+			if(in_dev.empty())
+			{
+				if(cmd.args[0][0].value.empty())
+				{
+					return C1STM8_T_ERROR::C1STM8_RES_ENODEFIODEV;
+				}
+				else
+				{
+					return C1STM8_T_ERROR::C1STM8_RES_EUNKIODEV;
+				}
+			}
+
+			auto dev_opts = _global_settings.GetDeviceOptions(in_dev);
+			if(dev_opts == nullptr || dev_opts->find(B1C_DEV_OPT_BIN) == dev_opts->cend())
+			{
+				return C1STM8_T_ERROR::C1STM8_RES_EWDEVTYPE;
+			}
+
+			std::wstring suffix =	(cmd.args[1][0].type == B1Types::B1T_BYTE)	? L"_B" :
+									(cmd.args[1][0].type == B1Types::B1T_INT)	? L"_W" :
+									(cmd.args[1][0].type == B1Types::B1T_WORD)	? L"_W" :
+									(cmd.args[1][0].type == B1Types::B1T_LONG)	? L"_L" : L"";
+
+			if(dev_opts->find(B1C_DEV_OPT_INL) == dev_opts->cend())
+			{
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_" + in_dev + L"_GET" + suffix); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_req_symbols.insert(L"__LIB_" + in_dev + L"_GET" + suffix);
+			}
+			else
+			{
+				// inline code
+				auto saved_it = ci++;
+
+				// deferred store operaton
+				_store_at.emplace_back(std::make_tuple(ci, cmd.args[1], _curr_src_file_id, _curr_line_cnt));
+
+				auto err = load_inline(0, L"__LIB_" + in_dev + L"_GET" + suffix + L"_INL", ci);
+				if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+				{
+					return err;
+				}
+				ci = saved_it;
+			}
+
+			_cmp_active = false;
+			_retval_active = false;
 
 			continue;
 		}
@@ -6547,6 +6722,12 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				}
 			}
 
+			auto dev_opts = _global_settings.GetDeviceOptions(in_dev);
+			if(dev_opts == nullptr || dev_opts->find(B1C_DEV_OPT_TXT) == dev_opts->cend())
+			{
+				return C1STM8_T_ERROR::C1STM8_RES_EWDEVTYPE;
+			}
+
 			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_" + in_dev + L"_IN");  //AD SIGNED_BYTE_OFFSET (CALLR)
 			_req_symbols.insert(L"__LIB_" + in_dev + L"_IN");
 			if(cmd.args[1][0].type == B1Types::B1T_BYTE)
@@ -6619,6 +6800,12 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				{
 					return C1STM8_T_ERROR::C1STM8_RES_EUNKIODEV;
 				}
+			}
+
+			auto dev_opts = _global_settings.GetDeviceOptions(out_dev);
+			if(dev_opts == nullptr || dev_opts->find(B1C_DEV_OPT_TXT) == dev_opts->cend())
+			{
+				return C1STM8_T_ERROR::C1STM8_RES_EWDEVTYPE;
 			}
 
 			if(cmd.args[1][0].value == L"NL")
@@ -6716,6 +6903,69 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_" + out_dev + L"_OUT"); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_" + out_dev + L"_OUT");
 			}
+
+			_cmp_active = false;
+			_retval_active = false;
+
+			continue;
+		}
+
+		if(cmd.cmd == L"PUT")
+		{
+			if(_out_src_lines)
+			{
+				_curr_code_sec->add_comment(Utils::str_trim(_src_lines[cmd.src_line_id]));
+			}
+
+			auto out_dev = _global_settings.GetIoDeviceName(cmd.args[0][0].value);
+
+			if(out_dev.empty())
+			{
+				if(cmd.args[0][0].value.empty())
+				{
+					return C1STM8_T_ERROR::C1STM8_RES_ENODEFIODEV;
+				}
+				else
+				{
+					return C1STM8_T_ERROR::C1STM8_RES_EUNKIODEV;
+				}
+			}
+
+			auto dev_opts = _global_settings.GetDeviceOptions(out_dev);
+			if(dev_opts == nullptr || dev_opts->find(B1C_DEV_OPT_BIN) == dev_opts->cend())
+			{
+				return C1STM8_T_ERROR::C1STM8_RES_EWDEVTYPE;
+			}
+
+			auto err = stm8_load(cmd.args[1], cmd.args[1][0].type, LVT::LVT_REG);
+			if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+			{
+				return err;
+			}
+
+			std::wstring suffix =	(cmd.args[1][0].type == B1Types::B1T_BYTE)	? L"_B" :
+									(cmd.args[1][0].type == B1Types::B1T_INT)	? L"_W" :
+									(cmd.args[1][0].type == B1Types::B1T_WORD)	? L"_W" :
+									(cmd.args[1][0].type == B1Types::B1T_LONG)	? L"_L" :
+									(cmd.args[1][0].type == B1Types::B1T_STRING)? L"_S" : L"";
+
+			if(dev_opts->find(B1C_DEV_OPT_INL) == dev_opts->cend())
+			{
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_" + out_dev + L"_PUT" + suffix); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_req_symbols.insert(L"__LIB_" + out_dev + L"_PUT" + suffix);
+			}
+			else
+			{
+				// inline code
+				auto saved_it = ci++;
+				auto err = load_inline(0, L"__LIB_" + out_dev + L"_PUT" + suffix + L"_INL", ci);
+				if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+				{
+					return err;
+				}
+				ci = saved_it;
+			}
+
 
 			_cmp_active = false;
 			_retval_active = false;
@@ -7011,6 +7261,71 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 
 				_curr_code_sec->add_op(L"MOV (__LIB_ERR_LAST_ERR), " + std::to_wstring(n)); //35 BYTE_VALUE LONG_ADDRESS
 				_init_files.push_back(L"__LIB_ERR_LAST_ERR");
+			}
+
+			_cmp_active = false;
+			_retval_active = false;
+
+			continue;
+		}
+
+		if(cmd.cmd == L"TRR")
+		{
+			if(_out_src_lines)
+			{
+				_curr_code_sec->add_comment(Utils::str_trim(_src_lines[cmd.src_line_id]));
+			}
+
+			auto trr_dev = _global_settings.GetIoDeviceName(cmd.args[0][0].value);
+
+			if(trr_dev.empty())
+			{
+				if(cmd.args[0][0].value.empty())
+				{
+					return C1STM8_T_ERROR::C1STM8_RES_ENODEFIODEV;
+				}
+				else
+				{
+					return C1STM8_T_ERROR::C1STM8_RES_EUNKIODEV;
+				}
+			}
+
+			auto dev_opts = _global_settings.GetDeviceOptions(trr_dev);
+			if(dev_opts == nullptr || dev_opts->find(B1C_DEV_OPT_BIN) == dev_opts->cend())
+			{
+				return C1STM8_T_ERROR::C1STM8_RES_EWDEVTYPE;
+			}
+
+			auto err = stm8_load(cmd.args[1], cmd.args[1][0].type, LVT::LVT_REG);
+			if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+			{
+				return err;
+			}
+
+			std::wstring suffix =	(cmd.args[1][0].type == B1Types::B1T_BYTE)	? L"_B" :
+									(cmd.args[1][0].type == B1Types::B1T_INT)	? L"_W" :
+									(cmd.args[1][0].type == B1Types::B1T_WORD)	? L"_W" :
+									(cmd.args[1][0].type == B1Types::B1T_LONG)	? L"_L" : L"";
+
+			if(dev_opts->find(B1C_DEV_OPT_INL) == dev_opts->cend())
+			{
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_" + trr_dev + L"_TRR" + suffix); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_req_symbols.insert(L"__LIB_" + trr_dev + L"_TRR" + suffix);
+			}
+			else
+			{
+				// inline code
+				auto saved_it = ci++;
+
+				// deferred store operaton
+				_store_at.emplace_back(std::make_tuple(ci, cmd.args[1], _curr_src_file_id, _curr_line_cnt));
+
+				auto err = load_inline(0, L"__LIB_" + trr_dev + L"_TRR" + suffix + L"_INL", ci);
+				if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+				{
+					return err;
+				}
+				ci = saved_it;
 			}
 
 			_cmp_active = false;
@@ -7425,6 +7740,10 @@ C1STM8_T_ERROR C1STM8Compiler::Load(const std::vector<std::string> &file_names)
 	_src_lines.clear();
 
 	_inline_asm = false;
+
+	_store_at.clear();
+
+	_end_placement.clear();
 
 	_all_symbols.clear();
 	_req_symbols.clear();
@@ -8509,7 +8828,7 @@ int main(int argc, char** argv)
 
 		if(undef.empty())
 		{
-			resolved.insert(std::wstring(err_file_name.begin(), err_file_name.end()));
+			resolved.insert(Utils::str2wstr(err_file_name));
 		}
 		else
 		{

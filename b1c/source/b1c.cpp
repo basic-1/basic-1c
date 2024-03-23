@@ -717,7 +717,7 @@ B1_T_ERROR B1FileCompiler::process_expression(B1_CMP_EXP_TYPE &res_type, B1_CMP_
 					last_loc_assign = --cend();
 				}
 
-				for(auto l = locals.rbegin(); l != locals.rend(); l++)
+				for(auto l = locals.crbegin(); l != locals.crend(); l++)
 				{
 					emit_command(L"LF", *l);
 				}
@@ -1341,7 +1341,7 @@ B1C_T_ERROR B1FileCompiler::st_ioctl()
 	Settings::IoCmd cmd;
 	if(!_global_settings.GetIoCmd(dev_name, cmd_name, cmd))
 	{
-		return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+		return B1C_T_ERROR::B1C_RES_EUNKDEVCMD;
 	}
 
 	if(b1_curr_prog_line_offset != 0)
@@ -1357,7 +1357,7 @@ B1C_T_ERROR B1FileCompiler::st_ioctl()
 	}
 	else
 	{
-		if(cmd.accepts_data)
+		if(cmd.accepts_data && cmd.def_val.empty())
 		{
 			return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
 		}
@@ -1365,34 +1365,56 @@ B1C_T_ERROR B1FileCompiler::st_ioctl()
 
 	if(cmd.accepts_data)
 	{
-		err = b1_rpn_build(b1_curr_prog_line_offset, NULL, NULL);
-		if(err != B1_RES_OK)
-		{
-			return static_cast<B1C_T_ERROR>(err);
-		}
-		if(b1_rpn[0].flags == 0)
-		{
-			// no data
-			return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
-		}
-
+		bool use_def_val = false;
 		std::wstring data;
 
-		if(cmd.predef_only)
+		// use default value
+		if(b1_curr_prog_line_offset == 0)
 		{
-			err1 = st_ioctl_get_symbolic_value(data);
-			if(err1 != B1C_T_ERROR::B1C_RES_OK)
-			{
-				return err1;
-			}
+			use_def_val = true;
 
-			auto v = cmd.values.find(data);
-			if(v == cmd.values.end())
+			if(!(cmd.predef_only && !cmd.def_val.empty()))
 			{
 				return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
 			}
+		}
+		else
+		{
+			err = b1_rpn_build(b1_curr_prog_line_offset, NULL, NULL);
+			if(err != B1_RES_OK)
+			{
+				return static_cast<B1C_T_ERROR>(err);
+			}
 
-			emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + data + L"\"", B1Types::B1T_STRING) }));
+			if(b1_rpn[0].flags == 0)
+			{
+				return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+			}
+		}
+
+		if(cmd.predef_only)
+		{
+			if(use_def_val)
+			{
+				// do not specify the default value
+				emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING) }));
+			}
+			else
+			{
+				err1 = st_ioctl_get_symbolic_value(data);
+				if(err1 != B1C_T_ERROR::B1C_RES_OK)
+				{
+					return err1;
+				}
+
+				auto v = cmd.values.find(data);
+				if(v == cmd.values.end())
+				{
+					return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+				}
+
+				emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + data + L"\"", B1Types::B1T_STRING) }));
+			}
 		}
 		else
 		{
@@ -1412,6 +1434,17 @@ B1C_T_ERROR B1FileCompiler::st_ioctl()
 				const auto lbl_name = get_name_space_prefix() + L"__ULB_" + data;
 				_req_labels.insert(lbl_name);
 				emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + lbl_name + L"\"", B1Types::B1T_STRING) }));
+			}
+			else
+			if(cmd.data_type == B1Types::B1T_TEXT)
+			{
+				err1 = st_ioctl_get_symbolic_value(data);
+				if(err1 != B1C_T_ERROR::B1C_RES_OK)
+				{
+					return err1;
+				}
+
+				emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + data + L"\"", B1Types::B1T_STRING) }));
 			}
 			else
 			{
@@ -1537,7 +1570,7 @@ B1_T_ERROR B1FileCompiler::st_let(const B1_T_CHAR **stop_tokens, B1_CMP_ARG *var
 
 	if(res1.size() > 1)
 	{
-		for(auto l = res1.rbegin(); l != res1.rend() - 1; l++)
+		for(auto l = res1.crbegin(); l != res1.crend() - 1; l++)
 		{
 			if(is_gen_local(l->value))
 			{
@@ -1916,7 +1949,7 @@ B1C_T_ERROR B1FileCompiler::st_dim(bool first_run)
 
 			push_back(cmd);
 
-			for(auto s = subs.rbegin(); s != subs.rend(); s++)
+			for(auto s = subs.crbegin(); s != subs.crend(); s++)
 			{
 				if(s->second == B1_CMP_EXP_TYPE::B1_CMP_ET_LOCAL)
 				{
@@ -2544,6 +2577,33 @@ B1C_T_ERROR B1FileCompiler::compile_simple_stmt(uint8_t stmt)
 		}
 	}
 
+	if(stmt == B1_ID_STMT_PUT)
+	{
+		auto err1 = st_put_get_trr(L"PUT", false);
+		if(err1 != B1C_T_ERROR::B1C_RES_OK)
+		{
+			return err1;
+		}
+	}
+
+	if(stmt == B1_ID_STMT_GET)
+	{
+		auto err1 = st_put_get_trr(L"GET", true);
+		if(err1 != B1C_T_ERROR::B1C_RES_OK)
+		{
+			return err1;
+		}
+	}
+
+	if(stmt == B1_ID_STMT_TRANSFER)
+	{
+		auto err1 = st_put_get_trr(L"TRR", true);
+		if (err1 != B1C_T_ERROR::B1C_RES_OK)
+		{
+			return err1;
+		}
+	}
+
 	if(stmt == B1_ID_STMT_END)
 	{
 		emit_command(L"END");
@@ -2857,7 +2917,7 @@ B1_T_ERROR B1FileCompiler::st_next()
 	emit_command(L"JMP", _state.second[3]);
 	emit_label(_state.second[6]);
 
-	for(auto l = _state.second.rbegin(); l != _state.second.rend(); l++)
+	for(auto l = _state.second.crbegin(); l != _state.second.crend(); l++)
 	{
 		if(is_gen_local(*l))
 		{
@@ -3102,7 +3162,7 @@ B1_T_ERROR B1FileCompiler::st_read()
 
 		if(res.size() > 1)
 		{
-			for(auto l = res.rbegin(); l != res.rend() - 1; l++)
+			for(auto l = res.crbegin(); l != res.crend() - 1; l++)
 			{
 				if(is_gen_local(l->value))
 				{
@@ -3428,7 +3488,7 @@ B1_T_ERROR B1FileCompiler::st_input()
 
 			if(res.size() > 1)
 			{
-				for(auto l = res.rbegin(); l != res.rend() - 1; l++)
+				for(auto l = res.crbegin(); l != res.crend() - 1; l++)
 				{
 					if(is_gen_local(l->value))
 					{
@@ -3456,6 +3516,136 @@ B1_T_ERROR B1FileCompiler::st_input()
 	}
 
 	return B1_RES_OK;
+}
+
+// PUT [#<dev_name>, ] <value1> [, <value2>, ..., <valueN>]: is_input = false
+// GET [#<dev_name>, ] <var1> [, <var2>, ..., <varN>]: is_input = true
+// TRANSFER [#<dev_name>, ] <var1> [, <var2>, ..., <varN>]: is_input = true
+B1C_T_ERROR B1FileCompiler::st_put_get_trr(const std::wstring &cmd_name, bool is_input)
+{
+	B1_TOKENDATA td;
+	auto saved_line_offset = b1_curr_prog_line_offset;
+	std::wstring dev_name;
+
+	// read optional device name
+	auto err = b1_tok_get(b1_curr_prog_line_offset, 0, &td);
+	if(err != B1_RES_OK)
+	{
+		return static_cast<B1C_T_ERROR>(err);
+	}
+	if(td.length == 0)
+	{
+		return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+	}
+	if(td.type & B1_TOKEN_TYPE_DEVNAME)
+	{
+		b1_curr_prog_line_offset = td.offset + td.length;
+
+		auto spc_dev_name = Utils::str_toupper(B1CUtils::get_progline_substring(td.offset, b1_curr_prog_line_offset));
+
+		dev_name = _global_settings.GetIoDeviceName(spc_dev_name);
+		if(dev_name.empty() && !spc_dev_name.empty())
+		{
+			return B1C_T_ERROR::B1C_RES_EUNKIODEV;
+		}
+
+		auto dev_opts = _global_settings.GetDeviceOptions(dev_name);
+		if (dev_opts == nullptr || dev_opts->find(B1C_DEV_OPT_BIN) == dev_opts->cend())
+		{
+			return B1C_T_ERROR::B1C_RES_EWDEVTYPE;
+		}
+
+		err = b1_tok_get(b1_curr_prog_line_offset, 0, &td);
+		if(err != B1_RES_OK)
+		{
+			return static_cast<B1C_T_ERROR>(err);
+		}
+		if(td.length != 1 || !B1_T_ISCOMMA(b1_progline[td.offset]))
+		{
+			return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+		}
+		b1_curr_prog_line_offset = td.offset + td.length;
+	}
+	else
+	{
+		// no device name specified
+		b1_curr_prog_line_offset = saved_line_offset;
+	}
+
+	// read other statement arguments
+	while(b1_curr_prog_line_offset != 0)
+	{
+		// build RPN
+		err = b1_rpn_build(b1_curr_prog_line_offset, INPUT_STOP_TOKEN, &b1_curr_prog_line_offset);
+		if(err != B1_RES_OK)
+		{
+			return static_cast<B1C_T_ERROR>(err);
+		}
+
+		// no RPN: empty expression was specified to b1_rpn_build function
+		if(b1_rpn[0].flags == 0)
+		{
+			return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+		}
+
+		// compile the expression
+		B1_CMP_EXP_TYPE exp_type;
+		B1_CMP_ARG res;
+		err = process_expression(exp_type, res, is_input);
+		if(err != B1_RES_OK)
+		{
+			return static_cast<B1C_T_ERROR>(err);
+		}
+
+		if(is_input)
+		{
+			if(exp_type != B1_CMP_EXP_TYPE::B1_CMP_ET_VAR)
+			{
+				return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+			}
+
+			emit_command(cmd_name, std::vector<B1_CMP_ARG>({ dev_name, res }));
+
+			if(res.size() > 1)
+			{
+				for(auto l = res.crbegin(); l != res.crend() - 1; l++)
+				{
+					if(is_gen_local(l->value))
+					{
+						emit_command(L"LF", l->value);
+					}
+				}
+			}
+		}
+		else
+		{
+			if(exp_type == B1_CMP_EXP_TYPE::B1_CMP_ET_LOGICAL)
+			{
+				return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+			}
+
+			emit_command(cmd_name, std::vector<std::wstring>({ dev_name, res[0].value }));
+
+			if(exp_type == B1_CMP_EXP_TYPE::B1_CMP_ET_LOCAL)
+			{
+				emit_command(L"LF", res[0].value);
+			}
+		}
+
+		if(b1_curr_prog_line_offset != 0)
+		{
+			if(B1_T_ISCOMMA(b1_progline[b1_curr_prog_line_offset]))
+			{
+				b1_curr_prog_line_offset++;
+			}
+			else
+			{
+				return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+			}
+		}
+	}
+
+	return B1C_T_ERROR::B1C_RES_OK;
 }
 
 B1_CMP_CMDS::const_iterator B1FileCompiler::find_LF(B1_CMP_CMDS::const_iterator lacmd, B1_CMP_CMDS::const_iterator intlfcmd, bool& intlf_found)
@@ -3547,7 +3737,7 @@ B1C_T_ERROR B1FileCompiler::remove_unused_labels(bool &changed)
 
 	used_labels.insert(_req_labels.cbegin(), _req_labels.cend());
 
-	for(auto l = labels.rbegin(); l != labels.rend(); l++)
+	for(auto l = labels.crbegin(); l != labels.crend(); l++)
 	{
 		if(used_labels.find(l->second) == used_labels.end())
 		{
@@ -3733,6 +3923,21 @@ bool B1FileCompiler::is_udef_used(const B1_CMP_CMD &cmd)
 		return is_udef_used(cmd.args[1]);
 	}
 
+	if(cmd.cmd == L"GET")
+	{
+		return is_udef_used(cmd.args[1]);
+	}
+
+	if(cmd.cmd == L"PUT")
+	{
+		return is_udef_used(cmd.args[1]);
+	}
+
+	if(cmd.cmd == L"TRR")
+	{
+		return is_udef_used(cmd.args[1]);
+	}
+
 	if(cmd.args.size() == 2)
 	{
 		for(auto &op: B1CUtils::_un_ops)
@@ -3849,6 +4054,21 @@ bool B1FileCompiler::is_volatile_used(const B1_CMP_CMD &cmd)
 	}
 
 	if(cmd.cmd == L"READ")
+	{
+		return is_volatile_used(cmd.args[1]);
+	}
+
+	if(cmd.cmd == L"GET")
+	{
+		return is_volatile_used(cmd.args[1]);
+	}
+
+	if(cmd.cmd == L"PUT")
+	{
+		return is_volatile_used(cmd.args[1]);
+	}
+
+	if(cmd.cmd == L"TRR")
 	{
 		return is_volatile_used(cmd.args[1]);
 	}
@@ -4861,7 +5081,7 @@ std::wstring B1FileCompiler::set_to_init_value(B1_CMP_CMD &cmd, const std::map<s
 		return L"";
 	}
 
-	if(cmd.cmd == L"IN" || cmd.cmd == L"READ")
+	if(cmd.cmd == L"IN" || cmd.cmd == L"READ" || cmd.cmd == L"GET" || cmd.cmd == L"TRR")
 	{
 		set_to_init_value_arg(cmd.args[1], true, vars, init, changed);
 		if(cmd.args[1].size() == 1)
@@ -4871,7 +5091,7 @@ std::wstring B1FileCompiler::set_to_init_value(B1_CMP_CMD &cmd, const std::map<s
 		return L"";
 	}
 
-	if(cmd.cmd == L"OUT" || cmd.cmd == L"SET")
+	if(cmd.cmd == L"OUT" || cmd.cmd == L"SET" || cmd.cmd == L"PUT")
 	{
 		set_to_init_value_arg(cmd.args[1], false, vars, init, changed);
 		return L"";
@@ -5636,8 +5856,20 @@ B1C_T_ERROR B1FileCompiler::put_types()
 				{
 					continue;
 				}
+				if(cmd.cmd == L"GET" && a == cmd.args.begin())
+				{
+					continue;
+				}
+				if(cmd.cmd == L"PUT" && a == cmd.args.begin())
+				{
+					continue;
+				}
+				if(cmd.cmd == L"TRR" && a == cmd.args.begin())
+				{
+					continue;
+				}
 
-				if(cmd.cmd == L"IN" || cmd.cmd == L"READ")
+				if(cmd.cmd == L"IN" || cmd.cmd == L"READ" || cmd.cmd == L"GET" || cmd.cmd == L"TRR")
 				{
 					read = false;
 				}
@@ -5646,6 +5878,12 @@ B1C_T_ERROR B1FileCompiler::put_types()
 				if(err != B1_RES_OK)
 				{
 					return static_cast<B1C_T_ERROR>(err);
+				}
+
+				// forbid GET and TRR statements with string argument
+				if((cmd.cmd == L"GET" || cmd.cmd == L"TRR") && (*a)[0].type == B1Types::B1T_STRING)
+				{
+					return static_cast<B1C_T_ERROR>(B1_RES_ETYPMISM);
 				}
 			}
 		}
@@ -6748,6 +6986,30 @@ B1C_T_ERROR B1FileCompiler::eval_imm_exps(bool &changed)
 				changed = true;
 			}
 		}
+		else
+		if(cmd.cmd == L"GET")
+		{
+			if(eval_imm_fn_arg(cmd.args[1]))
+			{
+				changed = true;
+			}
+		}
+		else
+		if(cmd.cmd == L"PUT")
+		{
+			if(eval_imm_fn_arg(cmd.args[1]))
+			{
+				changed = true;
+			}
+		}
+		else
+		if(cmd.cmd == L"TRR")
+		{
+			if(eval_imm_fn_arg(cmd.args[1]))
+			{
+				changed = true;
+			}
+		}
 	}
 
 	// +,A,0,B -> =,A,B
@@ -7046,6 +7308,17 @@ B1C_T_ERROR B1FileCompiler::remove_unused_vars(bool &changed)
 			continue;
 		}
 
+		if(cmd.cmd == L"PUT")
+		{
+			err = remove_unused_vars(cmd.args[1], changed);
+			if(err != B1C_T_ERROR::B1C_RES_OK)
+			{
+				return err;
+			}
+
+			continue;
+		}
+
 		if(cmd.cmd == L"IN")
 		{
 			err = remove_unused_vars(cmd.args[1], changed);
@@ -7058,6 +7331,28 @@ B1C_T_ERROR B1FileCompiler::remove_unused_vars(bool &changed)
 		}
 
 		if(cmd.cmd == L"READ")
+		{
+			err = remove_unused_vars(cmd.args[1], changed);
+			if(err != B1C_T_ERROR::B1C_RES_OK)
+			{
+				return err;
+			}
+
+			continue;
+		}
+
+		if(cmd.cmd == L"GET")
+		{
+			err = remove_unused_vars(cmd.args[1], changed);
+			if(err != B1C_T_ERROR::B1C_RES_OK)
+			{
+				return err;
+			}
+
+			continue;
+		}
+
+		if(cmd.cmd == L"TRR")
 		{
 			err = remove_unused_vars(cmd.args[1], changed);
 			if(err != B1C_T_ERROR::B1C_RES_OK)
@@ -7335,8 +7630,20 @@ B1C_T_ERROR B1FileCompiler::calc_vars_usage()
 				{
 					continue;
 				}
+				if(cmd.cmd == L"GET" && a == cmd.args.begin())
+				{
+					continue;
+				}
+				if(cmd.cmd == L"PUT" && a == cmd.args.begin())
+				{
+					continue;
+				}
+				if(cmd.cmd == L"TRR" && a == cmd.args.begin())
+				{
+					continue;
+				}
 
-				if(cmd.cmd == L"IN" || cmd.cmd == L"READ")
+				if(cmd.cmd == L"IN" || cmd.cmd == L"READ" || cmd.cmd == L"GET" || cmd.cmd == L"TRR")
 				{
 					read = false;
 				}
@@ -7432,7 +7739,7 @@ B1C_T_ERROR B1FileCompiler::optimize_GA_GF(bool &changed)
 					break;
 				}
 
-				if(B1CUtils::is_dst(cmd1, cmd.args[0][0].value) && !is_volatile_used(cmd1) && cmd1.cmd != L"IN" && cmd1.cmd != L"READ")
+				if(B1CUtils::is_dst(cmd1, cmd.args[0][0].value) && !is_volatile_used(cmd1) && cmd1.cmd != L"IN" && cmd1.cmd != L"READ" && cmd1.cmd != L"GET" && cmd1.cmd != L"TRR")
 				{
 					auto j1 = std::next(j);
 					erase(j);
@@ -8135,6 +8442,17 @@ B1C_T_ERROR B1FileCompiler::put_fn_def_values()
 		}
 
 		if(cmd.cmd == L"OUT")
+		{
+			err = put_fn_def_values(cmd.args[1]);
+			if(err != B1C_T_ERROR::B1C_RES_OK)
+			{
+				return err;
+			}
+
+			continue;
+		}
+
+		if(cmd.cmd == L"PUT")
 		{
 			err = put_fn_def_values(cmd.args[1]);
 			if(err != B1C_T_ERROR::B1C_RES_OK)
@@ -9824,10 +10142,10 @@ int main(int argc, char **argv)
 		const auto devs = _global_settings.GetDevList();
 		for(const auto &d: devs)
 		{
-			const auto comm_name = _global_settings.GetCommonDeviceName(d);
-			if(!comm_name.empty())
+			const auto def_name = _global_settings.GetDefaultDeviceName(d);
+			if(!def_name.empty())
 			{
-				std::fputs(Utils::wstr2str(comm_name + L" (" + d + L")\n").c_str(), stdout);
+				std::fputs(Utils::wstr2str(def_name + L" (" + d + L")\n").c_str(), stdout);
 			}
 			std::fputs(Utils::wstr2str(d + L"\n").c_str(), stdout);
 		}

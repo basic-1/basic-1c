@@ -68,6 +68,9 @@ static const std::string b1c_err_msgs[] =
 	"redefining variable with different dimensions number",
 	"incompatible options",
 	"not implemented",
+	"unknown IO device",
+	"wrong device type",
+	"unknown IO device or command name",
 
 	"the last message"
 };

@@ -8,7 +8,7 @@ BASIC1 language program is a sequence of text strings (program lines). BASIC1 co
   
 Line number is a number in the range \[1 ... 65530\]  
   
-Statement is a minimal unit of program which can be processed by compiler. Every statement should start from a statement keyword except for the implicit assignment (`LET` keyword can be omitted). Statement keywords of BASIC1 language are: `BREAK`, `CONTINUE`, `DATA`, `DEF`, `DIM`, `ELSE`, `ELSEIF`, `ERASE`, `FOR`, `GOTO`, `GOSUB`, `IF`, `INPUT`, `IOCTL`, `LET`, `NEXT`, `OPTION`, `PRINT`, `READ`, `REM`, `RESTORE`, `RETURN`, `WHILE`, `WEND`.  
+Statement is a minimal unit of program which can be processed by compiler. Every statement should start from a statement keyword except for the implicit assignment (`LET` keyword can be omitted). Statement keywords of BASIC1 language are: `BREAK`, `CONTINUE`, `DATA`, `DEF`, `DIM`, `ELSE`, `ELSEIF`, `ERASE`, `FOR`, `GET`, `GOTO`, `GOSUB`, `IF`, `INPUT`, `IOCTL`, `LET`, `NEXT`, `OPTION`, `PRINT`, `PUT`, `READ`, `REM`, `RESTORE`, `RETURN`, `WHILE`, `WEND`.  
   
 **Examples of program lines:**  
 `REM FOR statement with omitted line number`  
@@ -203,6 +203,17 @@ There are two types of functions in BASIC1: built-in functions and user-defined 
 `A = CBYTE("-1")` 'error: -1 value cannot be represented with `BYTE` data type  
 `A = CBYTE(300)` '`A` is assigned 44 value (300 converted to `BYTE` type)  
   
+## Implicit data type conversion in expressions  
+  
+The implicit data type conversion occurs when a binary arithmetic or bitwise operator is applied to operands of different type. BASIC1 compiler converts value of a smaller data type to the larger one automatically. The resulting value of operator has the same data type as the larger operand has. There's one exception: exponentiation and shift operators do not convert their operands and the resulting value of such an operator has the same type as its left operand.  
+  
+**Examples:**  
+`A = 100 + 200` 'A = 44 because 100 and 200 numeric constants are treated as `BYTE` values  
+`A = 100 + 200%` 'A = 300 because 200% is an `INT` value and 100 `BYTE` value is promoted to `INT` automatically  
+`A = 100 + 200 + 1000` 'A = 1044 because addition operator is left-associative (so the result of 100 + 200 has `BYTE` type)  
+`A = 1000 + 100 + 200` 'A = 1300  
+`A = 100% + 200 + 1000` 'A = 1300  
+  
 ## Statements  
   
 ### `DATA`, `READ`, `RESTORE` statements  
@@ -375,6 +386,19 @@ Here `<loop_var_name>` is a loop control numeric variable name, `<init_value>` a
 `1000 A = A + 1` ' the subroutine increments `A` variable  
 `1010 RETURN` 'return from the subroutine  
   
+### `GET` statement  
+  
+`GET` statement reads binary data from an input device and stores it in variable. The statement respects network byte order (big-endian) for numeric data.  
+  
+**Usage:**  
+`GET [#<device_name>,] <var_name1>[, <var_name2>, ... <var_nameN>]`  
+  
+Here `<var_name1>` ... `<var_nameN>` are names of variables to write data into and `<device_name>` is an optional device name to read data from. If the device name is not specified the current input device is used. The device must support binary input mode. Allowed data types for input variables are: `BYTE`, `INT`, `WORD` and `LONG`.  
+  
+**Examples:**  
+`GET A` 'read a numeric from the current device and write it into `A` variable  
+`GET #SPI, DAT(I)` 'read a numeric from `SPI` device and write it into `DAT(I)` element of subscripted variable  
+  
 ### `IOCTL` statement  
   
 `IOCTL` statement sends commands to MCU core and peripherals (to call hardware-specific functions). Available commands are listed [here](./ioctl.md).  
@@ -467,12 +491,40 @@ The statement writes textual data to an output device. Default output device is 
 `PRINT "0"; TAB(6); "5"; TAB(11); "A"; TAB(16); "F"` 'prints "0    5    A    F" text  
 `PRINT "0"; SPC(4); "5"; SPC(4); "A"; SPC(4); "F"` 'another way to print "0    5    A    F" text  
   
+### `PUT` statement  
+  
+`PUT` statement writes binary data to output device. The statement respects network byte order (big-endian) for numeric data.  
+  
+**Usage:**  
+`PUT [#<device_name>,] <exp1>[, <exp2>, ... <expN>]`  
+  
+The statement calculates specified expressions and writes their values to `<device_name>` device one by one. If the device name is not specified the current output device is used. The device must support binary output mode. Valid data types for the results of an expressions are: `BYTE`, `INT`, `WORD`, `LONG` or `STRING`.  
+  
+**Examples:**  
+`PUT A` 'writes value of numeric `A` variable to the current output device  
+`PUT #SPI, DAT(I)` 'writes value of `DAT(I)` element of subscripted variable to `SPI` device  
+`PUT #SPI, "hello"` 'writes five characters of the specified string to `SPI` device (string length or any kind of terminating character is not written)  
+`PUT #SPI, CBYTE(LEN(S$)), S$` 'writes `S$` string length (one byte) followed by the string data  
+  
 ### `REM` statement  
   
 The statement is used to write remarks or comments in program text. Compiler ignores all text between the statement and the end of the line. `REM` is the only statement that can precede `OPTION` statements in a program.  
   
 **Usage:**  
 `REM [<comment_text>]`  
+  
+### `TRANSFER` statement  
+  
+`TRANSFER` statement performs data transfer over an input/output device in both directions at the same time (for devices that support full-duplex data transmission mode). The statement respects network byte order (big-endian) for numeric data.  
+  
+**Usage:**  
+`TRANSFER [#<device_name>,] <var_name1>[, <var_name2>, ... <var_nameN>]`  
+  
+Here `<var_name1>` ... `<var_nameN>` are names of variables to read data from and to write data into when performing data exchange with the device. `<device_name>` is an optional input/output device name. If the device name is not specified the current input device is used. The device must support binary input and output modes. Allowed data types for the variables are: `BYTE`, `INT`, `WORD` and `LONG`.  
+  
+**Examples:**  
+`TRANSFER A` 'writes value of numeric `A` variable to the current output device and read value from the current input device into the same `A` variable  
+`TRANSFER #SPI, DAT(I)` 'writes value of `DAT(I)` element of subscripted variable to `SPI` device and then stores a value read from `SPI` into `DAT(I)`  
   
 ### `WHILE`, `WEND` statements  
   

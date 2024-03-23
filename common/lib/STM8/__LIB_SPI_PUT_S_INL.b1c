@@ -1,0 +1,33 @@
+; sends string data over SPI bus
+; X - string to send
+ASM
+PUSHW X
+TNZW X
+JREQ ::__LBL_EXIT
+JRMI ::__LBL_ROM_STR
+INCW X ; skip usage counter
+
+:::__LBL_ROM_STR
+LD A, (X)
+; here A - bytes count
+JREQ ::__LBL_EXIT
+
+PUSH A
+
+:::__LBL_NEXT
+INCW X
+LD A, (X)
+
+:::__LBL_WAIT_SPI_TXE
+BTJF (SPI_SR), SPI_SR_TXE_POS, ::__LBL_WAIT_SPI_TXE
+LD (SPI_DR), A
+
+DEC (1, SP)
+JRNE ::__LBL_NEXT
+
+POP A
+
+:::__LBL_EXIT
+POPW X ; restore string address to release the string
+CALLR __LIB_STR_RLS
+ENDASM

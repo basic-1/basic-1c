@@ -1,9 +1,15 @@
+INI,__LIB_UART1_OPT
+
 ; stop UART1
 :__LIB_UART1_7_CALL
 ASM
-; STOP
+; do not wait for data transmission complete if TX is disabled
+BTJF (__LIB_UART1_OPT), 3, ::__LBL_UART_STOP
+
 :::__LBL_TST_WAIT_TC
 BTJF (UART1_SR), UART1_SR_TC_POS, ::__LBL_TST_WAIT_TC
+
+:::__LBL_UART_STOP
 ; disable RX/TX
 CLR (UART1_CR2)
 RET

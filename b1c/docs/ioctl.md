@@ -36,23 +36,23 @@ Here `PX` stands for GPIO port name (e.g. `PA` for port A) and command names sho
 ### UART  
   
 - `IOCTL UART, INPUTECHO, ON | OFF` - enable or disable input echo (enabled by default)  
-- `IOCTL UART, RX, ON | OFF` - enable or disable RX (enabled by default)  
-- `IOCTL UART, TX, ON | OFF` - enable or disable TX (enabled by default)  
-- `IOCTL UART, SPEED, 9600 | 14400 | 19200 | 38400 | 57600 | 115200` - set UART baud rate (default is 9600)  
-- `IOCTL UART, PINS, DEFAULT` - initialize UART pins  
+- `IOCTL UART, TRANSMODE, DUPLEX | SIMPLEX` - transmission mode (default is `DUPLEX`)  
+- `IOCTL UART, CFGPINS, ON | OFF` - configure GPIO pins before starting communication (enabled by default)  
+- `IOCTL UART, SPEED, 9600 | 14400 | 19200 | 38400 | 57600 | 115200` - set UART baud rate (default is `9600`)  
 - `IOCTL UART, NEWLINE, <string_value>` - set new-line sequence (default is CRLF)  
 - `IOCTL UART, MARGIN, <numeric_value>` - set margin (print area width, default is 80 characters)  
 - `IOCTL UART, ZONEWIDTH, <numeric_value>` - set print zone width (default is 10 characters)  
-- `IOCTL UART, START` - start communication  
+- `IOCTL UART, START [, RX | TX]` - select data transmission direction and start communication (transmission direction is valid for simplex mode only, default is `TX`)  
 - `IOCTL UART, STOP` - stop communication  
 - `IOCTL UART, ENABLE` - enable UART  
 - `IOCTL UART, DISABLE` - disable UART  
   
 **Example:**  
-`REM the simplest UART configuration, 8N1 9600 baud`  
-`IOCTL UART, PINS, DEFAULT`  
+`REM the simplest UART configuration, duplex mode 8N1 9600 baud`  
 `IOCTL UART, ENABLE`  
 `IOCTL UART, START`  
+  
+`IOCTL UART, CFGPINS` command can be used to configure GPIO pins involved in UART communication. After disabling UART the pins are not deinitialized to their initial state (e.g.: UART TX pin stays configured as output push-pull).  
   
 ### TIMER  
   
@@ -80,3 +80,33 @@ Here `PX` stands for GPIO port name (e.g. `PA` for port A) and command names sho
 `1000 REM timer's update interrupt handler`  
 `...`  
 `RET`  
+  
+### SPI  
+  
+- `IOCTL SPI, MODE, M0 | M1 | M2 | M3` - specify clock polarity (CPOL) and clock phase (CPHA) or so-called SPI mode: M0 (CPOL = 0, CPHA = 0), M1 (CPOL = 0, CPHA = 1), M2 (CPOL = 1, CPHA = 0), M3 (CPOL = 1, CPHA = 1), default is `M0`  
+- `IOCTL SPI, MASTER, ON | OFF` - set master or slave mode (default mode is master)  
+- `IOCTL SPI, PRESCALER, DIV2 | DIV4 | DIV8 | DIV16 | DIV32 | DIV64 | DIV128 | DIV256` - set SPI clock prescaler (frequency divisor, default is `DIV2`)  
+- `IOCTL SPI, FRAMEFMT, MSBFIRST | LSBFIRST` - data frame format (LSB-first or MSB-first, default is `MSBFIRST`)  
+- `IOCTL SPI, TRANSMODE, DUPLEX | HALFDUPLEX | SIMPLEX` - SPI transmission mode (default is `DUPLEX`)  
+- `IOCTL SPI, SSPIN, <pin_name> | NONE` - specify slave select pin, `<pin_name>` format is `<port_name><pin_number>`, e.g.: `PA3`, `PE5`, etc. A special keyword `NONE` specified instead of the pin name disables automatic SS pin management. Default value corresponds to default NSS pin of the selected MCU.  
+- `IOCTL SPI, CFGPINS, ON | OFF` - configure GPIO pins when starting communication (enabled by default)  
+- `IOCTL SPI, START [, TX | RX]` - select data transmission direction and start SPI communication (transmission direction is valid for simplex and half-duplex modes only, default is `TX`)  
+- `IOCTL SPI, STOP` - stop SPI communication  
+- `IOCTL SPI, ENABLE` - enable SPI  
+- `IOCTL SPI, DISABLE` - disable SPI  
+  
+**Example:**  
+`IOCTL SPI, ENABLE`  
+`IOCTL SPI, MODE, M0`  
+`IOCTL SPI, MASTER`  
+`IOCTL SPI, PRESCALER, DIV8`  
+`IOCTL SPI, FRAMEFMT, MSBFIRST`  
+`IOCTL SPI, TRANSMODE, SIMPLEX`  
+`IOCTL SPI, SSPIN, PA3`  
+`IOCTL SPI, CFGPINS`  
+`IOCTL SPI, START, TX`  
+`PUT #SPI, 5, "hello"`  
+`IOCTL SPI, STOP`  
+`IOCTL SPI, DISABLE`  
+  
+Master simplex RX-only and master half-duplex RX modes are not fully implemented at the moment because of their odd disabling procedure. `IOCTL SPI, CFGPINS` command can be used to configure GPIO pins involved in SPI communication but disabling SPI with `IOCTL SPI, DISABLE` does not deinitializes them to their initial state (e.g.: master's CLK pin stays configured as output push-pull).  

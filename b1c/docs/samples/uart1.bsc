@@ -1,10 +1,9 @@
 10 REM INPUT and PRINT sample (8N1 9600 baud)
-20 IOCTL "UART", "PINS", "DEFAULT"
-30 IOCTL "UART", "ENABLE"
-40 IOCTL "UART", "START"
-50 WHILE 1 > 0
-60 INPUT "Type your name: ", S$
-70 PRINT "Hello " + S$ + "!"
-80 PRINT
-90 WEND
-100 END
+20 IOCTL "UART", "ENABLE"
+30 IOCTL "UART", "START"
+40 WHILE 1 > 0
+50 INPUT "Type your name: ", S$
+60 PRINT "Hello " + S$ + "!"
+70 PRINT
+80 WEND
+90 END

@@ -12,7 +12,6 @@
 extern "C"
 {
 #include "b1.h"
-#include "b1ex.h"
 }
 
 #include "errors.h"
@@ -192,6 +191,9 @@ private:
 	std::map<int, std::wstring> _irq_handlers;
 
 	std::vector<std::pair<const_iterator, std::map<std::wstring, std::wstring>>> _end_placement;
+
+	//                   iterator        store arg   file id  line cnt
+	std::list<std::tuple<const_iterator, B1_CMP_ARG, int32_t, int32_t>> _store_at;
 
 	std::vector<std::tuple<int32_t, std::string, C1STM8_T_WARNING>> _warnings;
 

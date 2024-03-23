@@ -124,6 +124,7 @@ private:
 	B1_T_ERROR st_break();
 	B1_T_ERROR st_print();
 	B1_T_ERROR st_input();
+	B1C_T_ERROR st_put_get_trr(const std::wstring &cmd_name, bool is_input);
 
 	B1_CMP_CMDS::const_iterator find_LF(B1_CMP_CMDS::const_iterator lacmd, B1_CMP_CMDS::const_iterator intlfcmd, bool &intlf_found);
 	void fix_LA_LF_order();

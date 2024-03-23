@@ -7,7 +7,7 @@
 - `blink3.bsc` - another blinking LED sample using timer  
 - `blink3_tm.bsc` - timer interrupt handler for `blink3.bsc` sample  
 - `blink4.bsc` - blinking LED with timer using BASIC subroutine as interrupt handler  
-- `uart.bsc` - write a string to default UART (8 data bits, no parity check, 1 stop bit, baudrate: 9600)  
+- `uart.bsc` - write a string to UART (8 data bits, no parity check, 1 stop bit, baudrate: 9600)  
 - `uart1.bsc` - read string from UART (8 data bits, no parity check, 1 stop bit, baudrate: 9600)  
 - `uart2.bsc` - another read/write UART sample (8 data bits, no parity check, 1 stop bit, baudrate: 9600)  
 - `uart3.bsc` - set 57600 baud speed (8 data bits, no parity check, 1 stop bit, baudrate: 57600)  

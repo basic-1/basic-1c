@@ -18,7 +18,7 @@ The directory contains BASIC1 compiler software packages with binary executable 
 `install.sh` - Linux script to install BASIC1 compiler from tar.gz archive.  
 `uninstall.sh` - Linux shell script to uninstall BASIC1 compiler installed from tar.gz archive.  
   
-The packages does not contain source code so download it from [https://github.com/basic-1/basic-1c](https://github.com/basic-1/basic-1c) if needed. `XX` in package file name stands for build number (git revision), e.g.: `b1c_lnx_amd64_gcc_1.0.0-12.deb`.  
+The packages do not contain source code so download it from [https://github.com/basic-1/basic-1c](https://github.com/basic-1/basic-1c) if needed. `XX` in package file name stands for build number (git revision), e.g.: `b1c_lnx_amd64_gcc_1.0.0-12.deb`.  
   
 ## deb packages (for Linux)  
   
@@ -35,7 +35,7 @@ To install BASIC1 compiler from tar.gz archive just copy its content to `/usr/lo
 `sudo cp -r /tmp/b1c/* /usr/local`  
 `rm -r /tmp/b1c`  
 
-`install.sh` script uses the same commands so the simplest way to install compiler from tar.gz archive is running the script with archive name as argument:  
+`install.sh` script uses the same commands so the simplest way to install compiler from tar.gz archive is running the script with the archive name as argument:  
 `sudo ./install.sh b1c_lnx_armhf_gcc_1.0.0-12.tar.gz`  
   
 To uninstall the complier installed from tar.gz archive use `uninstall.sh` script:  

@@ -1,3 +1,4 @@
+INI,__LIB_UART1_OPT
 INI,__LIB_UART1_POS
 INI,__LIB_UART1_NL_LEN
 INI,__LIB_UART1_NL_CHR1
@@ -6,6 +7,8 @@ INI,__LIB_UART1_NL_CHR2
 ; writes new line sequence to UART1
 :__LIB_UART1_NL
 ASM
+; do not write anything if TX is disabled
+BTJF (__LIB_UART1_OPT), 3, ::__LBL_EXIT
 LD A, (__LIB_UART1_NL_LEN)
 JREQ ::__LBL_EXIT
 :::__LBL_WAIT_TX_READY1

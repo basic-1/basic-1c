@@ -379,6 +379,9 @@ B1Types Utils::get_type_by_name(const std::wstring &type_name)
 	if(type_name_uc == L"LABEL")
 		return B1Types::B1T_LABEL;
 	else
+	if(type_name_uc == L"TEXT")
+		return B1Types::B1T_TEXT;
+	else
 		return B1Types::B1T_UNKNOWN;
 }
 
@@ -758,7 +761,6 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 				}
 			}
 			
-			//dev_name = Utils::str_toupper(Utils::str_trim(line.substr(1, pos - 1)));
 			dev_names.clear();
 			Utils::str_split(line.substr(1, pos - 1), L",", dev_names);
 
@@ -910,8 +912,24 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 			}
 		}
 
+		// values number
+		int32_t val_num = 0;
+
+		if(!get_field(line, true, value))
+		{
+			return B1_RES_ESYNTAX;
+		}
+		if(!value.empty())
+		{
+			err = Utils::str2int32(value, val_num);
+			if(err != B1_RES_OK)
+			{
+				return err;
+			}
+		}
+
 		// values
-		while(!line.empty())
+		while(val_num > 0 && !line.empty())
 		{
 			if(!get_field(line, false, name) || !get_field(line, false, value))
 			{
@@ -919,6 +937,27 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 			}
 
 			cmd.values.emplace(std::make_pair(name, value));
+
+			val_num--;
+		}
+
+		if(val_num > 0)
+		{
+			return B1_RES_ESYNTAX;
+		}
+
+		// default value
+		if(!get_field(line, true, value))
+		{
+			return B1_RES_ESYNTAX;
+		}
+		if(!value.empty())
+		{
+			if(cmd.values.find(value) == cmd.values.cend())
+			{
+				return B1_RES_ESYNTAX;
+			}
+			cmd.def_val = value;
 		}
 
 		cmds.emplace(std::make_pair(cmd_name, cmd));
@@ -1046,7 +1085,7 @@ std::vector<std::wstring> Settings::GetDevList() const
 	return devs;
 }
 
-std::wstring Settings::GetCommonDeviceName(const std::wstring &real_dev_name) const
+std::wstring Settings::GetDefaultDeviceName(const std::wstring &real_dev_name) const
 {
 	std::wstring dev_name;
 	int dev_num = 0;
@@ -1078,4 +1117,73 @@ std::vector<std::wstring> Settings::GetDevCmdsList(const std::wstring &dev_name)
 	}
 
 	return cmds;
+}
+
+std::vector<std::wstring> Settings::GetIoDevList() const
+{
+	std::vector<std::wstring> devs;
+	std::wstring io_devs;
+
+	if(GetValue(L"IO_DEVICES", io_devs))
+	{
+		Utils::str_split(io_devs, L",", devs);
+		for(auto &dev: devs)
+		{
+			dev = Utils::str_toupper(Utils::str_trim(dev));
+		}
+	}
+
+	return devs;
+}
+
+const std::set<std::wstring> *Settings::GetDeviceOptions(const std::wstring &dev_name) const
+{
+	auto dn = dev_name;
+	bool read_real_dn = true;
+	bool stop = false;
+
+	while(true)
+	{
+		auto opts = _io_dev_options.find(dn);
+		if(opts != _io_dev_options.cend())
+		{
+			return &(opts->second);
+		}
+
+		std::wstring sopts;
+		if(GetValue(dn + L"_OPTIONS", sopts))
+		{
+			std::vector<std::wstring> vopts;
+			std::set<std::wstring> stopts;
+			Utils::str_split(sopts, L",", vopts);
+			std::transform(vopts.cbegin(), vopts.cend(), std::inserter(stopts, stopts.begin()), [](const std::wstring &s) { return Utils::str_toupper(Utils::str_trim(s)); });
+			return &(_io_dev_options.emplace(std::make_pair(dn, stopts)).first->second);
+		}
+
+		if(stop)
+		{
+			break;
+		}
+
+		if(read_real_dn)
+		{
+			read_real_dn = false;
+			dn = GetIoDeviceName(dev_name);
+			if(dn != dev_name)
+			{
+				continue;
+			}
+		}
+		
+		stop = true;
+		dn = GetDefaultDeviceName(dev_name);
+		if(dn != dev_name)
+		{
+			continue;
+		}
+
+		break;
+	}
+
+	return nullptr;
 }

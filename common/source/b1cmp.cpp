@@ -398,6 +398,26 @@ bool B1CUtils::is_src(const B1_CMP_CMD &cmd, const std::wstring &val)
 		return false;
 	}
 
+	if(cmd.cmd == L"PUT")
+	{
+		if(cmd.args[1][0].value == val)
+		{
+			return true;
+		}
+
+		return false;
+	}
+
+	if(cmd.cmd == L"TRR")
+	{
+		if(cmd.args[1][0].value == val)
+		{
+			return true;
+		}
+
+		return false;
+	}
+
 	if(cmd.cmd == L"SET")
 	{
 		if(cmd.args[1][0].value == val)
@@ -474,6 +494,26 @@ bool B1CUtils::is_dst(const B1_CMP_CMD &cmd, const std::wstring &val)
 	}
 
 	if(cmd.cmd == L"IN")
+	{
+		if(cmd.args[1][0].value == val)
+		{
+			return true;
+		}
+
+		return false;
+	}
+
+	if(cmd.cmd == L"GET")
+	{
+		if(cmd.args[1][0].value == val)
+		{
+			return true;
+		}
+
+		return false;
+	}
+
+	if(cmd.cmd == L"TRR")
 	{
 		if(cmd.args[1][0].value == val)
 		{
@@ -580,6 +620,19 @@ bool B1CUtils::is_sub_or_arg(const B1_CMP_CMD &cmd, const std::wstring &val)
 		return false;
 	}
 
+	if(cmd.cmd == L"PUT")
+	{
+		for(auto s = cmd.args[1].begin() + 1; s != cmd.args[1].end(); s++)
+		{
+			if(s->value == val)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	if(cmd.cmd == L"SET")
 	{
 		for(auto s = cmd.args[1].begin() + 1; s != cmd.args[1].end(); s++)
@@ -610,6 +663,32 @@ bool B1CUtils::is_sub_or_arg(const B1_CMP_CMD &cmd, const std::wstring &val)
 	}
 
 	if(cmd.cmd == L"READ")
+	{
+		for(auto s = cmd.args[1].begin() + 1; s != cmd.args[1].end(); s++)
+		{
+			if(s->value == val)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	if(cmd.cmd == L"GET")
+	{
+		for(auto s = cmd.args[1].begin() + 1; s != cmd.args[1].end(); s++)
+		{
+			if(s->value == val)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	if(cmd.cmd == L"TRR")
 	{
 		for(auto s = cmd.args[1].begin() + 1; s != cmd.args[1].end(); s++)
 		{
@@ -755,6 +834,19 @@ bool B1CUtils::is_used(const B1_CMP_CMD &cmd, const std::wstring &val)
 		return false;
 	}
 
+	if(cmd.cmd == L"PUT")
+	{
+		for(const auto &aa: cmd.args[1])
+		{
+			if(aa.value == val)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	if(cmd.cmd == L"SET")
 	{
 		for(const auto &aa: cmd.args[1])
@@ -785,6 +877,32 @@ bool B1CUtils::is_used(const B1_CMP_CMD &cmd, const std::wstring &val)
 	}
 
 	if(cmd.cmd == L"READ")
+	{
+		for(const auto &aa: cmd.args[1])
+		{
+			if(aa.value == val)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	if(cmd.cmd == L"GET")
+	{
+		for(const auto &aa: cmd.args[1])
+		{
+			if(aa.value == val)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	if(cmd.cmd == L"TRR")
 	{
 		for(const auto &aa: cmd.args[1])
 		{
@@ -893,6 +1011,22 @@ bool B1CUtils::replace_dst(B1_CMP_CMD &cmd, const std::wstring &val, const B1_CM
 		}
 	}
 
+	if(cmd.cmd == L"GET")
+	{
+		if(cmd.args[1][0].value == val)
+		{
+			to_replace = &cmd.args[1];
+		}
+	}
+
+	if(cmd.cmd == L"TRR")
+	{
+		if(cmd.args[1][0].value == val)
+		{
+			to_replace = &cmd.args[1];
+		}
+	}
+
 	if(to_replace == nullptr && cmd.args.size() == 2)
 	{
 		for(auto &op: B1CUtils::_un_ops)
@@ -966,6 +1100,28 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const std::wstring &val, const B1_CM
 	}
 
 	if(cmd.cmd == L"OUT")
+	{
+		if(cmd.args[1][0].value == val)
+		{
+			cmd.args[1] = arg;
+			return true;
+		}
+
+		return false;
+	}
+
+	if(cmd.cmd == L"PUT")
+	{
+		if(cmd.args[1][0].value == val)
+		{
+			cmd.args[1] = arg;
+			return true;
+		}
+
+		return false;
+	}
+
+	if(cmd.cmd == L"TRR")
 	{
 		if(cmd.args[1][0].value == val)
 		{
@@ -1085,6 +1241,28 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const B1_CMP_ARG &src_arg, const B1_
 	}
 
 	if(cmd.cmd == L"OUT")
+	{
+		if(cmd.args[1] == src_arg)
+		{
+			cmd.args[1] = arg;
+			replaced = true;
+		}
+
+		return replaced;
+	}
+
+	if(cmd.cmd == L"PUT")
+	{
+		if(cmd.args[1] == src_arg)
+		{
+			cmd.args[1] = arg;
+			replaced = true;
+		}
+
+		return replaced;
+	}
+
+	if(cmd.cmd == L"TRR")
 	{
 		if(cmd.args[1] == src_arg)
 		{
@@ -1248,6 +1426,19 @@ bool B1CUtils::replace_src_with_subs(B1_CMP_CMD &cmd, const std::wstring &val, c
 		processed = true;
 	}
 
+	if(!processed && cmd.cmd == L"PUT")
+	{
+		for(auto aa = cmd.args[1].begin(); aa != cmd.args[1].end(); aa++)
+		{
+			if(aa->value == val)
+			{
+				to_replace.push_back(&*aa);
+			}
+		}
+
+		processed = true;
+	}
+
 	if(!processed && cmd.cmd == L"SET")
 	{
 		for(auto aa = cmd.args[1].begin(); aa != cmd.args[1].end(); aa++)
@@ -1278,6 +1469,32 @@ bool B1CUtils::replace_src_with_subs(B1_CMP_CMD &cmd, const std::wstring &val, c
 	}
 
 	if(!processed && cmd.cmd == L"READ")
+	{
+		for(auto aa = cmd.args[1].begin() + 1; aa != cmd.args[1].end(); aa++)
+		{
+			if(aa->value == val)
+			{
+				to_replace.push_back(&*aa);
+			}
+		}
+
+		processed = true;
+	}
+
+	if(!processed && cmd.cmd == L"GET")
+	{
+		for(auto aa = cmd.args[1].begin() + 1; aa != cmd.args[1].end(); aa++)
+		{
+			if(aa->value == val)
+			{
+				to_replace.push_back(&*aa);
+			}
+		}
+
+		processed = true;
+	}
+
+	if(!processed && cmd.cmd == L"TRR")
 	{
 		for(auto aa = cmd.args[1].begin() + 1; aa != cmd.args[1].end(); aa++)
 		{
@@ -1448,6 +1665,26 @@ bool B1CUtils::arg_is_src(const B1_CMP_CMD &cmd, const B1_CMP_ARG &arg)
 		return false;
 	}
 
+	if(cmd.cmd == L"PUT")
+	{
+		if(cmd.args[1] == arg)
+		{
+			return true;
+		}
+
+		return false;
+	}
+
+	if(cmd.cmd == L"TRR")
+	{
+		if(cmd.args[1] == arg)
+		{
+			return true;
+		}
+
+		return false;
+	}
+
 	if(cmd.cmd == L"SET")
 	{
 		if(cmd.args[1] == arg)
@@ -1539,6 +1776,26 @@ bool B1CUtils::arg_is_dst(const B1_CMP_CMD &cmd, const B1_CMP_ARG &arg, bool is_
 		return false;
 	}
 
+	if(cmd.cmd == L"GET")
+	{
+		if(cmd.args[1] == arg)
+		{
+			return true;
+		}
+
+		return false;
+	}
+
+	if(cmd.cmd == L"TRR")
+	{
+		if(cmd.args[1] == arg)
+		{
+			return true;
+		}
+
+		return false;
+	}
+
 	if(cmd.args.size() == 2)
 	{
 		for(auto &op: B1CUtils::_un_ops)
@@ -1582,6 +1839,16 @@ std::wstring B1CUtils::get_dst_var_name(const B1_CMP_CMD &cmd)
 	}
 
 	if(cmd.cmd == L"IN")
+	{
+		return cmd.args[1][0].value;
+	}
+
+	if(cmd.cmd == L"GET")
+	{
+		return cmd.args[1][0].value;
+	}
+
+	if(cmd.cmd == L"TRR")
 	{
 		return cmd.args[1][0].value;
 	}

@@ -1,2 +1,0 @@
-; configure UART2 pins
-INL,__LIB_UART2_CFG_PINS
