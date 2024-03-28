@@ -1,6 +1,6 @@
 /*
  STM8 intermediate code compiler
- Copyright (c) 2021-2023 Nikolay Pletnev
+ Copyright (c) 2021-2024 Nikolay Pletnev
  MIT license
 
  c1stm8.cpp: STM8 intermediate code compiler
@@ -1367,10 +1367,13 @@ C1STM8_T_ERROR C1STM8Compiler::check_arg(B1_CMP_ARG &arg)
 				}
 				else
 				{
-					if(v->second.type != a->type)
+					B1Types com_type;
+					bool comp_types = false;
+					if(B1CUtils::get_com_type(v->second.type, a->type, com_type, comp_types) != B1_RES_OK || !comp_types)
 					{
 						return C1STM8_T_ERROR::C1STM8_RES_EVARTYPMIS;
 					}
+
 					if(v->second.dim_num != 0)
 					{
 						return C1STM8_T_ERROR::C1STM8_RES_EVARDIMMIS;
@@ -1379,10 +1382,13 @@ C1STM8_T_ERROR C1STM8Compiler::check_arg(B1_CMP_ARG &arg)
 			}
 			else
 			{
-				if(ma->second.type != a->type)
+				B1Types com_type;
+				bool comp_types = false;
+				if(B1CUtils::get_com_type(ma->second.type, a->type, com_type, comp_types) != B1_RES_OK || !comp_types)
 				{
 					return C1STM8_T_ERROR::C1STM8_RES_EVARTYPMIS;
 				}
+
 				if(ma->second.dim_num != 0)
 				{
 					return C1STM8_T_ERROR::C1STM8_RES_EVARDIMMIS;
@@ -1457,10 +1463,13 @@ C1STM8_T_ERROR C1STM8Compiler::check_arg(B1_CMP_ARG &arg)
 			}
 			else
 			{
-				if(v->second.type != arg[0].type)
+				B1Types com_type;
+				bool comp_types = false;
+				if(B1CUtils::get_com_type(v->second.type, arg[0].type, com_type, comp_types) != B1_RES_OK || !comp_types)
 				{
 					return C1STM8_T_ERROR::C1STM8_RES_EVARTYPMIS;
 				}
+
 				if(v->second.dim_num != arg.size() - 1)
 				{
 					return C1STM8_T_ERROR::C1STM8_RES_EVARDIMMIS;
@@ -1469,10 +1478,13 @@ C1STM8_T_ERROR C1STM8Compiler::check_arg(B1_CMP_ARG &arg)
 		}
 		else
 		{
-			if(ma->second.type != arg[0].type)
+			B1Types com_type;
+			bool comp_types = false;
+			if(B1CUtils::get_com_type(ma->second.type, arg[0].type, com_type, comp_types) != B1_RES_OK || !comp_types)
 			{
 				return C1STM8_T_ERROR::C1STM8_RES_EVARTYPMIS;
 			}
+
 			if(ma->second.dim_num != arg.size() - 1)
 			{
 				return C1STM8_T_ERROR::C1STM8_RES_EVARDIMMIS;
@@ -3515,6 +3527,11 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 		return stm8_load(arg[0], req_type, req_valtype, res_valtype, res_val);
 	}
 
+	if(!(req_valtype & (LVT::LVT_REG | LVT::LVT_MEMREF)))
+	{
+		return C1STM8_T_ERROR::C1STM8_RES_EINTERR;
+	}
+
 	std::wstring rv;
 	LVT rvt;
 	auto init_type = arg[0].type;
@@ -3534,9 +3551,25 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 			{
 				return static_cast<C1STM8_T_ERROR>(B1_RES_EWRARGCNT);
 			}
+
+			if(req_valtype & LVT::LVT_MEMREF)
+			{
+				for(int32_t i = (arg.size() - 2); i >= 0; i--)
+				{
+					if(!B1CUtils::is_imm_val(arg[i + 1].value))
+					{
+						return C1STM8_T_ERROR::C1STM8_RES_EINTERR;
+					}
+				}
+			}
 		}
 		else
 		{
+			if(req_valtype & LVT::LVT_MEMREF)
+			{
+				return C1STM8_T_ERROR::C1STM8_RES_EINTERR;
+			}
+
 			const auto &var = _vars.find(arg[0].value)->second;
 
 			if(var.dim_num != arg.size() - 1)
@@ -3569,6 +3602,12 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 		// get value
 		if(init_type == B1Types::B1T_BYTE)
 		{
+			if((req_valtype & LVT::LVT_MEMREF) && is_ma && imm_offset && req_type == B1Types::B1T_BYTE)
+			{
+				rvt = LVT::LVT_MEMREF;
+				rv += L" + " + Utils::str_tohex16(offset);
+			}
+			else
 			if(req_valtype & LVT::LVT_REG)
 			{
 				rvt = LVT::LVT_REG;
@@ -3643,6 +3682,12 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 				}
 			}
 
+			if((req_valtype & LVT::LVT_MEMREF) && is_ma && imm_offset && (req_type == B1Types::B1T_BYTE || req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD))
+			{
+				rvt = LVT::LVT_MEMREF;
+				rv += L" + " + Utils::str_tohex16(offset);
+			}
+			else
 			if(req_valtype & LVT::LVT_REG)
 			{
 				rvt = LVT::LVT_REG;
@@ -3776,6 +3821,12 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 				}
 			}
 
+			if((req_valtype & LVT::LVT_MEMREF) && is_ma && imm_offset && (req_type == B1Types::B1T_BYTE || req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD || req_type == B1Types::B1T_LONG))
+			{
+				rvt = LVT::LVT_MEMREF;
+				rv += L" + " + Utils::str_tohex16(offset);
+			}
+			else
 			if(req_valtype & LVT::LVT_REG)
 			{
 				rvt = LVT::LVT_REG;
@@ -3928,7 +3979,11 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 	else
 	{
 		// function call
-		
+		if(!(req_valtype & LVT::LVT_REG))
+		{
+			return C1STM8_T_ERROR::C1STM8_RES_EINTERR;
+		}
+
 		// check for special data type conversion functions (inline)
 		if(fn->args.size() == 1 && fn->isstdfn && fn->iname.empty())
 		{
@@ -4575,8 +4630,70 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 	return C1STM8_T_ERROR::C1STM8_RES_OK;
 }
 
+C1STM8_T_ERROR C1STM8Compiler::stm8_assign(const B1_CMP_CMD &cmd)
+{
+	if(cmd.cmd != L"=")
+	{
+		return C1STM8_T_ERROR::C1STM8_RES_EUNKINST;
+	}
+
+	if(	(cmd.args[0][0].type == B1Types::B1T_BYTE || cmd.args[0][0].type == B1Types::B1T_INT || cmd.args[0][0].type == B1Types::B1T_WORD || cmd.args[0][0].type == B1Types::B1T_LONG) &&
+		cmd.args[1][0].type == B1Types::B1T_BYTE
+		)
+	{
+		// try to use MOV instead of two LDs
+		LVT srctype = LVT::LVT_NONE;
+		std::wstring srcval, dstval;
+
+		auto err = stm8_load(cmd.args[0], B1Types::B1T_BYTE, LVT::LVT_IMMVAL | LVT::LVT_MEMREF, &srctype, &srcval);
+		if(err == C1STM8_T_ERROR::C1STM8_RES_OK)
+		{
+			err = stm8_load(cmd.args[1], B1Types::B1T_BYTE, LVT::LVT_MEMREF, nullptr, &dstval);
+			if(err == C1STM8_T_ERROR::C1STM8_RES_OK)
+			{
+				if(srctype == LVT::LVT_IMMVAL)
+				{
+					if(srcval == L"0" || srcval == L"0x0" || srcval == L"0X0")
+					{
+						_curr_code_sec->add_op(L"CLR (" + dstval + L")"); //3F SHORT_ADDRESS 72 5F LONG_ADDRESS
+					}
+					else
+					{
+						_curr_code_sec->add_op(L"MOV (" + dstval + L"), " + srcval); //35 BYTE_VALUE LONG_ADDRESS
+					}
+				}
+				else
+				{
+					_curr_code_sec->add_op(L"MOV (" + dstval + L"), (" + srcval + L")"); //45 SHORT_ADDRESS SHORT_ADDRESS 55 LONG_ADDRESS LONG_ADDRESS
+				}
+
+				return C1STM8_T_ERROR::C1STM8_RES_OK;
+			}
+		}
+	}
+
+	auto err = stm8_load(cmd.args[0], cmd.args[1][0].type, LVT::LVT_REG);
+	if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+	{
+		return err;
+	}
+
+	err = stm8_store(cmd.args[1]);
+	if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+	{
+		return err;
+	}
+
+	return C1STM8_T_ERROR::C1STM8_RES_OK;
+}
+
 C1STM8_T_ERROR C1STM8Compiler::stm8_un_op(const B1_CMP_CMD &cmd)
 {
+	if(cmd.cmd == L"=")
+	{
+		return stm8_assign(cmd);
+	}
+
 	auto err = stm8_load(cmd.args[0], cmd.args[1][0].type, LVT::LVT_REG);
 	if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 	{
@@ -4628,11 +4745,6 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_un_op(const B1_CMP_CMD &cmd)
 		{
 			return static_cast<C1STM8_T_ERROR>(B1_RES_ETYPMISM);
 		}
-	}
-	else
-	if(cmd.cmd != L"=")
-	{
-		return C1STM8_T_ERROR::C1STM8_RES_EUNKINST;
 	}
 
 	err = stm8_store(cmd.args[1]);

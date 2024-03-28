@@ -1,0 +1,38 @@
+REM SPI slave simplex RX-only example
+
+DIM L AS BYTE
+DIM STATIC DATA(254) AS BYTE
+
+' enable UART (8N1 9600 baud)
+IOCTL UART, ENABLE
+IOCTL UART, START
+
+' configure and enable SPI (MOSI, CLK and NSS pins have to be connected)
+IOCTL SPI, MODE, M0
+IOCTL SPI, MASTER, OFF
+IOCTL SPI, TRANSMODE, SIMPLEX
+IOCTL SPI, ENABLE
+IOCTL SPI, START, RX
+
+WHILE 1 > 0
+
+PRINT "Waiting for SPI data..."
+
+' read string length
+GET #SPI, L
+' read string data
+FOR I = 0 TO L - 1
+GET #SPI, DATA(I)
+NEXT I
+
+PRINT L; " characters read:"
+
+FOR I = 0 TO L - 1
+PRINT CHR$(DATA(I));
+NEXT I
+PRINT
+PRINT
+
+WEND
+
+END

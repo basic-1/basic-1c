@@ -1,6 +1,6 @@
 /*
  BASIC1 compiler
- Copyright (c) 2021-2023 Nikolay Pletnev
+ Copyright (c) 2021-2024 Nikolay Pletnev
  MIT license
 
  b1c.cpp: BASIC1 compiler
@@ -6421,6 +6421,122 @@ B1C_T_ERROR B1FileCompiler::reuse_locals(bool &changed)
 	return B1C_T_ERROR::B1C_RES_OK;
 }
 
+// +,a,b,local
+// -,local,c,local
+// *,d,local,local
+// /,100,local,e <- last read
+// ... <- here local is not used
+// lf,local or writing something to local
+// ->
+// +,a,b,e
+// -,e,c,e
+// *,d,e,e
+// /,100,e,e
+// ... <- here local is not used
+// lf,local or writing something to local
+B1C_T_ERROR B1FileCompiler::reuse_vars(bool &changed)
+{
+	for(auto i = begin(); i != end(); i++)
+	{
+		auto &cmd = *i;
+
+		if(B1CUtils::is_label(cmd))
+		{
+			continue;
+		}
+
+		auto local = B1CUtils::get_dst_var(cmd, true);
+		if(local == nullptr || !is_gen_local(local->value))
+		{
+			continue;
+		}
+
+		iterator wr = i;
+		iterator rd = end();
+		bool next = true;
+
+		for(auto j = std::next(i); j != end(); j++)
+		{
+			auto &cmd1 = *j;
+
+			if(	B1CUtils::is_label(cmd1) || cmd1.cmd == L"JMP" || cmd1.cmd == L"JT" || cmd1.cmd == L"JF" || cmd1.cmd == L"CALL" ||
+				cmd1.cmd == L"RETVAL" || cmd1.cmd == L"RET" || cmd1.cmd == L"ERR" || cmd1.cmd == L"END" || cmd1.cmd == L"DEF")
+			{
+				break;
+			}
+
+			if(is_udef_used(cmd1))
+			{
+				break;
+			}
+
+			auto dst1 = B1CUtils::get_dst_var(cmd1, true);
+			if(dst1 != nullptr && dst1->value == local->value)
+			{
+				wr = j;
+			}
+			if(B1CUtils::is_src(cmd1, local->value) || B1CUtils::is_sub_or_arg(cmd1, local->value))
+			{
+				rd = j;
+			}
+
+			if((wr == j && rd != j) || (cmd1.cmd == L"LF" && cmd1.args[0][0].value == local->value))
+			{
+				if(rd == end())
+				{
+					if(!is_volatile_used(cmd))
+					{
+						erase(i++);
+						i--;
+						changed = true;
+					}
+				}
+				else
+				{
+					auto var_to_reuse = B1CUtils::get_dst_var(*rd, true);
+					if(var_to_reuse == nullptr || is_volatile_var(var_to_reuse->value))
+					{
+						break;
+					}
+					
+					B1Types com_type;
+					bool comp_types = false;
+					if(B1CUtils::get_com_type(local->type, var_to_reuse->type, com_type, comp_types) != B1_RES_OK || !comp_types)
+					{
+						break;
+					}
+
+					bool var_used = false;
+					for(auto r = std::next(i); r != rd; r++)
+					{
+						if(B1CUtils::is_used(*r, var_to_reuse->value))
+						{
+							var_used = true;
+							break;
+						}
+					}
+					if(var_used || B1CUtils::is_src(*rd, var_to_reuse->value) || B1CUtils::is_sub_or_arg(*rd, var_to_reuse->value))
+					{
+						break;
+					}
+
+					auto local_name = local->value;
+					B1CUtils::replace_dst(*i, local_name, B1_CMP_ARG(var_to_reuse->value, var_to_reuse->type), true);
+					for(auto r = std::next(i); r != std::next(rd); r++)
+					{
+						B1CUtils::replace_all(*r, local_name, *var_to_reuse, true);
+					}
+					changed = true;
+				}
+
+				break;
+			}
+		}
+	}
+
+	return B1C_T_ERROR::B1C_RES_OK;
+}
+
 void B1FileCompiler::correct_int_value(int32_t &n, const B1Types type)
 {
 	if(type == B1Types::B1T_INT)
@@ -8782,6 +8898,16 @@ B1C_T_ERROR B1FileCompiler::Optimize(bool init)
 		}
 
 		err = reuse_locals(changed);
+		if(err != B1C_T_ERROR::B1C_RES_OK)
+		{
+			break;
+		}
+		if(changed)
+		{
+			stop = false;
+		}
+
+		err = reuse_vars(changed);
 		if(err != B1C_T_ERROR::B1C_RES_OK)
 		{
 			break;

@@ -140,7 +140,7 @@ private:
 	B1C_T_ERROR remove_jumps(bool &changed);
 	void remove_compare_op(B1_CMP_CMDS::iterator i, bool is_true);
 	B1C_T_ERROR remove_redundant_comparisons(bool &changed);
-	B1C_T_ERROR replace_unary_minus(bool& changed);
+	B1C_T_ERROR replace_unary_minus(bool &changed);
 	B1C_T_ERROR eval_unary_ops(bool &changed);
 	void set_to_init_value_arg(B1_CMP_ARG &arg, bool is_dst, const std::map<std::wstring, std::pair<bool, std::wstring>> &vars, bool init, bool &changed);
 	std::wstring set_to_init_value(B1_CMP_CMD &cmd, const std::map<std::wstring, std::pair<bool, std::wstring>> &vars, bool init, bool &changed);
@@ -154,6 +154,7 @@ private:
 	B1C_T_ERROR inline_fns(bool &changed);
 	bool get_LA_LF(iterator s, iterator e, iterator &la, iterator &lf);
 	B1C_T_ERROR reuse_locals(bool &changed);
+	B1C_T_ERROR reuse_vars(bool &changed);
 	void correct_int_value(int32_t &n, const B1Types type);
 	bool eval_imm_fn_arg(B1_CMP_ARG &a);
 	B1C_T_ERROR eval_imm_exps(bool &changed);

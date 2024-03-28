@@ -277,6 +277,7 @@ B1_T_ERROR B1CUtils::get_com_type(const B1Types type0, const B1Types type1, B1Ty
 
 	if(type0 == B1Types::B1T_STRING || type1 == B1Types::B1T_STRING)
 	{
+		comp_num_types = (type0 == B1Types::B1T_STRING && type1 == B1Types::B1T_STRING);
 		com_type = B1Types::B1T_STRING;
 	}
 	else
@@ -1821,49 +1822,56 @@ bool B1CUtils::arg_is_dst(const B1_CMP_CMD &cmd, const B1_CMP_ARG &arg, bool is_
 	return false;
 }
 
-std::wstring B1CUtils::get_dst_var_name(const B1_CMP_CMD &cmd)
+const B1_TYPED_VALUE *B1CUtils::get_dst_var(const B1_CMP_CMD &cmd, bool scalar_var_only)
 {
 	if(B1CUtils::is_label(cmd))
 	{
-		return L"";
+		return nullptr;
 	}
 
 	if(B1CUtils::is_inline_asm(cmd))
 	{
-		return L"";
+		return nullptr;
 	}
+
+	int index = -1;
 
 	if(cmd.cmd == L"READ")
 	{
-		return cmd.args[1][0].value;
+		index = 1;
 	}
 
 	if(cmd.cmd == L"IN")
 	{
-		return cmd.args[1][0].value;
+		index = 1;
 	}
 
 	if(cmd.cmd == L"GET")
 	{
-		return cmd.args[1][0].value;
+		index = 1;
 	}
 
 	if(cmd.cmd == L"TRR")
 	{
-		return cmd.args[1][0].value;
+		index = 1;
 	}
 
 	if(is_un_op(cmd))
 	{
-		return cmd.args[1][0].value;
+		index = 1;
 	}
 
 	if(is_bin_op(cmd))
 	{
-		return cmd.args[2][0].value;
+		index = 2;
 	}
 
-	return L"";
+	if(index >= 0)
+	{
+		return scalar_var_only ? (cmd.args[index].size() == 1 ? &cmd.args[index][0] : nullptr) : &cmd.args[index][0];
+	}
+
+	return nullptr;
 }
 
 // checks local variable types compatibility, returns true if a local of base_type can be used instead of a local of reuse_type

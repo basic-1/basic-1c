@@ -1,0 +1,34 @@
+REM SPI master simplex TX-only example
+
+' enable UART (8N1 9600 baud)
+IOCTL UART, ENABLE
+IOCTL UART, START
+
+' configure and enable SPI (MOSI, CLK and NSS pins have to be connected)
+IOCTL SPI, MODE, M0
+' set SPI speed low enough for slave to be able processing string data
+IOCTL SPI, PRESCALER, DIV8
+IOCTL SPI, MASTER, ON
+IOCTL SPI, TRANSMODE, SIMPLEX
+IOCTL SPI, ENABLE
+
+WHILE 1 > 0
+
+' read a string from UART
+INPUT "Enter string to send over SPI: ", S$
+
+' enable slave device and start communication
+IOCTL SPI, START, TX
+
+' send string length
+PUT #SPI, CBYTE(LEN(S$))
+' send string data
+PUT #SPI, S$
+
+IOCTL SPI, STOP
+
+PRINT
+
+WEND
+
+END

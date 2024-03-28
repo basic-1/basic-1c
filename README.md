@@ -7,7 +7,7 @@
 - supports classic BASIC language dialect with various extensions  
 - command-line compiler built for Windows x86, Windows x64, Linux i386, Linux amd64, Linux armhf  
 - produces a kind of intermediate code that can be compiled into STM8 assembler code  
-- static and dynamic memory allocation  
+- static and dynamic memory allocation (built-in simple dynamic memory manager)  
 - some essential peripherals support (GPIO, timer, UART, SPI)  
 - interrupts handling  
 - includes STM8 assembler  
@@ -110,4 +110,4 @@ BASIC1 compiler includes three executable modules: `b1c` - compiler translating 
 [STM8 assembler reference](./a1stm8/docs/reference.md)  
 [Assembler program examples](./a1stm8/docs/samples)  
 [Change log](./common/docs/changelog)  
-[Download compiler distribution packages for Windows and Linux](./distr)  
+[Download compiler distribution packages for Windows and Linux](https://github.com/basic-1/basic-1c/releases)  

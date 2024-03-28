@@ -1,3 +1,11 @@
+b1c (1.0.0-23) unstable; urgency=low
+
+  * use MOV instruction in variable assignment operations if possible
+  * added SPI examples
+  * some optimizations
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Thu, 28 Mar 2024 18:26:11 +0300
+
 b1c (1.0.0-22) unstable; urgency=low
 
   * delete distr directory, use github Releases instead

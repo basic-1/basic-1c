@@ -90,7 +90,7 @@ Here `PX` stands for GPIO port name (e.g. `PA` for port A) and command names sho
 - `IOCTL SPI, TRANSMODE, DUPLEX | HALFDUPLEX | SIMPLEX` - SPI transmission mode (default is `DUPLEX`)  
 - `IOCTL SPI, SSPIN, <pin_name> | NONE` - specify slave select pin, `<pin_name>` format is `<port_name><pin_number>`, e.g.: `PA3`, `PE5`, etc. A special keyword `NONE` specified instead of the pin name disables automatic SS pin management. Default value corresponds to default NSS pin of the selected MCU.  
 - `IOCTL SPI, CFGPINS, ON | OFF` - configure GPIO pins when starting communication (enabled by default)  
-- `IOCTL SPI, START [, TX | RX]` - select data transmission direction and start SPI communication (transmission direction is valid for simplex and half-duplex modes only, default is `TX`)  
+- `IOCTL SPI, START [, TX | RX]` - selects data transmission direction, enables slave device (in master mode only, if SS pin management is not turned off with `IOCTL SPI, SSPIN, NONE`), starts SPI communication. Transmission direction is valid for simplex and half-duplex modes only, default is `TX`.  
 - `IOCTL SPI, STOP` - stop SPI communication  
 - `IOCTL SPI, ENABLE` - enable SPI  
 - `IOCTL SPI, DISABLE` - disable SPI  
@@ -110,3 +110,6 @@ Here `PX` stands for GPIO port name (e.g. `PA` for port A) and command names sho
 `IOCTL SPI, DISABLE`  
   
 Master simplex RX-only and master half-duplex RX modes are not fully implemented at the moment because of their odd disabling procedure. `IOCTL SPI, CFGPINS` command can be used to configure GPIO pins involved in SPI communication but disabling SPI with `IOCTL SPI, DISABLE` does not deinitializes them to their initial state (e.g.: master's CLK pin stays configured as output push-pull).  
+  
+![SPI transmission example](./images/spisimplex.png "SPI transmission example")  
+  

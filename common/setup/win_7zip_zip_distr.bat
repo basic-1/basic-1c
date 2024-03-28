@@ -61,6 +61,8 @@ rem create docs temp. directory and copy document files there
 mkdir docs
 mkdir docs\b1c
 copy ..\..\b1c\docs\*.* docs\b1c
+mkdir docs\b1c\images
+copy ..\..\b1c\docs\images\*.* docs\b1c\images
 mkdir docs\c1stm8
 copy ..\..\c1stm8\docs\*.* docs\c1stm8
 mkdir docs\a1stm8

@@ -14,6 +14,8 @@
 - `data.bsc` - `DATA` statement usage  
 - `strings.bsc` - string functions sample (`INSTR` function)  
 - `heap.bsc` - prints heap memory structure (8 data bits, no parity check, 1 stop bit, baudrate: 9600)  
+- `spimss.bsc` - read a string from UART (8N1 9600 baud) and send it over SPI (simplex TX-only master)  
+- `spisls.bsc` - read a string from SPI (simplex RX-only slave)  
   
 # building the samples from command line  
 `b1c -d -s -m STM8S103F3 samples/blink.bsc`  
@@ -31,4 +33,6 @@ For interrupt handlers specify interrupt name before the source file name separa
 `b1c -d -s -m STM8S103F3 samples/data.bsc`  
 `b1c -d -s -m STM8S103F3 samples/strings.bsc`  
 `b1c -d -s -m STM8S103F3 samples/heap.bsc`  
+`b1c -d -s -m STM8S105K4 samples/spimss.bsc`  
+`b1c -d -s -m STM8S103F3 samples/spisls.bsc`  
   

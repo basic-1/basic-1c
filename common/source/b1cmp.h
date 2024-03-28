@@ -71,7 +71,7 @@ public:
 	// if is_local = true, the function compares variable by name only (because locals can be reused with different types)
 	static bool arg_is_dst(const B1_CMP_CMD &cmd, const B1_CMP_ARG &arg, bool is_local);
 
-	static std::wstring get_dst_var_name(const B1_CMP_CMD &cmd);
+	static const B1_TYPED_VALUE *get_dst_var(const B1_CMP_CMD &cmd, bool scalar_var_only);
 
 	// checks local variable types compatibility, returns true if a local of base_type can be used instead of a local of reuse_type
 	static bool local_compat_types(const B1Types base_type, const B1Types reuse_type);

@@ -242,6 +242,7 @@ private:
 	C1STM8_T_ERROR stm8_st_ga(const B1_CMP_CMD &cmd, const B1_CMP_VAR &var);
 	C1STM8_T_ERROR stm8_store(const B1_TYPED_VALUE &tv);
 	C1STM8_T_ERROR stm8_store(const B1_CMP_ARG &arg);
+	C1STM8_T_ERROR stm8_assign(const B1_CMP_CMD &cmd);
 	C1STM8_T_ERROR stm8_un_op(const B1_CMP_CMD &cmd);
 	C1STM8_T_ERROR stm8_add_op(const B1_CMP_CMD &cmd);
 	C1STM8_T_ERROR stm8_mul_op(const B1_CMP_CMD &cmd);
