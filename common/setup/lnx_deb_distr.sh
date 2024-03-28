@@ -131,6 +131,8 @@ fakeroot dpkg-deb --build $tmp_dir$proj_dir_name
 #delete all the stuff we collected for the package
 rm -r $tmp_dir$proj_dir_name
 
+mkdir -m 775 ../../distr
+
 #delete package with the same name from distr directory
 if [ "$build_num" = "" ]
 then

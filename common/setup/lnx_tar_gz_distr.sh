@@ -114,6 +114,8 @@ rm -r $proj_dir_name
 
 cd $orig_path
 
+mkdir -m 775 ../../distr
+
 #delete package with the same name from distr directory
 if [ "$build_num" = "" ]
 then
