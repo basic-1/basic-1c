@@ -63,11 +63,13 @@ public:
 	AOT _type;
 	std::wstring _data;
 	std::wstring _comment;
+	bool _volatile;
 
-	B1_ASM_OP(AOT type, const std::wstring &data, const std::wstring &comment)
+	B1_ASM_OP(AOT type, const std::wstring &data, const std::wstring &comment, bool is_volatile)
 	: _type(type)
 	, _data(data)
 	, _comment(comment)
+	, _volatile(is_volatile)
 	{
 	}
 };
@@ -79,21 +81,21 @@ private:
 	std::wstring _comment;
 
 public:
-	void add_op(const std::wstring &op)
+	void add_op(const std::wstring &op, bool is_volatile)
 	{
-		push_back(B1_ASM_OP(AOT::AOT_OP, op, _comment));
+		push_back(B1_ASM_OP(AOT::AOT_OP, op, _comment, is_volatile));
 		_comment.clear();
 	}
 
-	void add_lbl(const std::wstring &lbl)
+	void add_lbl(const std::wstring &lbl, bool is_volatile)
 	{
-		push_back(B1_ASM_OP(AOT::AOT_LABEL, lbl, _comment));
+		push_back(B1_ASM_OP(AOT::AOT_LABEL, lbl, _comment, is_volatile));
 		_comment.clear();
 	}
 
-	void add_data(const std::wstring &data)
+	void add_data(const std::wstring &data, bool is_volatile)
 	{
-		push_back(B1_ASM_OP(AOT::AOT_DATA, data, _comment));
+		push_back(B1_ASM_OP(AOT::AOT_DATA, data, _comment, is_volatile));
 		_comment.clear();
 	}
 
@@ -234,16 +236,16 @@ private:
 	C1STM8_T_ERROR stm8_st_gf(const B1_CMP_VAR &var, bool is_ma);
 	C1STM8_T_ERROR stm8_arrange_types(const B1Types type_from, const B1Types type_to);
 	C1STM8_T_ERROR stm8_load_from_stack(int32_t offset, const B1Types init_type, const B1Types req_type, LVT req_valtype, LVT &rvt, std::wstring &rv);
-	C1STM8_T_ERROR stm8_load(const B1_TYPED_VALUE &tv, const B1Types req_type, LVT req_valtype, LVT *res_valtype = nullptr, std::wstring *res_val = nullptr);
+	C1STM8_T_ERROR stm8_load(const B1_TYPED_VALUE &tv, const B1Types req_type, LVT req_valtype, LVT *res_valtype = nullptr, std::wstring *res_val = nullptr, bool *volatile_var = nullptr);
 	C1STM8_T_ERROR stm8_arr_alloc_def(const B1_CMP_ARG &arg, const B1_CMP_VAR &var);
 	C1STM8_T_ERROR stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_offset, int32_t &offset);
-	C1STM8_T_ERROR stm8_load(const B1_CMP_ARG &arg, const B1Types req_type, LVT req_valtype, LVT *res_valtype = nullptr, std::wstring *res_val = nullptr);
+	C1STM8_T_ERROR stm8_load(const B1_CMP_ARG &arg, const B1Types req_type, LVT req_valtype, LVT *res_valtype = nullptr, std::wstring *res_val = nullptr, bool *volatile_var = nullptr);
 	C1STM8_T_ERROR stm8_init_array(const B1_CMP_CMD &cmd, const B1_CMP_VAR &var);
 	C1STM8_T_ERROR stm8_st_ga(const B1_CMP_CMD &cmd, const B1_CMP_VAR &var);
 	C1STM8_T_ERROR stm8_store(const B1_TYPED_VALUE &tv);
 	C1STM8_T_ERROR stm8_store(const B1_CMP_ARG &arg);
-	C1STM8_T_ERROR stm8_assign(const B1_CMP_CMD &cmd);
-	C1STM8_T_ERROR stm8_un_op(const B1_CMP_CMD &cmd);
+	C1STM8_T_ERROR stm8_assign(const B1_CMP_CMD &cmd, bool omit_zero_init);
+	C1STM8_T_ERROR stm8_un_op(const B1_CMP_CMD &cmd, bool omit_zero_init);
 	C1STM8_T_ERROR stm8_add_op(const B1_CMP_CMD &cmd);
 	C1STM8_T_ERROR stm8_mul_op(const B1_CMP_CMD &cmd);
 	C1STM8_T_ERROR stm8_bit_op(const B1_CMP_CMD &cmd);
@@ -254,7 +256,7 @@ private:
 	bool is_udef_or_var_used(const B1_CMP_ARG &arg, bool dst, std::set<std::wstring> &vars_to_free);
 	bool is_udef_or_var_used(const B1_CMP_CMD &cmd, std::set<std::wstring> &vars_to_free);
 	C1STM8_T_ERROR write_ioctl(std::list<B1_CMP_CMD>::const_iterator &cmd_it);
-	C1STM8_T_ERROR write_code_sec();
+	C1STM8_T_ERROR write_code_sec(bool code_init);
 
 
 public:

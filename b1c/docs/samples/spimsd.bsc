@@ -1,0 +1,43 @@
+REM SPI master duplex mode communication example. Works in pair with spisld.bsc
+
+DIM N1 AS LONG, N2 AS LONG
+
+' enable UART (8N1 9600 baud)
+IOCTL UART, ENABLE
+IOCTL UART, START
+
+' configure and enable SPI (MOSI, MISO, CLK and NSS pins have to be connected)
+IOCTL SPI, MODE, M0
+IOCTL SPI, PRESCALER, DIV2
+IOCTL SPI, MASTER, ON
+IOCTL SPI, ENABLE
+
+WHILE 1 > 0
+
+' read two numbers from UART
+INPUT "Enter two numbers: ", N1, N2
+
+' enable slave device and start communication
+IOCTL SPI, START
+
+' send the numbers to slave device
+TRANSFER #SPI, N1, N2
+
+' wait a bit for the slave device to perform calculations
+FOR I = 0 TO 32767
+FOR J = 0 TO 10
+NEXT
+NEXT
+
+' read two numbers from the slave device
+TRANSFER #SPI, N1, N2
+
+IOCTL SPI, STOP
+
+PRINT "Sum of the entered numbers: "; N1
+PRINT "Product of the entered numbers: "; N2
+PRINT
+
+WEND
+
+END

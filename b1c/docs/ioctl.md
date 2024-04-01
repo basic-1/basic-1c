@@ -111,5 +111,9 @@ Here `PX` stands for GPIO port name (e.g. `PA` for port A) and command names sho
   
 Master simplex RX-only and master half-duplex RX modes are not fully implemented at the moment because of their odd disabling procedure. `IOCTL SPI, CFGPINS` command can be used to configure GPIO pins involved in SPI communication but disabling SPI with `IOCTL SPI, DISABLE` does not deinitializes them to their initial state (e.g.: master's CLK pin stays configured as output push-pull).  
   
-![SPI transmission example](./images/spisimplex.png "SPI transmission example")  
+![SPI simplex transmission example](./images/spisimplex.png "SPI simplex transmission example")  
+SPI simplex transmission example (2 MHz, 3 characters long string)  
+  
+![SPI duplex transmission example](./images/spiduplex.png "SPI duplex transmission example")  
+SPI duplex transmission example (8 MHz, 4-byte integer values)  
   

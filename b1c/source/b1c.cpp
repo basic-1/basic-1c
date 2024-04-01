@@ -6421,19 +6421,20 @@ B1C_T_ERROR B1FileCompiler::reuse_locals(bool &changed)
 	return B1C_T_ERROR::B1C_RES_OK;
 }
 
-// +,a,b,local
+// try to get rid from locals (reusing user variables)
+// +,a,b,local     <- here local is a local variable to replace with a user one
 // -,local,c,local
 // *,d,local,local
-// /,100,local,e <- last read
-// ... <- here local is not used
-// lf,local or writing something to local
+// /,100,local,e   <- last read of the local, use e intead of it
+// ...             <- here the local is not used
+// lf,local or writing something to the local
 // ->
 // +,a,b,e
 // -,e,c,e
 // *,d,e,e
 // /,100,e,e
-// ... <- here local is not used
-// lf,local or writing something to local
+// ...
+// lf,local or writing something to the local
 B1C_T_ERROR B1FileCompiler::reuse_vars(bool &changed)
 {
 	for(auto i = begin(); i != end(); i++)

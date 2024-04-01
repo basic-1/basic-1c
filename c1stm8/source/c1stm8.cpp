@@ -2213,8 +2213,8 @@ C1STM8_T_ERROR C1STM8Compiler::write_data_sec()
 			data = &_data_sec;
 		}
 
-		data->add_lbl(v->first);
-		data->add_op(type + (rep == 1 ? std::wstring() : L" (" + std::to_wstring(rep) + L")"));
+		data->add_lbl(v->first, v->second.is_volatile);
+		data->add_op(type + (rep == 1 ? std::wstring() : L" (" + std::to_wstring(rep) + L")"), v->second.is_volatile);
 
 		_all_symbols.insert(v->first);
 
@@ -2247,8 +2247,8 @@ C1STM8_T_ERROR C1STM8Compiler::write_data_sec()
 				data = &_data_sec;
 			}
 
-			data->add_lbl(label);
-			data->add_data(L"DW");
+			data->add_lbl(label, false);
+			data->add_data(L"DW", false);
 
 			_all_symbols.insert(label);
 
@@ -2287,7 +2287,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_const_sec()
 
 				if(dat_start)
 				{
-					_const_sec.add_lbl(name_space + L"__DAT_START");
+					_const_sec.add_lbl(name_space + L"__DAT_START", false);
 					_all_symbols.insert(name_space + L"__DAT_START");
 					dat_start = false;
 				}
@@ -2300,7 +2300,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_const_sec()
 					if(dat_label.empty())
 					{
 						dat_label = L"__DAT_" + std::to_wstring(_dat_rst_labels.size());
-						_const_sec.add_lbl(dat_label);
+						_const_sec.add_lbl(dat_label, false);
 						_all_symbols.insert(dat_label);
 					}
 					_dat_rst_labels[prev->cmd] = dat_label;
@@ -2329,7 +2329,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_const_sec()
 							return err;
 						}
 
-						_const_sec.add_data(L"DW " + std::get<0>(_str_labels[a[0].value]));
+						_const_sec.add_data(L"DW " + std::get<0>(_str_labels[a[0].value]), false);
 						_const_size += 2;
 					}
 					else
@@ -2343,7 +2343,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_const_sec()
 							return C1STM8_T_ERROR::C1STM8_RES_EINVTYPNAME;
 						}
 
-						_const_sec.add_data(asmtype + L" " + a[0].value);
+						_const_sec.add_data(asmtype + L" " + a[0].value, false);
 						_const_size += size;
 					}
 				}
@@ -2376,11 +2376,11 @@ C1STM8_T_ERROR C1STM8Compiler::write_const_sec()
 				return static_cast<C1STM8_T_ERROR>(B1_RES_ESTRLONG);
 			}
 
-			_const_sec.add_lbl(std::get<0>(sl.second));
+			_const_sec.add_lbl(std::get<0>(sl.second), false);
 			std::get<1>(sl.second) = true;
 			_all_symbols.insert(std::get<0>(sl.second));
 
-			_const_sec.add_data(L"DB " + Utils::str_tohex16(sdata.length()) + L", " + sl.first);
+			_const_sec.add_data(L"DB " + Utils::str_tohex16(sdata.length()) + L", " + sl.first, false);
 			_const_size += sdata.length();
 		}
 	}
@@ -2401,32 +2401,32 @@ C1STM8_T_ERROR C1STM8Compiler::calc_array_size(const B1_CMP_VAR &var, int32_t si
 
 		arr_size *= size1;
 
-		_curr_code_sec->add_op(L"LDW X, " + Utils::str_tohex16(arr_size)); //AE WORD_VALUE
+		_curr_code_sec->add_op(L"LDW X, " + Utils::str_tohex16(arr_size), false); //AE WORD_VALUE
 	}
 	else
 	{
-		_curr_code_sec->add_op(L"LDW X, (" + var.name + L" + 0x4)"); //BE SHORT_ADDRESS, CE LONG_ADDRESS
+		_curr_code_sec->add_op(L"LDW X, (" + var.name + L" + 0x4)", var.is_volatile); //BE SHORT_ADDRESS, CE LONG_ADDRESS
 
 		for(int32_t i = 1; i < var.dim_num; i++)
 		{
-			_curr_code_sec->add_op(L"PUSHW X"); //89
+			_curr_code_sec->add_op(L"PUSHW X", var.is_volatile); //89
 			_stack_ptr += 2;
-			_curr_code_sec->add_op(L"LDW X, (" + var.name + L" + " + Utils::str_tohex16(4 * i + 4) + L")"); //BE SHORT_ADDRESS, CE LONG_ADDRESS
-			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_COM_MUL16"); //AD SIGNED_BYTE_OFFSET (CALLR)
+			_curr_code_sec->add_op(L"LDW X, (" + var.name + L" + " + Utils::str_tohex16(4 * i + 4) + L")", var.is_volatile); //BE SHORT_ADDRESS, CE LONG_ADDRESS
+			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_COM_MUL16", var.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 			_req_symbols.insert(L"__LIB_COM_MUL16");
-			_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
+			_curr_code_sec->add_op(L"ADDW SP, 2", var.is_volatile); //5B BYTE_VALUE
 			_stack_ptr -= 2;
 		}
 
 		if(size1 == 2)
 		{
-			_curr_code_sec->add_op(L"SLAW X"); //58
+			_curr_code_sec->add_op(L"SLAW X", var.is_volatile); //58
 		}
 		else
 		if(size1 == 4)
 		{
-			_curr_code_sec->add_op(L"SLAW X"); //58
-			_curr_code_sec->add_op(L"SLAW X"); //58
+			_curr_code_sec->add_op(L"SLAW X", var.is_volatile); //58
+			_curr_code_sec->add_op(L"SLAW X", var.is_volatile); //58
 		}
 	}
 
@@ -2455,7 +2455,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_st_gf(const B1_CMP_VAR &var, bool is_ma)
 		if(size1 == 1)
 		{
 			// BYTE type
-			_curr_code_sec->add_op(L"MOV (" + v + L"), 0"); //35 00 LONG_ADDRESS
+			_curr_code_sec->add_op(L"MOV (" + v + L"), 0", var.is_volatile); //35 00 LONG_ADDRESS
 		}
 		else
 		{
@@ -2463,21 +2463,30 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_st_gf(const B1_CMP_VAR &var, bool is_ma)
 			if(var.type == B1Types::B1T_STRING)
 			{
 				// release string
-				_curr_code_sec->add_op(L"LDW X, (" + v + L")"); //BE SHORT_ADDRESS, CE LONG_ADDRESS
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_curr_code_sec->add_op(L"LDW X, (" + v + L")", var.is_volatile); //BE SHORT_ADDRESS, CE LONG_ADDRESS
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS", var.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_STR_RLS");
 			}
-			_curr_code_sec->add_op(L"CLRW X"); //5F
-			_curr_code_sec->add_op(L"LDW (" + v + L"), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+			_curr_code_sec->add_op(L"CLRW X", var.is_volatile); //5F
+			_curr_code_sec->add_op(L"LDW (" + v + L"), X", var.is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
 			if(var.type == B1Types::B1T_LONG)
 			{
-				_curr_code_sec->add_op(L"LDW (" + v + L" + 2), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+				_curr_code_sec->add_op(L"LDW (" + v + L" + 2), X", var.is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
 			}
 		}
 	}
 	else
 	{
 		// array
+		// check if the array is allocated
+		const auto label = emit_label(true);
+		if(!is_ma)
+		{
+			_curr_code_sec->add_op(L"LDW X, (" + v + L")", var.is_volatile); //BE SHORT_ADDRESS, CE LONG_ADDRESS
+			_curr_code_sec->add_op(L"JREQ " + label, var.is_volatile); //27 SIGNED_BYTE_OFFSET
+			_req_symbols.insert(label);
+		}
+
 		if(is_ma || var.type == B1Types::B1T_STRING)
 		{
 			auto err = calc_array_size(var, size1);
@@ -2486,7 +2495,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_st_gf(const B1_CMP_VAR &var, bool is_ma)
 				return err;
 			}
 
-			_curr_code_sec->add_op(L"PUSHW X"); //89
+			_curr_code_sec->add_op(L"PUSHW X", var.is_volatile); //89
 			_stack_ptr += 2;
 		}
 
@@ -2494,38 +2503,44 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_st_gf(const B1_CMP_VAR &var, bool is_ma)
 		{
 			if(is_ma)
 			{
-				_curr_code_sec->add_op(L"LDW X, " + v); //AE WORD_VALUE
+				_curr_code_sec->add_op(L"LDW X, " + v, var.is_volatile); //AE WORD_VALUE
 			}
 			else
 			{
-				_curr_code_sec->add_op(L"LDW X, (" + v + L")"); //BE SHORT_ADDRESS, CE LONG_ADDRESS
+				_curr_code_sec->add_op(L"LDW X, (" + v + L")", var.is_volatile); //BE SHORT_ADDRESS, CE LONG_ADDRESS
 			}
-			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_ARR_DAT_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_ARR_DAT_RLS", var.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 			_req_symbols.insert(L"__LIB_STR_ARR_DAT_RLS");
 		}
 
 		if(is_ma)
 		{
-			_curr_code_sec->add_op(L"LDW X, " + v); //AE WORD_VALUE
-			_curr_code_sec->add_op(L"PUSH 0"); //4B BYTE_VALUE
+			_curr_code_sec->add_op(L"LDW X, " + v, var.is_volatile); //AE WORD_VALUE
+			_curr_code_sec->add_op(L"PUSH 0", var.is_volatile); //4B BYTE_VALUE
 			_stack_ptr += 1;
-			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_MEM_SET"); //AD SIGNED_BYTE_OFFSET (CALLR)
+			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_MEM_SET", var.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 			_req_symbols.insert(L"__LIB_MEM_SET");
-			_curr_code_sec->add_op(L"ADDW SP, 3"); //5B BYTE_VALUE
+			_curr_code_sec->add_op(L"ADDW SP, 3", var.is_volatile); //5B BYTE_VALUE
 			_stack_ptr -= 3;
 		}
 		else
 		{
-			_curr_code_sec->add_op(L"LDW X, (" + v + L")"); //BE SHORT_ADDRESS, CE LONG_ADDRESS
-			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_MEM_FRE"); //AD SIGNED_BYTE_OFFSET (CALLR)
+			_curr_code_sec->add_op(L"LDW X, (" + v + L")", var.is_volatile); //BE SHORT_ADDRESS, CE LONG_ADDRESS
+			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_MEM_FRE", var.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 			_req_symbols.insert(L"__LIB_MEM_FRE");
-			_curr_code_sec->add_op(L"CLRW X"); //5F
-			_curr_code_sec->add_op(L"LDW (" + v + L"), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+			_curr_code_sec->add_op(L"CLRW X", var.is_volatile); //5F
+			_curr_code_sec->add_op(L"LDW (" + v + L"), X", var.is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
 			if(var.type == B1Types::B1T_STRING)
 			{
-				_curr_code_sec->add_op(L"POPW X"); //85
+				_curr_code_sec->add_op(L"POPW X", var.is_volatile); //85
 				_stack_ptr -= 2;
 			}
+		}
+
+		if(!is_ma)
+		{
+			_curr_code_sec->add_lbl(label, var.is_volatile);
+			_all_symbols.insert(label);
 		}
 	}
 
@@ -2541,16 +2556,16 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arrange_types(const B1Types type_from, const
 			if(type_to == B1Types::B1T_LONG)
 			{
 				//A -> Y:X
-				_curr_code_sec->add_op(L"CLRW Y"); //90 5F
+				_curr_code_sec->add_op(L"CLRW Y", false); //90 5F
 			}
 			// A -> X
-			_curr_code_sec->add_op(L"CLRW X"); //5F
-			_curr_code_sec->add_op(L"LD XL, A"); //97
+			_curr_code_sec->add_op(L"CLRW X", false); //5F
+			_curr_code_sec->add_op(L"LD XL, A", false); //97
 
 			if(type_to == B1Types::B1T_STRING)
 			{
 				// BYTE to STRING
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_STR_STR_I");
 			}
 		}
@@ -2560,21 +2575,21 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arrange_types(const B1Types type_from, const
 			if(type_to == B1Types::B1T_BYTE)
 			{
 				// X -> A
-				_curr_code_sec->add_op(L"LD A, XL"); //9F
+				_curr_code_sec->add_op(L"LD A, XL", false); //9F
 			}
 			else
 			if(type_to == B1Types::B1T_LONG)
 			{
 				// X -> Y:X
-				_curr_code_sec->add_op(L"CLRW Y"); //90 5F
+				_curr_code_sec->add_op(L"CLRW Y", false); //90 5F
 				if(type_from == B1Types::B1T_INT)
 				{
-					_curr_code_sec->add_op(L"TNZW X"); //5D
+					_curr_code_sec->add_op(L"TNZW X", false); //5D
 					const auto label = emit_label(true);
-					_curr_code_sec->add_op(L"JRPL " + label); //2A SIGNED_BYTE_OFFSET
+					_curr_code_sec->add_op(L"JRPL " + label, false); //2A SIGNED_BYTE_OFFSET
 					_req_symbols.insert(label);
-					_curr_code_sec->add_op(L"DECW Y"); //90 5A
-					_curr_code_sec->add_lbl(label);
+					_curr_code_sec->add_op(L"DECW Y", false); //90 5A
+					_curr_code_sec->add_lbl(label, false);
 					_all_symbols.insert(label);
 				}
 			}
@@ -2583,12 +2598,12 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arrange_types(const B1Types type_from, const
 			{
 				if(type_from == B1Types::B1T_INT)
 				{
-					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 					_req_symbols.insert(L"__LIB_STR_STR_I");
 				}
 				else
 				{
-					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_W"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_W", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 					_req_symbols.insert(L"__LIB_STR_STR_W");
 				}
 			}
@@ -2599,12 +2614,12 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arrange_types(const B1Types type_from, const
 			if(type_to == B1Types::B1T_BYTE)
 			{
 				// Y:X -> A
-				_curr_code_sec->add_op(L"LD A, XL"); //9F
+				_curr_code_sec->add_op(L"LD A, XL", false); //9F
 			}
 			else
 			if(type_to == B1Types::B1T_STRING)
 			{
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_L"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_L", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_STR_STR_L");
 			}
 		}
@@ -2637,24 +2652,24 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load_from_stack(int32_t offset, const B1Type
 		{
 			rvt = LVT::LVT_REG;
 
-			_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset) + L", SP)"); //7B BYTE_OFFSET
+			_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset) + L", SP)", false); //7B BYTE_OFFSET
 
 			if(req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD || req_type == B1Types::B1T_STRING)
 			{
-				_curr_code_sec->add_op(L"CLRW X"); //5F
-				_curr_code_sec->add_op(L"LD XL, A"); //97
+				_curr_code_sec->add_op(L"CLRW X", false); //5F
+				_curr_code_sec->add_op(L"LD XL, A", false); //97
 				if(req_type == B1Types::B1T_STRING)
 				{
-					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 					_req_symbols.insert(L"__LIB_STR_STR_I");
 				}
 			}
 			else
 			if(req_type == B1Types::B1T_LONG)
 			{
-				_curr_code_sec->add_op(L"CLRW Y"); //90 5F
-				_curr_code_sec->add_op(L"CLRW X"); //5F
-				_curr_code_sec->add_op(L"LD XL, A"); //97
+				_curr_code_sec->add_op(L"CLRW Y", false); //90 5F
+				_curr_code_sec->add_op(L"CLRW X", false); //5F
+				_curr_code_sec->add_op(L"LD XL, A", false); //97
 			}
 		}
 		else
@@ -2683,27 +2698,27 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load_from_stack(int32_t offset, const B1Type
 
 			if(req_type == B1Types::B1T_BYTE)
 			{
-				_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset) + L", SP)"); //7B BYTE_OFFSET
+				_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset) + L", SP)", false); //7B BYTE_OFFSET
 			}
 			else
 			{
 				if(req_type == B1Types::B1T_LONG)
 				{
-					_curr_code_sec->add_op(L"CLRW Y"); //90 5F
+					_curr_code_sec->add_op(L"CLRW Y", false); //90 5F
 				}
 
-				_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
+				_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)", false); //1E BYTE_OFFSET
 
 				if(req_type == B1Types::B1T_STRING)
 				{
 					if(init_type == B1Types::B1T_INT)
 					{
-						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
+						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 						_req_symbols.insert(L"__LIB_STR_STR_I");
 					}
 					else
 					{
-						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_W"); //AD SIGNED_BYTE_OFFSET (CALLR)
+						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_W", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 						_req_symbols.insert(L"__LIB_STR_STR_W");
 					}
 				}
@@ -2713,10 +2728,10 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load_from_stack(int32_t offset, const B1Type
 					if(init_type == B1Types::B1T_INT)
 					{
 						const auto label = emit_label(true);
-						_curr_code_sec->add_op(L"JRPL " + label); //2A SIGNED_BYTE_OFFSET
+						_curr_code_sec->add_op(L"JRPL " + label, false); //2A SIGNED_BYTE_OFFSET
 						_req_symbols.insert(label);
-						_curr_code_sec->add_op(L"DECW Y"); //90 5A
-						_curr_code_sec->add_lbl(label);
+						_curr_code_sec->add_op(L"DECW Y", false); //90 5A
+						_curr_code_sec->add_lbl(label, false);
 						_all_symbols.insert(label);
 					}
 				}
@@ -2748,25 +2763,25 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load_from_stack(int32_t offset, const B1Type
 
 			if(req_type == B1Types::B1T_BYTE)
 			{
-				_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset) + L", SP)"); //7B BYTE_OFFSET
+				_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset) + L", SP)", false); //7B BYTE_OFFSET
 			}
 			else
 			if(req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD)
 			{
-				_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
+				_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)", false); //1E BYTE_OFFSET
 			}
 			else
 			if(req_type == B1Types::B1T_STRING)
 			{
-				_curr_code_sec->add_op(L"LDW Y, (" + Utils::str_tohex16(offset) + L", SP)"); //16 BYTE_OFFSET
-				_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset + 2) + L", SP)"); //1E BYTE_OFFSET
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_L"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_curr_code_sec->add_op(L"LDW Y, (" + Utils::str_tohex16(offset) + L", SP)", false); //16 BYTE_OFFSET
+				_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset + 2) + L", SP)", false); //1E BYTE_OFFSET
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_L", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_STR_STR_L");
 			}
 			else
 			{
-				_curr_code_sec->add_op(L"LDW Y, (" + Utils::str_tohex16(offset) + L", SP)"); //16 BYTE_OFFSET
-				_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset + 2) + L", SP)"); //1E BYTE_OFFSET
+				_curr_code_sec->add_op(L"LDW Y, (" + Utils::str_tohex16(offset) + L", SP)", false); //16 BYTE_OFFSET
+				_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset + 2) + L", SP)", false); //1E BYTE_OFFSET
 			}
 		}
 		else
@@ -2786,8 +2801,8 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load_from_stack(int32_t offset, const B1Type
 		{
 			rvt = LVT::LVT_REG;
 			// STRING variable, copy value
-			_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
-			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CPY"); //AD SIGNED_BYTE_OFFSET (CALLR)
+			_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)", false); //1E BYTE_OFFSET
+			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CPY", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 			_req_symbols.insert(L"__LIB_STR_CPY");
 		}
 		else
@@ -2799,11 +2814,16 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load_from_stack(int32_t offset, const B1Type
 	return C1STM8_T_ERROR::C1STM8_RES_OK;
 }
 
-C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types req_type, LVT req_valtype, LVT *res_valtype /*= nullptr*/, std::wstring *res_val /*= nullptr*/)
+C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types req_type, LVT req_valtype, LVT *res_valtype /*= nullptr*/, std::wstring *res_val /*= nullptr*/, bool *volatile_var /*= nullptr*/)
 {
 	std::wstring rv;
 	LVT rvt;
 	auto init_type = tv.type;
+
+	if(volatile_var != nullptr)
+	{
+		*volatile_var = false;
+	}
 
 	if(B1CUtils::is_imm_val(tv.value) || Utils::check_const_name(tv.value))
 	{
@@ -2822,23 +2842,23 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 
 				if(req_type == B1Types::B1T_BYTE)
 				{
-					_curr_code_sec->add_op(L"LD A, " + tv.value); //A6 BYTE_VALUE
+					_curr_code_sec->add_op(L"LD A, " + tv.value, false); //A6 BYTE_VALUE
 				}
 				else
 				if(req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD)
 				{
-					_curr_code_sec->add_op(L"LDW X, " + tv.value); //AE WORD_VALUE
+					_curr_code_sec->add_op(L"LDW X, " + tv.value, false); //AE WORD_VALUE
 				}
 				else
 				if(req_type == B1Types::B1T_LONG)
 				{
-					_curr_code_sec->add_op(L"LDW Y, " + tv.value + L".h"); //90 AE WORD_VALUE
-					_curr_code_sec->add_op(L"LDW X, " + tv.value + L".l"); //AE WORD_VALUE
+					_curr_code_sec->add_op(L"LDW Y, " + tv.value + L".h", false); //90 AE WORD_VALUE
+					_curr_code_sec->add_op(L"LDW X, " + tv.value + L".l", false); //AE WORD_VALUE
 				}
 				else
 				{
-					_curr_code_sec->add_op(L"LDW X, " + tv.value); //AE WORD_VALUE
-					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_curr_code_sec->add_op(L"LDW X, " + tv.value, false); //AE WORD_VALUE
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 					_req_symbols.insert(L"__LIB_STR_STR_I");
 				}
 			}
@@ -2862,30 +2882,30 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 
 				if(req_type == B1Types::B1T_BYTE)
 				{
-					_curr_code_sec->add_op(L"LD A, " + tv.value); //A6 BYTE_VALUE
+					_curr_code_sec->add_op(L"LD A, " + tv.value, false); //A6 BYTE_VALUE
 				}
 				else
 				if(req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD)
 				{
-					_curr_code_sec->add_op(L"LDW X, " + tv.value); //AE WORD_VALUE
+					_curr_code_sec->add_op(L"LDW X, " + tv.value, false); //AE WORD_VALUE
 				}
 				else
 				if(req_type == B1Types::B1T_LONG)
 				{
-					_curr_code_sec->add_op(L"LDW Y, " + tv.value + L".h"); //90 AE WORD_VALUE
-					_curr_code_sec->add_op(L"LDW X, " + tv.value + L".l"); //AE WORD_VALUE
+					_curr_code_sec->add_op(L"LDW Y, " + tv.value + L".h", false); //90 AE WORD_VALUE
+					_curr_code_sec->add_op(L"LDW X, " + tv.value + L".l", false); //AE WORD_VALUE
 				}
 				else
 				{
-					_curr_code_sec->add_op(L"LDW X, " + tv.value); //AE WORD_VALUE
+					_curr_code_sec->add_op(L"LDW X, " + tv.value, false); //AE WORD_VALUE
 					if(init_type == B1Types::B1T_INT)
 					{
-						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
+						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 						_req_symbols.insert(L"__LIB_STR_STR_I");
 					}
 					else
 					{
-						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_W"); //AD SIGNED_BYTE_OFFSET (CALLR)
+						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_W", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 						_req_symbols.insert(L"__LIB_STR_STR_W");
 					}
 				}
@@ -2910,24 +2930,24 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 
 				if(req_type == B1Types::B1T_BYTE)
 				{
-					_curr_code_sec->add_op(L"LD A, " + tv.value); //A6 BYTE_VALUE
+					_curr_code_sec->add_op(L"LD A, " + tv.value, false); //A6 BYTE_VALUE
 				}
 				else
 				if(req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD)
 				{
-					_curr_code_sec->add_op(L"LDW X, " + tv.value); //AE WORD_VALUE
+					_curr_code_sec->add_op(L"LDW X, " + tv.value, false); //AE WORD_VALUE
 				}
 				else
 				if(req_type == B1Types::B1T_LONG)
 				{
-					_curr_code_sec->add_op(L"LDW Y, " + tv.value + L".h"); //90 AE WORD_VALUE
-					_curr_code_sec->add_op(L"LDW X, " + tv.value + L".l"); //AE WORD_VALUE
+					_curr_code_sec->add_op(L"LDW Y, " + tv.value + L".h", false); //90 AE WORD_VALUE
+					_curr_code_sec->add_op(L"LDW X, " + tv.value + L".l", false); //AE WORD_VALUE
 				}
 				else
 				{
-					_curr_code_sec->add_op(L"LDW Y, " + tv.value + L".h"); //90 AE WORD_VALUE
-					_curr_code_sec->add_op(L"LDW X, " + tv.value + L".l"); //AE WORD_VALUE
-					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_L"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_curr_code_sec->add_op(L"LDW Y, " + tv.value + L".h", false); //90 AE WORD_VALUE
+					_curr_code_sec->add_op(L"LDW X, " + tv.value + L".l", false); //AE WORD_VALUE
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_L", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 					_req_symbols.insert(L"__LIB_STR_STR_L");
 				}
 			}
@@ -2947,7 +2967,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 			if(req_valtype & LVT::LVT_REG)
 			{
 				rvt = LVT::LVT_REG;
-				_curr_code_sec->add_op(L"LDW X, " + std::get<0>(_str_labels[tv.value])); //AE WORD_VALUE
+				_curr_code_sec->add_op(L"LDW X, " + std::get<0>(_str_labels[tv.value]), false); //AE WORD_VALUE
 				_req_symbols.insert(std::get<0>(_str_labels[tv.value]));
 			}
 			else
@@ -3014,6 +3034,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 			bool is_ma = ma != _mem_areas.end();
 			std::wstring str_off;
 			int int_off = 0;
+			bool is_volatile = false;
 
 			if(init_type == B1Types::B1T_LONG)
 			{
@@ -3043,9 +3064,19 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 				(ma->second.use_symbol ? (ma->second.symbol + str_off) : std::to_wstring(ma->second.address + int_off)) :
 				(tv.value + str_off);
 
-			if(!is_ma)
+			if(is_ma)
 			{
+				is_volatile = ma->second.is_volatile;
+			}
+			else
+			{
+				is_volatile = _vars.find(tv.value)->second.is_volatile;
 				_req_symbols.insert(tv.value);
+			}
+
+			if(volatile_var != nullptr)
+			{
+				*volatile_var = is_volatile;
 			}
 
 			if(init_type == B1Types::B1T_BYTE)
@@ -3059,24 +3090,24 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 				{
 					rvt = LVT::LVT_REG;
 
-					_curr_code_sec->add_op(L"LD A, (" + rv + L")"); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
+					_curr_code_sec->add_op(L"LD A, (" + rv + L")", is_volatile); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
 
 					if(req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD || req_type == B1Types::B1T_STRING)
 					{
-						_curr_code_sec->add_op(L"CLRW X"); //5F
-						_curr_code_sec->add_op(L"LD XL, A"); //97
+						_curr_code_sec->add_op(L"CLRW X", is_volatile); //5F
+						_curr_code_sec->add_op(L"LD XL, A", is_volatile); //97
 						if(req_type == B1Types::B1T_STRING)
 						{
-							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
+							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I", is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 							_req_symbols.insert(L"__LIB_STR_STR_I");
 						}
 					}
 					else
 					if(req_type == B1Types::B1T_LONG)
 					{
-						_curr_code_sec->add_op(L"CLRW Y"); //90 5F
-						_curr_code_sec->add_op(L"CLRW X"); //5F
-						_curr_code_sec->add_op(L"LD XL, A"); //97
+						_curr_code_sec->add_op(L"CLRW Y", is_volatile); //90 5F
+						_curr_code_sec->add_op(L"CLRW X", is_volatile); //5F
+						_curr_code_sec->add_op(L"LD XL, A", is_volatile); //97
 					}
 
 					rv.clear();
@@ -3100,27 +3131,27 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 
 					if(req_type == B1Types::B1T_BYTE)
 					{
-						_curr_code_sec->add_op(L"LD A, (" + rv + L")"); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
+						_curr_code_sec->add_op(L"LD A, (" + rv + L")", is_volatile); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
 					}
 					else
 					{
 						if(req_type == B1Types::B1T_LONG)
 						{
-							_curr_code_sec->add_op(L"CLRW Y"); //90 5F
+							_curr_code_sec->add_op(L"CLRW Y", is_volatile); //90 5F
 						}
 
-						_curr_code_sec->add_op(L"LDW X, (" + rv + L")"); //BE SHORT_ADDRESS CE LONG_ADDRESS
+						_curr_code_sec->add_op(L"LDW X, (" + rv + L")", is_volatile); //BE SHORT_ADDRESS CE LONG_ADDRESS
 
 						if(req_type == B1Types::B1T_STRING)
 						{
 							if(init_type == B1Types::B1T_INT)
 							{
-								_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
+								_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I", is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 								_req_symbols.insert(L"__LIB_STR_STR_I");
 							}
 							else
 							{
-								_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_W"); //AD SIGNED_BYTE_OFFSET (CALLR)
+								_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_W", is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 								_req_symbols.insert(L"__LIB_STR_STR_W");
 							}
 						}
@@ -3130,10 +3161,10 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 							if(init_type == B1Types::B1T_INT)
 							{
 								const auto label = emit_label(true);
-								_curr_code_sec->add_op(L"JRPL " + label); //2A SIGNED_BYTE_OFFSET
+								_curr_code_sec->add_op(L"JRPL " + label, is_volatile); //2A SIGNED_BYTE_OFFSET
 								_req_symbols.insert(label);
-								_curr_code_sec->add_op(L"DECW Y"); //90 5A
-								_curr_code_sec->add_lbl(label);
+								_curr_code_sec->add_op(L"DECW Y", is_volatile); //90 5A
+								_curr_code_sec->add_lbl(label, is_volatile);
 								_all_symbols.insert(label);
 							}
 						}
@@ -3160,26 +3191,26 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 
 					if(req_type == B1Types::B1T_BYTE)
 					{
-						_curr_code_sec->add_op(L"LD A, (" + rv + L")"); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
+						_curr_code_sec->add_op(L"LD A, (" + rv + L")", is_volatile); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
 					}
 					else
 					if(req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD)
 					{
-						_curr_code_sec->add_op(L"LDW X, (" + rv + L")"); //BE SHORT_ADDRESS CE LONG_ADDRESS
+						_curr_code_sec->add_op(L"LDW X, (" + rv + L")", is_volatile); //BE SHORT_ADDRESS CE LONG_ADDRESS
 					}
 					else
 					if(req_type == B1Types::B1T_STRING)
 					{
-						_curr_code_sec->add_op(L"LDW Y, (" + rv + L")"); //90 BE SHORT_ADDRESS 90 CE LONG_ADDRESS
-						_curr_code_sec->add_op(L"LDW X, (" + rv + L" + 2)"); //BE SHORT_ADDRESS CE LONG_ADDRESS
-						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_L"); //AD SIGNED_BYTE_OFFSET (CALLR)
+						_curr_code_sec->add_op(L"LDW Y, (" + rv + L")", is_volatile); //90 BE SHORT_ADDRESS 90 CE LONG_ADDRESS
+						_curr_code_sec->add_op(L"LDW X, (" + rv + L" + 2)", is_volatile); //BE SHORT_ADDRESS CE LONG_ADDRESS
+						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_L", is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 						_req_symbols.insert(L"__LIB_STR_STR_L");
 					}
 					else
 					if(req_type == B1Types::B1T_LONG)
 					{
-						_curr_code_sec->add_op(L"LDW Y, (" + rv + L")"); //90 BE SHORT_ADDRESS 90 CE LONG_ADDRESS
-						_curr_code_sec->add_op(L"LDW X, (" + rv + L" + 2)"); //BE SHORT_ADDRESS CE LONG_ADDRESS
+						_curr_code_sec->add_op(L"LDW Y, (" + rv + L")", is_volatile); //90 BE SHORT_ADDRESS 90 CE LONG_ADDRESS
+						_curr_code_sec->add_op(L"LDW X, (" + rv + L" + 2)", is_volatile); //BE SHORT_ADDRESS CE LONG_ADDRESS
 					}
 
 					rv.clear();
@@ -3201,8 +3232,8 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 					rvt = LVT::LVT_REG;
 
 					// STRING variable, copy value
-					_curr_code_sec->add_op(L"LDW X, (" + rv + L")"); //BE SHORT_ADDRESS CE LONG_ADDRESS
-					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CPY"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_curr_code_sec->add_op(L"LDW X, (" + rv + L")", is_volatile); //BE SHORT_ADDRESS CE LONG_ADDRESS
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CPY", is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 					_req_symbols.insert(L"__LIB_STR_CPY");
 
 					rv.clear();
@@ -3220,7 +3251,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types
 			{
 				rvt = LVT::LVT_REG;
 
-				_curr_code_sec->add_op(_call_stmt + L" " + fn->iname); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_curr_code_sec->add_op(_call_stmt + L" " + fn->iname, false); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(fn->iname);
 
 				auto err = stm8_arrange_types(init_type, req_type);
@@ -3269,9 +3300,9 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arr_alloc_def(const B1_CMP_ARG &arg, const B
 
 	// check if memory is allocated
 	const auto label = emit_label(true);
-	_curr_code_sec->add_op(L"LDW X, (" + arg[0].value + L")"); //BE SHORT_ADDRESS, CE LONG_ADDRESS
+	_curr_code_sec->add_op(L"LDW X, (" + arg[0].value + L")", var.is_volatile); //BE SHORT_ADDRESS, CE LONG_ADDRESS
 	_req_symbols.insert(arg[0].value);
-	_curr_code_sec->add_op(L"JRNE " + label); //26 SIGNED_BYTE_OFFSET
+	_curr_code_sec->add_op(L"JRNE " + label, var.is_volatile); //26 SIGNED_BYTE_OFFSET
 	_req_symbols.insert(label);
 
 	if(b1_opt_explicit_val == 0)
@@ -3283,54 +3314,54 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arr_alloc_def(const B1_CMP_ARG &arg, const B
 
 		if(arg[0].type == B1Types::B1T_BYTE)
 		{
-			_curr_code_sec->add_op(L"LDW X, " + Utils::str_tohex16(size)); //AE WORD_VALUE
+			_curr_code_sec->add_op(L"LDW X, " + Utils::str_tohex16(size), var.is_volatile); //AE WORD_VALUE
 		}
 		else
 		if(arg[0].type == B1Types::B1T_INT || arg[0].type == B1Types::B1T_WORD || arg[0].type == B1Types::B1T_STRING)
 		{
-			_curr_code_sec->add_op(L"LDW X, " + Utils::str_tohex16(size * 2)); //AE WORD_VALUE
+			_curr_code_sec->add_op(L"LDW X, " + Utils::str_tohex16(size * 2), var.is_volatile); //AE WORD_VALUE
 		}
 		else
 		{
 			// LONG type
-			_curr_code_sec->add_op(L"LDW X, " + Utils::str_tohex16(size * 4)); //AE WORD_VALUE
+			_curr_code_sec->add_op(L"LDW X, " + Utils::str_tohex16(size * 4), var.is_volatile); //AE WORD_VALUE
 		}
 
-		_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_MEM_ALC"); //AD SIGNED_BYTE_OFFSET (CALLR)
+		_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_MEM_ALC", var.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 		_req_symbols.insert(L"__LIB_MEM_ALC");
 
 		// save address
-		_curr_code_sec->add_op(L"LDW (" + arg[0].value + L"), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+		_curr_code_sec->add_op(L"LDW (" + arg[0].value + L"), X", var.is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
 
 		// save array sizes if necessary
 		if(!var.fixed_size)
 		{
-			_curr_code_sec->add_op(L"CLRW X"); //5F
+			_curr_code_sec->add_op(L"CLRW X", var.is_volatile); //5F
 			if(b1_opt_base_val == 1)
 			{
-				_curr_code_sec->add_op(L"INCW X"); //5C
+				_curr_code_sec->add_op(L"INCW X", var.is_volatile); //5C
 			}
 			for(int i = 0; i < dimnum; i++)
 			{
-				_curr_code_sec->add_op(L"LDW (" + arg[0].value + L" + " + Utils::str_tohex16((i + 1) * 4 - 2) + L"), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+				_curr_code_sec->add_op(L"LDW (" + arg[0].value + L" + " + Utils::str_tohex16((i + 1) * 4 - 2) + L"), X", var.is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
 			}
 
-			_curr_code_sec->add_op(L"LDW X, " + Utils::str_tohex16(size1)); //AE WORD_VALUE
+			_curr_code_sec->add_op(L"LDW X, " + Utils::str_tohex16(size1), var.is_volatile); //AE WORD_VALUE
 			for(int i = 0; i < dimnum; i++)
 			{
-				_curr_code_sec->add_op(L"LDW (" + arg[0].value + L" + " + Utils::str_tohex16((i + 1) * 4) + L"), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+				_curr_code_sec->add_op(L"LDW (" + arg[0].value + L" + " + Utils::str_tohex16((i + 1) * 4) + L"), X", var.is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
 			}
 		}
 	}
 	else
 	{
-		_curr_code_sec->add_op(L"MOV (__LIB_ERR_LAST_ERR), " + _RTE_error_names[B1C_T_RTERROR::B1C_RTE_ARR_UNALLOC]); //35 BYTE_VALUE LONG_ADDRESS
+		_curr_code_sec->add_op(L"MOV (__LIB_ERR_LAST_ERR), " + _RTE_error_names[B1C_T_RTERROR::B1C_RTE_ARR_UNALLOC], var.is_volatile); //35 BYTE_VALUE LONG_ADDRESS
 		_init_files.push_back(L"__LIB_ERR_LAST_ERR");
-		_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_ERR_HANDLER"); //20 SIGNED_BYTE_OFFSET
+		_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_ERR_HANDLER", var.is_volatile); //20 SIGNED_BYTE_OFFSET
 		_req_symbols.insert(L"__LIB_ERR_HANDLER");
 	}
 
-	_curr_code_sec->add_lbl(label);
+	_curr_code_sec->add_lbl(label, var.is_volatile);
 	_all_symbols.insert(label);
 
 	_allocated_arrays.insert(arg[0].value);
@@ -3408,12 +3439,12 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_
 		{
 			if(var->second.dims[0] != 0)
 			{
-				_curr_code_sec->add_op(L"SUBW X, " + Utils::str_tohex16(var->second.dims[0])); //1D WORD_VALUE
+				_curr_code_sec->add_op(L"SUBW X, " + Utils::str_tohex16(var->second.dims[0]), var->second.is_volatile); //1D WORD_VALUE
 			}
 		}
 		else
 		{
-			_curr_code_sec->add_op(L"SUBW X, (" + arg[0].value + L" + " + Utils::str_tohex16(2) + L")"); //72 B0 LONG_ADDRESS
+			_curr_code_sec->add_op(L"SUBW X, (" + arg[0].value + L" + " + Utils::str_tohex16(2) + L")", var->second.is_volatile); //72 B0 LONG_ADDRESS
 		}
 	}
 	else
@@ -3423,7 +3454,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_
 		dims_size = 1;
 
 		// offset
-		_curr_code_sec->add_op(L"PUSHW X"); //89
+		_curr_code_sec->add_op(L"PUSHW X", var->second.is_volatile); //89
 		_stack_ptr += 2;
 
 		for(int32_t i = (arg.size() - 2); i >= 0; i--)
@@ -3432,8 +3463,8 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_
 
 			if(i != (arg.size() - 2))
 			{
-				_curr_code_sec->add_op(L"LDW X, " + Utils::str_tohex16(dims_size)); //AE WORD_VALUE
-				_curr_code_sec->add_op(L"PUSHW X"); //89
+				_curr_code_sec->add_op(L"LDW X, " + Utils::str_tohex16(dims_size), var->second.is_volatile); //AE WORD_VALUE
+				_curr_code_sec->add_op(L"PUSHW X", var->second.is_volatile); //89
 				_stack_ptr += 2;
 			}
 
@@ -3445,40 +3476,40 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_
 
 			if(var->second.dims[i * 2] != 0)
 			{
-				_curr_code_sec->add_op(L"SUBW X, " + Utils::str_tohex16(var->second.dims[i * 2])); //1D WORD_VALUE
+				_curr_code_sec->add_op(L"SUBW X, " + Utils::str_tohex16(var->second.dims[i * 2]), var->second.is_volatile); //1D WORD_VALUE
 			}
 
 			if(i != (arg.size() - 2))
 			{
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_COM_MUL16"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_COM_MUL16", var->second.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_COM_MUL16");
-				_curr_code_sec->add_op(L"ADDW X, (3, SP)"); //72 FB BYTE_OFFSET
-				_curr_code_sec->add_op(L"LDW (3, SP), X"); //1F BYTE_OFFSET
-				_curr_code_sec->add_op(L"POPW X"); //85
+				_curr_code_sec->add_op(L"ADDW X, (3, SP)", var->second.is_volatile); //72 FB BYTE_OFFSET
+				_curr_code_sec->add_op(L"LDW (3, SP), X", var->second.is_volatile); //1F BYTE_OFFSET
+				_curr_code_sec->add_op(L"POPW X", var->second.is_volatile); //85
 				_stack_ptr -= 2;
 			}
 			else
 			{
-				_curr_code_sec->add_op(L"LDW (1, SP), X"); //1F BYTE_OFFSET
+				_curr_code_sec->add_op(L"LDW (1, SP), X", var->second.is_volatile); //1F BYTE_OFFSET
 			}
 
 			dims_size *= var->second.dims[i * 2 + 1] - var->second.dims[i * 2] + 1;
 		}
 
-		_curr_code_sec->add_op(L"POPW X"); //85
+		_curr_code_sec->add_op(L"POPW X", var->second.is_volatile); //85
 		_stack_ptr -= 2;
 	}
 	else
 	{
 		// multidimensional array of any size
 		// offset
-		_curr_code_sec->add_op(L"CLRW X"); //5F
-		_curr_code_sec->add_op(L"PUSHW X"); //89
+		_curr_code_sec->add_op(L"CLRW X", var->second.is_volatile); //5F
+		_curr_code_sec->add_op(L"PUSHW X", var->second.is_volatile); //89
 		_stack_ptr += 2;
 
 		// dimensions size
-		_curr_code_sec->add_op(L"INCW X"); //5C
-		_curr_code_sec->add_op(L"PUSHW X"); //89
+		_curr_code_sec->add_op(L"INCW X", var->second.is_volatile); //5C
+		_curr_code_sec->add_op(L"PUSHW X", var->second.is_volatile); //89
 		_stack_ptr += 2;
 
 		for(int32_t i = (arg.size() - 2); i >= 0; i--)
@@ -3491,40 +3522,45 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_
 				return err;
 			}
 
-			_curr_code_sec->add_op(L"SUBW X, (" + arg[0].value + L" + " + Utils::str_tohex16(2 + i * 4) + L")"); //72 B0 LONG_ADDRESS
+			_curr_code_sec->add_op(L"SUBW X, (" + arg[0].value + L" + " + Utils::str_tohex16(2 + i * 4) + L")", var->second.is_volatile); //72 B0 LONG_ADDRESS
 
 			if(i != (arg.size() - 2))
 			{
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_COM_MUL16"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_COM_MUL16", var->second.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_COM_MUL16");
-				_curr_code_sec->add_op(L"ADDW X, (3, SP)"); //72 FB BYTE_OFFSET
+				_curr_code_sec->add_op(L"ADDW X, (3, SP)", var->second.is_volatile); //72 FB BYTE_OFFSET
 			}
 			
-			_curr_code_sec->add_op(L"LDW (3, SP), X"); //1F BYTE_OFFSET
+			_curr_code_sec->add_op(L"LDW (3, SP), X", var->second.is_volatile); //1F BYTE_OFFSET
 
 			if(i != 0)
 			{
-				_curr_code_sec->add_op(L"LDW X, (" + arg[0].value + L" + " + Utils::str_tohex16(2 + 2 + i * 4) + L")"); //BE SHORT_ADDRESS CE LONG_ADDRESS
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_COM_MUL16"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_curr_code_sec->add_op(L"LDW X, (" + arg[0].value + L" + " + Utils::str_tohex16(2 + 2 + i * 4) + L")", var->second.is_volatile); //BE SHORT_ADDRESS CE LONG_ADDRESS
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_COM_MUL16", var->second.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_COM_MUL16");
-				_curr_code_sec->add_op(L"LDW (1, SP), X"); //1F BYTE_OFFSET
+				_curr_code_sec->add_op(L"LDW (1, SP), X", var->second.is_volatile); //1F BYTE_OFFSET
 			}
 		}
 
-		_curr_code_sec->add_op(L"POPW X"); //85
+		_curr_code_sec->add_op(L"POPW X", var->second.is_volatile); //85
 		_stack_ptr -= 2;
-		_curr_code_sec->add_op(L"POPW X"); //85
+		_curr_code_sec->add_op(L"POPW X", var->second.is_volatile); //85
 		_stack_ptr -= 2;
 	}
 
 	return C1STM8_T_ERROR::C1STM8_RES_OK;
 }
 
-C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types req_type, LVT req_valtype, LVT *res_valtype /*= nullptr*/, std::wstring *res_val /*= nullptr*/)
+C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types req_type, LVT req_valtype, LVT *res_valtype /*= nullptr*/, std::wstring *res_val /*= nullptr*/, bool *volatile_var /*= nullptr*/)
 {
 	if(arg.size() == 1)
 	{
-		return stm8_load(arg[0], req_type, req_valtype, res_valtype, res_val);
+		return stm8_load(arg[0], req_type, req_valtype, res_valtype, res_val, volatile_var);
+	}
+
+	if(volatile_var != nullptr)
+	{
+		*volatile_var = false;
 	}
 
 	if(!(req_valtype & (LVT::LVT_REG | LVT::LVT_MEMREF)))
@@ -3544,6 +3580,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 		// subscripted variable
 		auto ma = _mem_areas.find(arg[0].value);
 		bool is_ma = ma != _mem_areas.end();
+		bool is_volatile = false;
 
 		if(is_ma)
 		{
@@ -3562,6 +3599,8 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 					}
 				}
 			}
+
+			is_volatile = ma->second.is_volatile;
 		}
 		else
 		{
@@ -3584,7 +3623,14 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 				return err;
 			}
 
+			is_volatile = var.is_volatile;
+
 			_req_symbols.insert(arg[0].value);
+		}
+
+		if(volatile_var != nullptr)
+		{
+			*volatile_var = is_volatile;
 		}
 
 		// calculate memory offset
@@ -3616,23 +3662,23 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 				{
 					if(imm_offset)
 					{
-						_curr_code_sec->add_op(L"LD A, (" + rv + L" + " + Utils::str_tohex16(offset) + L")"); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
+						_curr_code_sec->add_op(L"LD A, (" + rv + L" + " + Utils::str_tohex16(offset) + L")", is_volatile); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
 					}
 					else
 					{
-						_curr_code_sec->add_op(L"LD A, (" + rv + L", X)"); //E6 BYTE_OFFSET D6 WORD_OFFSET
+						_curr_code_sec->add_op(L"LD A, (" + rv + L", X)", is_volatile); //E6 BYTE_OFFSET D6 WORD_OFFSET
 					}
 				}
 				else
 				{
 					if(imm_offset)
 					{
-						_curr_code_sec->add_op(L"LDW X, (" + rv + L")"); //BE BYTE_OFFSET CE WORD_OFFSET
-						_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset) + L", X)"); //E6 BYTE_OFFSET D6 WORD_OFFSET
+						_curr_code_sec->add_op(L"LDW X, (" + rv + L")", is_volatile); //BE BYTE_OFFSET CE WORD_OFFSET
+						_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset) + L", X)", is_volatile); //E6 BYTE_OFFSET D6 WORD_OFFSET
 					}
 					else
 					{
-						_curr_code_sec->add_op(L"LD A, ([" + rv + L"], X)"); //92 D6 BYTE_OFFSET 72 D6 WORD_OFFSET
+						_curr_code_sec->add_op(L"LD A, ([" + rv + L"], X)", is_volatile); //92 D6 BYTE_OFFSET 72 D6 WORD_OFFSET
 					}
 				}
 
@@ -3642,14 +3688,14 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 				{
 					if(req_type == B1Types::B1T_LONG)
 					{
-						_curr_code_sec->add_op(L"CLRW Y"); //90 5F
+						_curr_code_sec->add_op(L"CLRW Y", is_volatile); //90 5F
 					}
-					_curr_code_sec->add_op(L"CLRW X"); //5F
-					_curr_code_sec->add_op(L"LD XL, A"); //97
+					_curr_code_sec->add_op(L"CLRW X", is_volatile); //5F
+					_curr_code_sec->add_op(L"LD XL, A", is_volatile); //97
 				}
 				if(req_type == B1Types::B1T_STRING)
 				{
-					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I", is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 					_req_symbols.insert(L"__LIB_STR_STR_I");
 				}
 			}
@@ -3667,7 +3713,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 			}
 			else
 			{
-				_curr_code_sec->add_op(L"SLAW X"); //58
+				_curr_code_sec->add_op(L"SLAW X", is_volatile); //58
 			}
 
 			if(req_type == B1Types::B1T_BYTE)
@@ -3678,7 +3724,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 				}
 				else
 				{
-					_curr_code_sec->add_op(L"INCW X"); //5C
+					_curr_code_sec->add_op(L"INCW X", is_volatile); //5C
 				}
 			}
 
@@ -3698,23 +3744,23 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 					{
 						if(imm_offset)
 						{
-							_curr_code_sec->add_op(L"LD A, (" + rv + L" + " + Utils::str_tohex16(offset) + L")"); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
+							_curr_code_sec->add_op(L"LD A, (" + rv + L" + " + Utils::str_tohex16(offset) + L")", is_volatile); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
 						}
 						else
 						{
-							_curr_code_sec->add_op(L"LD A, (" + rv + L", X)"); //E6 BYTE_OFFSET D6 WORD_OFFSET
+							_curr_code_sec->add_op(L"LD A, (" + rv + L", X)", is_volatile); //E6 BYTE_OFFSET D6 WORD_OFFSET
 						}
 					}
 					else
 					{
 						if(imm_offset)
 						{
-							_curr_code_sec->add_op(L"LDW X, (" + rv + L")"); //BE BYTE_OFFSET CE WORD_OFFSET
-							_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset) + L", X)"); //E6 BYTE_OFFSET D6 WORD_OFFSET
+							_curr_code_sec->add_op(L"LDW X, (" + rv + L")", is_volatile); //BE BYTE_OFFSET CE WORD_OFFSET
+							_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset) + L", X)", is_volatile); //E6 BYTE_OFFSET D6 WORD_OFFSET
 						}
 						else
 						{
-							_curr_code_sec->add_op(L"LD A, ([" + rv + L"], X)"); //92 D6 BYTE_OFFSET 72 D6 WORD_OFFSET
+							_curr_code_sec->add_op(L"LD A, ([" + rv + L"], X)", is_volatile); //92 D6 BYTE_OFFSET 72 D6 WORD_OFFSET
 						}
 					}
 				}
@@ -3722,30 +3768,30 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 				{
 					if(req_type == B1Types::B1T_LONG)
 					{
-						_curr_code_sec->add_op(L"CLRW Y"); //90 5F
+						_curr_code_sec->add_op(L"CLRW Y", is_volatile); //90 5F
 					}
 
 					if(is_ma)
 					{
 						if(imm_offset)
 						{
-							_curr_code_sec->add_op(L"LDW X, (" + rv + L" + " + Utils::str_tohex16(offset) + L")"); //BE SHORT_ADDRESS CE LONG_ADDRESS
+							_curr_code_sec->add_op(L"LDW X, (" + rv + L" + " + Utils::str_tohex16(offset) + L")", is_volatile); //BE SHORT_ADDRESS CE LONG_ADDRESS
 						}
 						else
 						{
-							_curr_code_sec->add_op(L"LDW X, (" + rv + L", X)"); //EE BYTE_OFFSET DE WORD_OFFSET
+							_curr_code_sec->add_op(L"LDW X, (" + rv + L", X)", is_volatile); //EE BYTE_OFFSET DE WORD_OFFSET
 						}
 					}
 					else
 					{
 						if(imm_offset)
 						{
-							_curr_code_sec->add_op(L"LDW X, (" + rv + L")"); //BE BYTE_OFFSET CE WORD_OFFSET
-							_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", X)"); //EE BYTE_OFFSET DE WORD_OFFSET
+							_curr_code_sec->add_op(L"LDW X, (" + rv + L")", is_volatile); //BE BYTE_OFFSET CE WORD_OFFSET
+							_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", X)", is_volatile); //EE BYTE_OFFSET DE WORD_OFFSET
 						}
 						else
 						{
-							_curr_code_sec->add_op(L"LDW X, ([" + rv + L"], X)"); //92 DE BYTE_OFFSET 72 DE WORD_OFFSET
+							_curr_code_sec->add_op(L"LDW X, ([" + rv + L"], X)", is_volatile); //92 DE BYTE_OFFSET 72 DE WORD_OFFSET
 						}
 					}
 
@@ -3754,10 +3800,10 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 						if(init_type == B1Types::B1T_INT)
 						{
 							const auto label = emit_label(true);
-							_curr_code_sec->add_op(L"JRPL " + label); //2A SIGNED_BYTE_OFFSET
+							_curr_code_sec->add_op(L"JRPL " + label, is_volatile); //2A SIGNED_BYTE_OFFSET
 							_req_symbols.insert(label);
-							_curr_code_sec->add_op(L"DECW Y"); //90 5A
-							_curr_code_sec->add_lbl(label);
+							_curr_code_sec->add_op(L"DECW Y", is_volatile); //90 5A
+							_curr_code_sec->add_lbl(label, is_volatile);
 							_all_symbols.insert(label);
 						}
 					}
@@ -3766,12 +3812,12 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 					{
 						if(init_type == B1Types::B1T_INT)
 						{
-							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I"); //AD SIGNED_BYTE_OFFSET (CALLR)
+							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_I", is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 							_req_symbols.insert(L"__LIB_STR_STR_I");
 						}
 						else
 						{
-							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_W"); //AD SIGNED_BYTE_OFFSET (CALLR)
+							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_W", is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 							_req_symbols.insert(L"__LIB_STR_STR_W");
 						}
 					}
@@ -3793,8 +3839,8 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 			}
 			else
 			{
-				_curr_code_sec->add_op(L"SLAW X"); //58
-				_curr_code_sec->add_op(L"SLAW X"); //58
+				_curr_code_sec->add_op(L"SLAW X", is_volatile); //58
+				_curr_code_sec->add_op(L"SLAW X", is_volatile); //58
 			}
 
 			if(req_type == B1Types::B1T_BYTE)
@@ -3805,7 +3851,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 				}
 				else
 				{
-					_curr_code_sec->add_op(L"ADDW X, 3"); //5C
+					_curr_code_sec->add_op(L"ADDW X, 3", is_volatile); //5C
 				}
 			}
 			if(req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD)
@@ -3816,8 +3862,8 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 				}
 				else
 				{
-					_curr_code_sec->add_op(L"INCW X"); //5C
-					_curr_code_sec->add_op(L"INCW X"); //5C
+					_curr_code_sec->add_op(L"INCW X", is_volatile); //5C
+					_curr_code_sec->add_op(L"INCW X", is_volatile); //5C
 				}
 			}
 
@@ -3837,23 +3883,23 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 					{
 						if(imm_offset)
 						{
-							_curr_code_sec->add_op(L"LD A, (" + rv + L" + " + Utils::str_tohex16(offset) + L")"); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
+							_curr_code_sec->add_op(L"LD A, (" + rv + L" + " + Utils::str_tohex16(offset) + L")", is_volatile); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
 						}
 						else
 						{
-							_curr_code_sec->add_op(L"LD A, (" + rv + L", X)"); //E6 BYTE_OFFSET D6 WORD_OFFSET
+							_curr_code_sec->add_op(L"LD A, (" + rv + L", X)", is_volatile); //E6 BYTE_OFFSET D6 WORD_OFFSET
 						}
 					}
 					else
 					{
 						if(imm_offset)
 						{
-							_curr_code_sec->add_op(L"LDW X, (" + rv + L")"); //BE BYTE_OFFSET CE WORD_OFFSET
-							_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset) + L", X)"); //E6 BYTE_OFFSET D6 WORD_OFFSET
+							_curr_code_sec->add_op(L"LDW X, (" + rv + L")", is_volatile); //BE BYTE_OFFSET CE WORD_OFFSET
+							_curr_code_sec->add_op(L"LD A, (" + Utils::str_tohex16(offset) + L", X)", is_volatile); //E6 BYTE_OFFSET D6 WORD_OFFSET
 						}
 						else
 						{
-							_curr_code_sec->add_op(L"LD A, ([" + rv + L"], X)"); //92 D6 BYTE_OFFSET 72 D6 WORD_OFFSET
+							_curr_code_sec->add_op(L"LD A, ([" + rv + L"], X)", is_volatile); //92 D6 BYTE_OFFSET 72 D6 WORD_OFFSET
 						}
 					}
 				}
@@ -3864,23 +3910,23 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 					{
 						if(imm_offset)
 						{
-							_curr_code_sec->add_op(L"LDW X, (" + rv + L" + " + Utils::str_tohex16(offset) + L")"); //BE SHORT_ADDRESS CE LONG_ADDRESS
+							_curr_code_sec->add_op(L"LDW X, (" + rv + L" + " + Utils::str_tohex16(offset) + L")", is_volatile); //BE SHORT_ADDRESS CE LONG_ADDRESS
 						}
 						else
 						{
-							_curr_code_sec->add_op(L"LDW X, (" + rv + L", X)"); //EE BYTE_OFFSET DE WORD_OFFSET
+							_curr_code_sec->add_op(L"LDW X, (" + rv + L", X)", is_volatile); //EE BYTE_OFFSET DE WORD_OFFSET
 						}
 					}
 					else
 					{
 						if(imm_offset)
 						{
-							_curr_code_sec->add_op(L"LDW X, (" + rv + L")"); //BE BYTE_OFFSET CE WORD_OFFSET
-							_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", X)"); //EE BYTE_OFFSET DE WORD_OFFSET
+							_curr_code_sec->add_op(L"LDW X, (" + rv + L")", is_volatile); //BE BYTE_OFFSET CE WORD_OFFSET
+							_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", X)", is_volatile); //EE BYTE_OFFSET DE WORD_OFFSET
 						}
 						else
 						{
-							_curr_code_sec->add_op(L"LDW X, ([" + rv + L"], X)"); //92 DE BYTE_OFFSET 72 DE WORD_OFFSET
+							_curr_code_sec->add_op(L"LDW X, ([" + rv + L"], X)", is_volatile); //92 DE BYTE_OFFSET 72 DE WORD_OFFSET
 						}
 					}
 				}
@@ -3891,38 +3937,38 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 					{
 						if(imm_offset)
 						{
-							_curr_code_sec->add_op(L"LDW Y, (" + rv + L" + " + Utils::str_tohex16(offset) + L")"); //90 BE SHORT_ADDRESS 90 CE LONG_ADDRESS
-							_curr_code_sec->add_op(L"LDW X, (" + rv + L" + " + Utils::str_tohex16(offset) + L" + 2)"); //BE SHORT_ADDRESS CE LONG_ADDRESS
+							_curr_code_sec->add_op(L"LDW Y, (" + rv + L" + " + Utils::str_tohex16(offset) + L")", is_volatile); //90 BE SHORT_ADDRESS 90 CE LONG_ADDRESS
+							_curr_code_sec->add_op(L"LDW X, (" + rv + L" + " + Utils::str_tohex16(offset) + L" + 2)", is_volatile); //BE SHORT_ADDRESS CE LONG_ADDRESS
 						}
 						else
 						{
-							_curr_code_sec->add_op(L"LDW Y, X"); //90 93
-							_curr_code_sec->add_op(L"LDW Y, (" + rv + L", Y)"); //90 EE BYTE_OFFSET 90 DE WORD_OFFSET
-							_curr_code_sec->add_op(L"LDW X, (" + rv + L" + 2, X)"); //EE BYTE_OFFSET DE WORD_OFFSET
+							_curr_code_sec->add_op(L"LDW Y, X", is_volatile); //90 93
+							_curr_code_sec->add_op(L"LDW Y, (" + rv + L", Y)", is_volatile); //90 EE BYTE_OFFSET 90 DE WORD_OFFSET
+							_curr_code_sec->add_op(L"LDW X, (" + rv + L" + 2, X)", is_volatile); //EE BYTE_OFFSET DE WORD_OFFSET
 						}
 					}
 					else
 					{
 						if(imm_offset)
 						{
-							_curr_code_sec->add_op(L"LDW X, (" + rv + L")"); //BE BYTE_OFFSET CE WORD_OFFSET
-							_curr_code_sec->add_op(L"LDW Y, X"); //90 93
-							_curr_code_sec->add_op(L"LDW Y, (" + Utils::str_tohex16(offset) + L", Y)"); //90 EE BYTE_OFFSET 90 DE WORD_OFFSET
-							_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L" + 2, X)"); //EE BYTE_OFFSET DE WORD_OFFSET
+							_curr_code_sec->add_op(L"LDW X, (" + rv + L")", is_volatile); //BE BYTE_OFFSET CE WORD_OFFSET
+							_curr_code_sec->add_op(L"LDW Y, X", is_volatile); //90 93
+							_curr_code_sec->add_op(L"LDW Y, (" + Utils::str_tohex16(offset) + L", Y)", is_volatile); //90 EE BYTE_OFFSET 90 DE WORD_OFFSET
+							_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L" + 2, X)", is_volatile); //EE BYTE_OFFSET DE WORD_OFFSET
 						}
 						else
 						{
-							_curr_code_sec->add_op(L"ADDW X, (" + rv + L")"); //72 BB WORD_OFFSET
-							_curr_code_sec->add_op(L"LDW Y, X"); //90 93
-							_curr_code_sec->add_op(L"LDW Y, (Y)"); //90 FE
-							_curr_code_sec->add_op(L"LDW X, (2, X)"); //EE BYTE_OFFSET
+							_curr_code_sec->add_op(L"ADDW X, (" + rv + L")", is_volatile); //72 BB WORD_OFFSET
+							_curr_code_sec->add_op(L"LDW Y, X", is_volatile); //90 93
+							_curr_code_sec->add_op(L"LDW Y, (Y)", is_volatile); //90 FE
+							_curr_code_sec->add_op(L"LDW X, (2, X)", is_volatile); //EE BYTE_OFFSET
 						}
 					}
 
 
 					if(req_type == B1Types::B1T_STRING)
 					{
-						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_L"); //AD SIGNED_BYTE_OFFSET (CALLR)
+						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR_L", is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 						_req_symbols.insert(L"__LIB_STR_STR_L");
 					}
 				}
@@ -3943,7 +3989,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 			}
 			else
 			{
-				_curr_code_sec->add_op(L"SLAW X"); //58
+				_curr_code_sec->add_op(L"SLAW X", is_volatile); //58
 			}
 
 			if(req_type != B1Types::B1T_STRING)
@@ -3957,15 +4003,15 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 
 				if(imm_offset)
 				{
-					_curr_code_sec->add_op(L"LDW X, (" + rv + L")"); //BE BYTE_OFFSET CE WORD_OFFSET
-					_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", X)"); //EE BYTE_OFFSET DE WORD_OFFSET
+					_curr_code_sec->add_op(L"LDW X, (" + rv + L")", is_volatile); //BE BYTE_OFFSET CE WORD_OFFSET
+					_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", X)", is_volatile); //EE BYTE_OFFSET DE WORD_OFFSET
 				}
 				else
 				{
-					_curr_code_sec->add_op(L"LDW X, ([" + rv + L"], X)"); //92 DE BYTE_OFFSET 72 DE WORD_OFFSET
+					_curr_code_sec->add_op(L"LDW X, ([" + rv + L"], X)", is_volatile); //92 DE BYTE_OFFSET 72 DE WORD_OFFSET
 				}
 
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CPY"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CPY", is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_STR_CPY");
 
 				rv.clear();
@@ -4048,21 +4094,21 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 			{
 				if(farg.type == B1Types::B1T_BYTE)
 				{
-					_curr_code_sec->add_op(L"PUSH " + res_val); //4B BYTE_VALUE
+					_curr_code_sec->add_op(L"PUSH " + res_val, false); //4B BYTE_VALUE
 					_stack_ptr++;
 					args_size++;
 				}
 				else
 				{
-					_curr_code_sec->add_op(L"PUSH " + res_val + L".ll"); //4B BYTE_VALUE
-					_curr_code_sec->add_op(L"PUSH " + res_val + L".lh"); //4B BYTE_VALUE
+					_curr_code_sec->add_op(L"PUSH " + res_val + L".ll", false); //4B BYTE_VALUE
+					_curr_code_sec->add_op(L"PUSH " + res_val + L".lh", false); //4B BYTE_VALUE
 					_stack_ptr += 2;
 					args_size += 2;
 
 					if(req_type == B1Types::B1T_LONG)
 					{
-						_curr_code_sec->add_op(L"PUSH " + res_val + L".hl"); //4B BYTE_VALUE
-						_curr_code_sec->add_op(L"PUSH " + res_val + L".hh"); //4B BYTE_VALUE
+						_curr_code_sec->add_op(L"PUSH " + res_val + L".hl", false); //4B BYTE_VALUE
+						_curr_code_sec->add_op(L"PUSH " + res_val + L".hh", false); //4B BYTE_VALUE
 						_stack_ptr += 2;
 						args_size += 2;
 					}
@@ -4072,19 +4118,19 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 			{
 				if(farg.type == B1Types::B1T_BYTE)
 				{
-					_curr_code_sec->add_op(L"PUSH A"); //88
+					_curr_code_sec->add_op(L"PUSH A", false); //88
 					_stack_ptr++;
 					args_size++;
 				}
 				else
 				{
-					_curr_code_sec->add_op(L"PUSHW X"); //89
+					_curr_code_sec->add_op(L"PUSHW X", false); //89
 					_stack_ptr += 2;
 					args_size += 2;
 
 					if(req_type == B1Types::B1T_LONG)
 					{
-						_curr_code_sec->add_op(L"PUSHW Y"); //90 89
+						_curr_code_sec->add_op(L"PUSHW Y", false); //90 89
 						_stack_ptr += 2;
 						args_size += 2;
 					}
@@ -4107,13 +4153,13 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 		if(req_valtype & LVT::LVT_REG)
 		{
 			rvt = LVT::LVT_REG;
-			_curr_code_sec->add_op(_call_stmt + L" " + fn->iname); //AD SIGNED_BYTE_OFFSET (CALLR)
+			_curr_code_sec->add_op(_call_stmt + L" " + fn->iname, false); //AD SIGNED_BYTE_OFFSET (CALLR)
 			_req_symbols.insert(fn->iname);
 
 			if(fn->args.size() > 1)
 			{
 				// cleanup stack
-				_curr_code_sec->add_op(L"ADDW SP, " + Utils::str_tohex16(args_size)); //5B BYTE_VALUE
+				_curr_code_sec->add_op(L"ADDW SP, " + Utils::str_tohex16(args_size), false); //5B BYTE_VALUE
 				_stack_ptr -= args_size;
 			}
 
@@ -4174,7 +4220,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_init_array(const B1_CMP_CMD &cmd, const B1_C
 				return err;
 			}
 			// save lbound
-			_curr_code_sec->add_op(L"LDW (" + cmd.args[0][0].value + L" + " + Utils::str_tohex16((i * 2 + 1) * 2) + L"), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+			_curr_code_sec->add_op(L"LDW (" + cmd.args[0][0].value + L" + " + Utils::str_tohex16((i * 2 + 1) * 2) + L"), X", var.is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
 
 			// ubound
 			err = stm8_load(cmd.args[2 + i * 2 + 1], B1Types::B1T_INT, LVT::LVT_REG);
@@ -4183,30 +4229,30 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_init_array(const B1_CMP_CMD &cmd, const B1_C
 				return err;
 			}
 			// subtract lbound value
-			_curr_code_sec->add_op(L"SUBW X, (" + cmd.args[0][0].value + L" + " + Utils::str_tohex16((i * 2 + 1) * 2) + L")"); //72 B0 WORD_OFFSET
-			_curr_code_sec->add_op(L"INCW X"); //5C
+			_curr_code_sec->add_op(L"SUBW X, (" + cmd.args[0][0].value + L" + " + Utils::str_tohex16((i * 2 + 1) * 2) + L")", var.is_volatile); //72 B0 WORD_OFFSET
+			_curr_code_sec->add_op(L"INCW X", var.is_volatile); //5C
 			// save dimension size
-			_curr_code_sec->add_op(L"LDW (" + cmd.args[0][0].value + L" + " + Utils::str_tohex16((i * 2 + 2) * 2) + L"), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+			_curr_code_sec->add_op(L"LDW (" + cmd.args[0][0].value + L" + " + Utils::str_tohex16((i * 2 + 2) * 2) + L"), X", var.is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
 
 			if(i != 0)
 			{
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_COM_MUL16"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_COM_MUL16", var.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_COM_MUL16");
 				
 				if(i == dims - 1)
 				{
-					_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
+					_curr_code_sec->add_op(L"ADDW SP, 2", var.is_volatile); //5B BYTE_VALUE
 					_stack_ptr -= 2;
 				}
 				else
 				{
-					_curr_code_sec->add_op(L"LDW (1, SP), X"); //1F BYTE_OFFSET
+					_curr_code_sec->add_op(L"LDW (1, SP), X", var.is_volatile); //1F BYTE_OFFSET
 				}
 			}
 
 			if(i == 0 && i != dims - 1)
 			{
-				_curr_code_sec->add_op(L"PUSHW X"); //89
+				_curr_code_sec->add_op(L"PUSHW X", var.is_volatile); //89
 				_stack_ptr += 2;
 			}
 		}
@@ -4214,14 +4260,14 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_init_array(const B1_CMP_CMD &cmd, const B1_C
 		if(data_size == 2)
 		{
 			// 2-byte types: data size = arr. size * 2
-			_curr_code_sec->add_op(L"SLAW X"); //58
+			_curr_code_sec->add_op(L"SLAW X", var.is_volatile); //58
 		}
 		else
 		if(data_size == 4)
 		{
 			// 4-byte types: data size = arr. size * 4
-			_curr_code_sec->add_op(L"SLAW X"); //58
-			_curr_code_sec->add_op(L"SLAW X"); //58
+			_curr_code_sec->add_op(L"SLAW X", var.is_volatile); //58
+			_curr_code_sec->add_op(L"SLAW X", var.is_volatile); //58
 		}
 	}
 
@@ -4231,16 +4277,16 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_init_array(const B1_CMP_CMD &cmd, const B1_C
 C1STM8_T_ERROR C1STM8Compiler::stm8_st_ga(const B1_CMP_CMD &cmd, const B1_CMP_VAR &var)
 {
 	// report error if the array is already allocated
-	_curr_code_sec->add_op(L"LDW X, (" + cmd.args[0][0].value + L")"); //BE SHORT_ADDRESS CE LONG_ADDRESS
+	_curr_code_sec->add_op(L"LDW X, (" + cmd.args[0][0].value + L")", var.is_volatile); //BE SHORT_ADDRESS CE LONG_ADDRESS
 	_req_symbols.insert(cmd.args[0][0].value);
 	const auto label = emit_label(true);
-	_curr_code_sec->add_op(L"JREQ " + label); //27 SIGNED_BYTE_OFFSET
+	_curr_code_sec->add_op(L"JREQ " + label, var.is_volatile); //27 SIGNED_BYTE_OFFSET
 	_req_symbols.insert(label);
-	_curr_code_sec->add_op(L"MOV (__LIB_ERR_LAST_ERR), " + _RTE_error_names[B1C_T_RTERROR::B1C_RTE_ARR_ALLOC]); //35 BYTE_VALUE LONG_ADDRESS
+	_curr_code_sec->add_op(L"MOV (__LIB_ERR_LAST_ERR), " + _RTE_error_names[B1C_T_RTERROR::B1C_RTE_ARR_ALLOC], var.is_volatile); //35 BYTE_VALUE LONG_ADDRESS
 	_init_files.push_back(L"__LIB_ERR_LAST_ERR");
-	_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_ERR_HANDLER"); //AD SIGNED_BYTE_OFFSET (CALLR)
+	_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_ERR_HANDLER", var.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 	_req_symbols.insert(L"__LIB_ERR_HANDLER");
-	_curr_code_sec->add_lbl(label);
+	_curr_code_sec->add_lbl(label, var.is_volatile);
 	_all_symbols.insert(label);
 
 	auto err = stm8_init_array(cmd, var);
@@ -4249,11 +4295,11 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_st_ga(const B1_CMP_CMD &cmd, const B1_CMP_VA
 		return err;
 	}
 
-	_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_MEM_ALC"); //AD SIGNED_BYTE_OFFSET (CALLR)
+	_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_MEM_ALC", var.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 	_req_symbols.insert(L"__LIB_MEM_ALC");
 
 	// save address
-	_curr_code_sec->add_op(L"LDW (" + cmd.args[0][0].value + L"), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+	_curr_code_sec->add_op(L"LDW (" + cmd.args[0][0].value + L"), X", var.is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
 
 	return C1STM8_T_ERROR::C1STM8_RES_OK;
 }
@@ -4285,18 +4331,18 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_TYPED_VALUE &tv)
 
 		if(tv.type == B1Types::B1T_BYTE)
 		{
-			_curr_code_sec->add_op(L"LD (" + Utils::str_tohex16(offset) + L", SP), A"); //6B BYTE_OFFSET
+			_curr_code_sec->add_op(L"LD (" + Utils::str_tohex16(offset) + L", SP), A", false); //6B BYTE_OFFSET
 		}
 		else
 		if(tv.type == B1Types::B1T_INT || tv.type == B1Types::B1T_WORD)
 		{
-			_curr_code_sec->add_op(L"LDW (" + Utils::str_tohex16(offset) + L", SP), X"); //1F BYTE_OFFSET
+			_curr_code_sec->add_op(L"LDW (" + Utils::str_tohex16(offset) + L", SP), X", false); //1F BYTE_OFFSET
 		}
 		else
 		if(tv.type == B1Types::B1T_LONG)
 		{
-			_curr_code_sec->add_op(L"LDW (" + Utils::str_tohex16(offset) + L", SP), Y"); //17 BYTE_OFFSET
-			_curr_code_sec->add_op(L"LDW (" + Utils::str_tohex16(offset) + L" + 2, SP), X"); //1F BYTE_OFFSET
+			_curr_code_sec->add_op(L"LDW (" + Utils::str_tohex16(offset) + L", SP), Y", false); //17 BYTE_OFFSET
+			_curr_code_sec->add_op(L"LDW (" + Utils::str_tohex16(offset) + L" + 2, SP), X", false); //1F BYTE_OFFSET
 		}
 		else
 		{
@@ -4304,7 +4350,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_TYPED_VALUE &tv)
 			if(_clear_locals.find(tv.value) == _clear_locals.end())
 			{
 				// release previous string value
-				_curr_code_sec->add_op(L"PUSHW X"); //89
+				_curr_code_sec->add_op(L"PUSHW X", false); //89
 				_stack_ptr += 2;
 				offset += 2;
 				if(offset > 255)
@@ -4312,10 +4358,10 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_TYPED_VALUE &tv)
 					return C1STM8_T_ERROR::C1STM8_RES_ESTCKOVF;
 				}
 
-				_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)", false); //1E BYTE_OFFSET
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_STR_RLS");
-				_curr_code_sec->add_op(L"POPW X"); //85
+				_curr_code_sec->add_op(L"POPW X", false); //85
 				_stack_ptr -= 2;
 				offset -= 2;
 			}
@@ -4324,7 +4370,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_TYPED_VALUE &tv)
 				_clear_locals.erase(tv.value);
 			}
 
-			_curr_code_sec->add_op(L"LDW (" + Utils::str_tohex16(offset) + L", SP), X"); //1F BYTE_OFFSET
+			_curr_code_sec->add_op(L"LDW (" + Utils::str_tohex16(offset) + L", SP), X", false); //1F BYTE_OFFSET
 		}
 	}
 	else
@@ -4333,45 +4379,48 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_TYPED_VALUE &tv)
 		auto ma = _mem_areas.find(tv.value);
 		bool is_ma = ma != _mem_areas.end();
 		std::wstring dst;
+		bool is_volatile = false;
 
 		if(is_ma)
 		{
 			dst = ma->second.use_symbol ? ma->second.symbol : std::to_wstring(ma->second.address);
+			is_volatile = ma->second.is_volatile;
 		}
 		else
 		{
 			dst = tv.value;
+			is_volatile = _vars.find(tv.value)->second.is_volatile;
 			_req_symbols.insert(dst);
 		}
 
 		if(tv.type == B1Types::B1T_BYTE)
 		{
-			_curr_code_sec->add_op(L"LD (" + dst + L"), A"); //B7 SHORT_ADDRESS C7 LONG_ADDRESS
+			_curr_code_sec->add_op(L"LD (" + dst + L"), A", is_volatile); //B7 SHORT_ADDRESS C7 LONG_ADDRESS
 		}
 		else
 		if(tv.type == B1Types::B1T_INT || tv.type == B1Types::B1T_WORD)
 		{
-			_curr_code_sec->add_op(L"LDW (" + dst + L"), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+			_curr_code_sec->add_op(L"LDW (" + dst + L"), X", is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
 		}
 		else
 		if(tv.type == B1Types::B1T_LONG)
 		{
-			_curr_code_sec->add_op(L"LDW (" + dst + L"), Y"); //90 BF SHORT_ADDRESS 90 CF LONG_ADDRESS
-			_curr_code_sec->add_op(L"LDW (" + dst + L" + 2), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+			_curr_code_sec->add_op(L"LDW (" + dst + L"), Y", is_volatile); //90 BF SHORT_ADDRESS 90 CF LONG_ADDRESS
+			_curr_code_sec->add_op(L"LDW (" + dst + L" + 2), X", is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
 		}
 		else
 		{
 			// STRING variable
 			// release previous string value
-			_curr_code_sec->add_op(L"PUSHW X"); //89
+			_curr_code_sec->add_op(L"PUSHW X", is_volatile); //89
 			_stack_ptr += 2;
-			_curr_code_sec->add_op(L"LDW X, (" + dst + L")"); //BE SHORT_ADDRESS, CE LONG_ADDRESS
-			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+			_curr_code_sec->add_op(L"LDW X, (" + dst + L")", is_volatile); //BE SHORT_ADDRESS, CE LONG_ADDRESS
+			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS", is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 			_req_symbols.insert(L"__LIB_STR_RLS");
-			_curr_code_sec->add_op(L"POPW X"); //85
+			_curr_code_sec->add_op(L"POPW X", is_volatile); //85
 			_stack_ptr -= 2;
 
-			_curr_code_sec->add_op(L"LDW (" + dst + L"), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+			_curr_code_sec->add_op(L"LDW (" + dst + L"), X", is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
 		}
 	}
 
@@ -4399,39 +4448,43 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 
 		dst = ma->second.use_symbol ? ma->second.symbol : std::to_wstring(ma->second.address);
 	}
-	else
+
+	const auto &var = is_ma ? ma->second : _vars.find(arg[0].value)->second;
+
+	if(!is_ma)
 	{
-		if(_vars.find(arg[0].value)->second.dim_num != arg.size() - 1)
+		if(var.dim_num != arg.size() - 1)
 		{
 			return static_cast<C1STM8_T_ERROR>(B1_RES_EWRARGCNT);
 		}
 
 		dst = arg[0].value;
+		
 		_req_symbols.insert(dst);
 	}
 
+	bool is_volatile = var.is_volatile;
+
 	if(arg[0].type == B1Types::B1T_BYTE)
 	{
-		_curr_code_sec->add_op(L"PUSH A"); //88
+		_curr_code_sec->add_op(L"PUSH A", is_volatile); //88
 		_stack_ptr++;
 	}
 	else
 	{
-		_curr_code_sec->add_op(L"PUSHW X"); //89
+		_curr_code_sec->add_op(L"PUSHW X", is_volatile); //89
 		_stack_ptr += 2;
 
 
 		if(arg[0].type == B1Types::B1T_LONG)
 		{
-			_curr_code_sec->add_op(L"PUSHW Y"); //90 89
+			_curr_code_sec->add_op(L"PUSHW Y", is_volatile); //90 89
 			_stack_ptr += 2;
 		}
 	}
 
 	if(!is_ma)
 	{
-		const auto &var = _vars.find(arg[0].value)->second;
-
 		// allocate array of default size if necessary
 		auto err = stm8_arr_alloc_def(arg, var);
 		if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
@@ -4452,30 +4505,30 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 	// store value
 	if(arg[0].type == B1Types::B1T_BYTE)
 	{
-		_curr_code_sec->add_op(L"POP A"); //84
+		_curr_code_sec->add_op(L"POP A", is_volatile); //84
 		_stack_ptr--;
 
 		if(is_ma)
 		{
 			if(imm_offset)
 			{
-				_curr_code_sec->add_op(L"LD (" + dst + L" + " + Utils::str_tohex16(offset) + L"), A"); //B7 SHORT_ADDRESS C7 LONG_ADDRESS
+				_curr_code_sec->add_op(L"LD (" + dst + L" + " + Utils::str_tohex16(offset) + L"), A", is_volatile); //B7 SHORT_ADDRESS C7 LONG_ADDRESS
 			}
 			else
 			{
-				_curr_code_sec->add_op(L"LD (" + dst + L", X), A"); //E7 BYTE_OFFSET D7 WORD_OFFSET
+				_curr_code_sec->add_op(L"LD (" + dst + L", X), A", is_volatile); //E7 BYTE_OFFSET D7 WORD_OFFSET
 			}
 		}
 		else
 		{
 			if(imm_offset)
 			{
-				_curr_code_sec->add_op(L"LDW X, (" + dst + L")"); //BE BYTE_OFFSET CE WORD_OFFSET
-				_curr_code_sec->add_op(L"LD (" + Utils::str_tohex16(offset) + L", X), A"); //E7 BYTE_OFFSET D7 WORD_OFFSET
+				_curr_code_sec->add_op(L"LDW X, (" + dst + L")", is_volatile); //BE BYTE_OFFSET CE WORD_OFFSET
+				_curr_code_sec->add_op(L"LD (" + Utils::str_tohex16(offset) + L", X), A", is_volatile); //E7 BYTE_OFFSET D7 WORD_OFFSET
 			}
 			else
 			{
-				_curr_code_sec->add_op(L"LD ([" + dst + L"], X), A"); //92 D7 BYTE_OFFSET 72 D7 WORD_OFFSET
+				_curr_code_sec->add_op(L"LD ([" + dst + L"], X), A", is_volatile); //92 D7 BYTE_OFFSET 72 D7 WORD_OFFSET
 			}
 		}
 	}
@@ -4488,7 +4541,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 		}
 		else
 		{
-			_curr_code_sec->add_op(L"SLAW X"); //58
+			_curr_code_sec->add_op(L"SLAW X", is_volatile); //58
 		}
 
 		if(is_ma)
@@ -4498,34 +4551,34 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 				// release previous string
 				if(arg[0].type == B1Types::B1T_STRING)
 				{
-					_curr_code_sec->add_op(L"LDW X, (" + dst + L" + " + Utils::str_tohex16(offset) + L")"); //BE BYTE_OFFSET CE WORD_OFFSET
-					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_curr_code_sec->add_op(L"LDW X, (" + dst + L" + " + Utils::str_tohex16(offset) + L")", is_volatile); //BE BYTE_OFFSET CE WORD_OFFSET
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS", is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 					_req_symbols.insert(L"__LIB_STR_RLS");
 				}
 
-				_curr_code_sec->add_op(L"POPW X"); //85
+				_curr_code_sec->add_op(L"POPW X", is_volatile); //85
 				_stack_ptr -= 2;
 
-				_curr_code_sec->add_op(L"LDW (" + dst + L" + " + Utils::str_tohex16(offset) + L"), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+				_curr_code_sec->add_op(L"LDW (" + dst + L" + " + Utils::str_tohex16(offset) + L"), X", is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
 			}
 			else
 			{
 				// release previous string
 				if(arg[0].type == B1Types::B1T_STRING)
 				{
-					_curr_code_sec->add_op(L"PUSHW X"); //89
+					_curr_code_sec->add_op(L"PUSHW X", is_volatile); //89
 					_stack_ptr += 2;
-					_curr_code_sec->add_op(L"LDW X, (" + dst + L", X)"); //EE BYTE_OFFSET DE WORD_OFFSET
-					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_curr_code_sec->add_op(L"LDW X, (" + dst + L", X)", is_volatile); //EE BYTE_OFFSET DE WORD_OFFSET
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS", is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 					_req_symbols.insert(L"__LIB_STR_RLS");
-					_curr_code_sec->add_op(L"POPW X"); //85
+					_curr_code_sec->add_op(L"POPW X", is_volatile); //85
 					_stack_ptr -= 2;
 				}
 
-				_curr_code_sec->add_op(L"POPW Y"); //90 85
+				_curr_code_sec->add_op(L"POPW Y", is_volatile); //90 85
 				_stack_ptr -= 2;
 
-				_curr_code_sec->add_op(L"LDW (" + dst + L", X), Y"); //EF BYTE_OFFSET DF WORD_OFFSET
+				_curr_code_sec->add_op(L"LDW (" + dst + L", X), Y", is_volatile); //EF BYTE_OFFSET DF WORD_OFFSET
 			}
 		}
 		else
@@ -4535,36 +4588,36 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 				// release previous string
 				if(arg[0].type == B1Types::B1T_STRING)
 				{
-					_curr_code_sec->add_op(L"LDW X, (" + dst + L")"); //BE BYTE_OFFSET CE WORD_OFFSET
-					_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", X)"); //EE BYTE_OFFSET DE WORD_OFFSET
-					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_curr_code_sec->add_op(L"LDW X, (" + dst + L")", is_volatile); //BE BYTE_OFFSET CE WORD_OFFSET
+					_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", X)", is_volatile); //EE BYTE_OFFSET DE WORD_OFFSET
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS", is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 					_req_symbols.insert(L"__LIB_STR_RLS");
 				}
 
-				_curr_code_sec->add_op(L"POPW Y"); //90 85
+				_curr_code_sec->add_op(L"POPW Y", is_volatile); //90 85
 				_stack_ptr -= 2;
 
-				_curr_code_sec->add_op(L"LDW X, (" + dst + L")"); //BE BYTE_OFFSET CE WORD_OFFSET
-				_curr_code_sec->add_op(L"LDW (" + Utils::str_tohex16(offset) + L", X), Y"); //EF BYTE_OFFSET DF WORD_OFFSET
+				_curr_code_sec->add_op(L"LDW X, (" + dst + L")", is_volatile); //BE BYTE_OFFSET CE WORD_OFFSET
+				_curr_code_sec->add_op(L"LDW (" + Utils::str_tohex16(offset) + L", X), Y", is_volatile); //EF BYTE_OFFSET DF WORD_OFFSET
 			}
 			else
 			{
 				// release previous string
 				if(arg[0].type == B1Types::B1T_STRING)
 				{
-					_curr_code_sec->add_op(L"PUSHW X"); //89
+					_curr_code_sec->add_op(L"PUSHW X", is_volatile); //89
 					_stack_ptr += 2;
-					_curr_code_sec->add_op(L"LDW X, ([" + dst + L"], X)"); //92 DE BYTE_OFFSET 72 DE WORD_OFFSET
-					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_curr_code_sec->add_op(L"LDW X, ([" + dst + L"], X)", is_volatile); //92 DE BYTE_OFFSET 72 DE WORD_OFFSET
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS", is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 					_req_symbols.insert(L"__LIB_STR_RLS");
-					_curr_code_sec->add_op(L"POPW X"); //85
+					_curr_code_sec->add_op(L"POPW X", is_volatile); //85
 					_stack_ptr -= 2;
 				}
 
-				_curr_code_sec->add_op(L"POPW Y"); //90 85
+				_curr_code_sec->add_op(L"POPW Y", is_volatile); //90 85
 				_stack_ptr -= 2;
 
-				_curr_code_sec->add_op(L"LDW ([" + dst + L"], X), Y"); //92 DF BYTE_OFFSET 72 DF WORD_OFFSET
+				_curr_code_sec->add_op(L"LDW ([" + dst + L"], X), Y", is_volatile); //92 DF BYTE_OFFSET 72 DF WORD_OFFSET
 			}
 		}
 	}
@@ -4577,52 +4630,52 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 		}
 		else
 		{
-			_curr_code_sec->add_op(L"SLAW X"); //58
-			_curr_code_sec->add_op(L"SLAW X"); //58
+			_curr_code_sec->add_op(L"SLAW X", is_volatile); //58
+			_curr_code_sec->add_op(L"SLAW X", is_volatile); //58
 		}
 
 		if(is_ma)
 		{
 			if(imm_offset)
 			{
-				_curr_code_sec->add_op(L"POPW X"); //85
+				_curr_code_sec->add_op(L"POPW X", is_volatile); //85
 				_stack_ptr -= 2;
-				_curr_code_sec->add_op(L"LDW (" + dst + L" + " + Utils::str_tohex16(offset) + L"), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
-				_curr_code_sec->add_op(L"POPW X"); //85
+				_curr_code_sec->add_op(L"LDW (" + dst + L" + " + Utils::str_tohex16(offset) + L"), X", is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
+				_curr_code_sec->add_op(L"POPW X", is_volatile); //85
 				_stack_ptr -= 2;
-				_curr_code_sec->add_op(L"LDW (" + dst + L" + " + Utils::str_tohex16(offset) + L" + 2), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+				_curr_code_sec->add_op(L"LDW (" + dst + L" + " + Utils::str_tohex16(offset) + L" + 2), X", is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
 			}
 			else
 			{
-				_curr_code_sec->add_op(L"POPW Y"); //90 85
+				_curr_code_sec->add_op(L"POPW Y", is_volatile); //90 85
 				_stack_ptr -= 2;
-				_curr_code_sec->add_op(L"LDW (" + dst + L", X), Y"); //EF BYTE_OFFSET DF WORD_OFFSET
-				_curr_code_sec->add_op(L"POPW Y"); //90 85
+				_curr_code_sec->add_op(L"LDW (" + dst + L", X), Y", is_volatile); //EF BYTE_OFFSET DF WORD_OFFSET
+				_curr_code_sec->add_op(L"POPW Y", is_volatile); //90 85
 				_stack_ptr -= 2;
-				_curr_code_sec->add_op(L"LDW (" + dst + L" + 2, X), Y"); //EF BYTE_OFFSET DF WORD_OFFSET
+				_curr_code_sec->add_op(L"LDW (" + dst + L" + 2, X), Y", is_volatile); //EF BYTE_OFFSET DF WORD_OFFSET
 			}
 		}
 		else
 		{
 			if(imm_offset)
 			{
-				_curr_code_sec->add_op(L"LDW X, (" + dst + L")"); //BE BYTE_OFFSET CE WORD_OFFSET
-				_curr_code_sec->add_op(L"POPW Y"); //90 85
+				_curr_code_sec->add_op(L"LDW X, (" + dst + L")", is_volatile); //BE BYTE_OFFSET CE WORD_OFFSET
+				_curr_code_sec->add_op(L"POPW Y", is_volatile); //90 85
 				_stack_ptr -= 2;
-				_curr_code_sec->add_op(L"LDW (" + Utils::str_tohex16(offset) + L", X), Y"); //EF BYTE_OFFSET DF WORD_OFFSET
-				_curr_code_sec->add_op(L"POPW Y"); //90 85
+				_curr_code_sec->add_op(L"LDW (" + Utils::str_tohex16(offset) + L", X), Y", is_volatile); //EF BYTE_OFFSET DF WORD_OFFSET
+				_curr_code_sec->add_op(L"POPW Y", is_volatile); //90 85
 				_stack_ptr -= 2;
-				_curr_code_sec->add_op(L"LDW (" + Utils::str_tohex16(offset) + L" + 2, X), Y"); //EF BYTE_OFFSET DF WORD_OFFSET
+				_curr_code_sec->add_op(L"LDW (" + Utils::str_tohex16(offset) + L" + 2, X), Y", is_volatile); //EF BYTE_OFFSET DF WORD_OFFSET
 			}
 			else
 			{
-				_curr_code_sec->add_op(L"ADDW X, (" + dst + L")"); //72 BB WORD_OFFSET
-				_curr_code_sec->add_op(L"POPW Y"); //90 85
+				_curr_code_sec->add_op(L"ADDW X, (" + dst + L")", is_volatile); //72 BB WORD_OFFSET
+				_curr_code_sec->add_op(L"POPW Y", is_volatile); //90 85
 				_stack_ptr -= 2;
-				_curr_code_sec->add_op(L"LDW (X), Y"); // FF
-				_curr_code_sec->add_op(L"POPW Y"); //90 85
+				_curr_code_sec->add_op(L"LDW (X), Y", is_volatile); // FF
+				_curr_code_sec->add_op(L"POPW Y", is_volatile); //90 85
 				_stack_ptr -= 2;
-				_curr_code_sec->add_op(L"LDW(2, X), Y"); // EF BYTE_OFFSET
+				_curr_code_sec->add_op(L"LDW(2, X), Y", is_volatile); // EF BYTE_OFFSET
 			}
 		}
 	}
@@ -4630,11 +4683,44 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 	return C1STM8_T_ERROR::C1STM8_RES_OK;
 }
 
-C1STM8_T_ERROR C1STM8Compiler::stm8_assign(const B1_CMP_CMD &cmd)
+C1STM8_T_ERROR C1STM8Compiler::stm8_assign(const B1_CMP_CMD &cmd, bool omit_zero_init)
 {
 	if(cmd.cmd != L"=")
 	{
 		return C1STM8_T_ERROR::C1STM8_RES_EUNKINST;
+	}
+
+	bool can_omit_init;
+	bool is_volatile;
+
+	auto var = _mem_areas.find(cmd.args[1][0].value);
+	if(var == _mem_areas.cend())
+	{
+		var = _vars.find(cmd.args[1][0].value);
+		is_volatile = (var != _vars.cend()) && var->second.is_volatile;
+		// allow omitting initialization of non-volatile variables
+		can_omit_init = (var != _vars.cend()) && (!is_volatile);
+	}
+	else
+	{
+		is_volatile = var->second.is_volatile;
+		// allow omitting initialization of non-volatile static variables only
+		can_omit_init = var->second.use_symbol && (!is_volatile);
+	}
+
+	// omit initialization of scalar non-volatile variables in .CODE INIT section
+	if(omit_zero_init && cmd.args[1].size() == 1 && (cmd.args[1][0].type == B1Types::B1T_BYTE || cmd.args[1][0].type == B1Types::B1T_INT || cmd.args[1][0].type == B1Types::B1T_WORD || cmd.args[1][0].type == B1Types::B1T_LONG))
+	{
+		std::wstring srcval;
+
+		if(can_omit_init)
+		{
+			auto err = stm8_load(cmd.args[0], cmd.args[1][0].type, LVT::LVT_IMMVAL, nullptr, &srcval);
+			if(err == C1STM8_T_ERROR::C1STM8_RES_OK && (srcval == L"0" || srcval == L"0x0" || srcval == L"0X0"))
+			{
+				return C1STM8_T_ERROR::C1STM8_RES_OK;
+			}
+		}
 	}
 
 	if(	(cmd.args[0][0].type == B1Types::B1T_BYTE || cmd.args[0][0].type == B1Types::B1T_INT || cmd.args[0][0].type == B1Types::B1T_WORD || cmd.args[0][0].type == B1Types::B1T_LONG) &&
@@ -4655,16 +4741,16 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_assign(const B1_CMP_CMD &cmd)
 				{
 					if(srcval == L"0" || srcval == L"0x0" || srcval == L"0X0")
 					{
-						_curr_code_sec->add_op(L"CLR (" + dstval + L")"); //3F SHORT_ADDRESS 72 5F LONG_ADDRESS
+						_curr_code_sec->add_op(L"CLR (" + dstval + L")", is_volatile); //3F SHORT_ADDRESS 72 5F LONG_ADDRESS
 					}
 					else
 					{
-						_curr_code_sec->add_op(L"MOV (" + dstval + L"), " + srcval); //35 BYTE_VALUE LONG_ADDRESS
+						_curr_code_sec->add_op(L"MOV (" + dstval + L"), " + srcval, is_volatile); //35 BYTE_VALUE LONG_ADDRESS
 					}
 				}
 				else
 				{
-					_curr_code_sec->add_op(L"MOV (" + dstval + L"), (" + srcval + L")"); //45 SHORT_ADDRESS SHORT_ADDRESS 55 LONG_ADDRESS LONG_ADDRESS
+					_curr_code_sec->add_op(L"MOV (" + dstval + L"), (" + srcval + L")", is_volatile); //45 SHORT_ADDRESS SHORT_ADDRESS 55 LONG_ADDRESS LONG_ADDRESS
 				}
 
 				return C1STM8_T_ERROR::C1STM8_RES_OK;
@@ -4687,11 +4773,11 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_assign(const B1_CMP_CMD &cmd)
 	return C1STM8_T_ERROR::C1STM8_RES_OK;
 }
 
-C1STM8_T_ERROR C1STM8Compiler::stm8_un_op(const B1_CMP_CMD &cmd)
+C1STM8_T_ERROR C1STM8Compiler::stm8_un_op(const B1_CMP_CMD &cmd, bool omit_zero_init)
 {
 	if(cmd.cmd == L"=")
 	{
-		return stm8_assign(cmd);
+		return stm8_assign(cmd, omit_zero_init);
 	}
 
 	auto err = stm8_load(cmd.args[0], cmd.args[1][0].type, LVT::LVT_REG);
@@ -4704,17 +4790,17 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_un_op(const B1_CMP_CMD &cmd)
 	{
 		if(cmd.args[1][0].type == B1Types::B1T_BYTE)
 		{
-			_curr_code_sec->add_op(L"NEG A"); //40
+			_curr_code_sec->add_op(L"NEG A", false); //40
 		}
 		else
 		if(cmd.args[1][0].type == B1Types::B1T_INT || cmd.args[1][0].type == B1Types::B1T_WORD)
 		{
-			_curr_code_sec->add_op(L"NEGW X"); //50
+			_curr_code_sec->add_op(L"NEGW X", false); //50
 		}
 		else
 		if(cmd.args[1][0].type == B1Types::B1T_LONG)
 		{
-			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_AUX_NEG32"); //AD SIGNED_BYTE_OFFSET (CALLR)
+			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_AUX_NEG32", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 			_req_symbols.insert(L"__LIB_AUX_NEG32");
 		}
 		else
@@ -4728,18 +4814,18 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_un_op(const B1_CMP_CMD &cmd)
 	{
 		if(cmd.args[1][0].type == B1Types::B1T_BYTE)
 		{
-			_curr_code_sec->add_op(L"CPL A"); //43
+			_curr_code_sec->add_op(L"CPL A", false); //43
 		}
 		else
 		if(cmd.args[1][0].type == B1Types::B1T_INT || cmd.args[1][0].type == B1Types::B1T_WORD)
 		{
-			_curr_code_sec->add_op(L"CPLW X"); //53
+			_curr_code_sec->add_op(L"CPLW X", false); //53
 		}
 		else
 		if(cmd.args[1][0].type == B1Types::B1T_LONG)
 		{
-			_curr_code_sec->add_op(L"CPLW Y"); //90 53
-			_curr_code_sec->add_op(L"CPLW X"); //53
+			_curr_code_sec->add_op(L"CPLW Y", false); //90 53
+			_curr_code_sec->add_op(L"CPLW X", false); //53
 		}
 		else
 		{
@@ -4766,6 +4852,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 	bool imm_val = false;
 	bool mem_ref = false;
 	bool stk_ref = false;
+	bool is_volatile = false;
 
 	B1_CMP_ARG arg1 = cmd.args[0];
 	B1_CMP_ARG arg2 = cmd.args[1];
@@ -4810,7 +4897,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 	}
 
 	lvt = comp ? (LVT::LVT_REG | LVT::LVT_IMMVAL | LVT::LVT_MEMREF | LVT::LVT_STKREF) : (LVT::LVT_REG | LVT::LVT_IMMVAL);
-	auto err1 = stm8_load(arg2, com_type, lvt, &lvt, &val);
+	auto err1 = stm8_load(arg2, com_type, lvt, &lvt, &val, &is_volatile);
 	if(err1 != C1STM8_T_ERROR::C1STM8_RES_OK)
 	{
 		return err1;
@@ -4835,17 +4922,17 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 	{
 		if(com_type == B1Types::B1T_BYTE)
 		{
-			_curr_code_sec->add_op(L"PUSH A"); //88
+			_curr_code_sec->add_op(L"PUSH A", false); //88
 			_stack_ptr++;
 		}
 		else
 		{
-			_curr_code_sec->add_op(L"PUSHW X"); //89
+			_curr_code_sec->add_op(L"PUSHW X", false); //89
 			_stack_ptr += 2;
 
 			if(com_type == B1Types::B1T_LONG)
 			{
-				_curr_code_sec->add_op(L"PUSHW Y"); // 90 89
+				_curr_code_sec->add_op(L"PUSHW Y", false); // 90 89
 				_stack_ptr += 2;
 			}
 		}
@@ -4859,9 +4946,9 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 
 	if(com_type == B1Types::B1T_STRING)
 	{
-		_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_APD"); //AD SIGNED_BYTE_OFFSET (CALLR)
+		_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_APD", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 		_req_symbols.insert(L"__LIB_STR_APD");
-		_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
+		_curr_code_sec->add_op(L"ADDW SP, 2", false); //5B BYTE_VALUE
 		_stack_ptr -= 2;
 	}
 	else
@@ -4869,22 +4956,22 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 	{
 		if(imm_val)
 		{
-			_curr_code_sec->add_op(inst + L" A, " + val); //AB/A0 BYTE_VALUE
+			_curr_code_sec->add_op(inst + L" A, " + val, false); //AB/A0 BYTE_VALUE
 		}
 		else
 		if(mem_ref)
 		{
-			_curr_code_sec->add_op(inst + L" A, (" + val + L")"); //BB/B0 BYTE_OFFSET CB/C0 WORD_OFFSET
+			_curr_code_sec->add_op(inst + L" A, (" + val + L")", is_volatile); //BB/B0 BYTE_OFFSET CB/C0 WORD_OFFSET
 		}
 		else
 		if(stk_ref)
 		{
-			_curr_code_sec->add_op(inst + L" A, (" + val + L", SP)"); //1B/10 BYTE_OFFSET
+			_curr_code_sec->add_op(inst + L" A, (" + val + L", SP)", false); //1B/10 BYTE_OFFSET
 		}
 		else
 		{
-			_curr_code_sec->add_op(inst + L" A, (0x1, SP)"); //1B/10 BYTE_OFFSET
-			_curr_code_sec->add_op(L"ADDW SP, 1"); //5B BYTE_VALUE
+			_curr_code_sec->add_op(inst + L" A, (0x1, SP)", false); //1B/10 BYTE_OFFSET
+			_curr_code_sec->add_op(L"ADDW SP, 1", false); //5B BYTE_VALUE
 			_stack_ptr--;
 		}
 	}
@@ -4893,22 +4980,22 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 	{
 		if(imm_val)
 		{
-			_curr_code_sec->add_op(inst + L" X, " + val); //1C/1D WORD_VALUE
+			_curr_code_sec->add_op(inst + L" X, " + val, false); //1C/1D WORD_VALUE
 		}
 		else
 		if(mem_ref)
 		{
-			_curr_code_sec->add_op(inst + L" X, (" + val + L")"); //72 BB/72 B0 WORD_OFFSET
+			_curr_code_sec->add_op(inst + L" X, (" + val + L")", is_volatile); //72 BB/72 B0 WORD_OFFSET
 		}
 		else
 		if(stk_ref)
 		{
-			_curr_code_sec->add_op(inst + L" X, (" + val + L", SP)"); //72 FB/72 F0 BYTE_OFFSET
+			_curr_code_sec->add_op(inst + L" X, (" + val + L", SP)", false); //72 FB/72 F0 BYTE_OFFSET
 		}
 		else
 		{
-			_curr_code_sec->add_op(inst + L" X, (0x1, SP)"); //72 FB/72 F0 BYTE_OFFSET
-			_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
+			_curr_code_sec->add_op(inst + L" X, (0x1, SP)", false); //72 FB/72 F0 BYTE_OFFSET
+			_curr_code_sec->add_op(L"ADDW SP, 2", false); //5B BYTE_VALUE
 			_stack_ptr -= 2;
 		}
 	}
@@ -4919,23 +5006,23 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 		{
 			if(cmd.cmd == L"+")
 			{
-				_curr_code_sec->add_op(L"ADDW X, " + val + L".l"); //1C WORD_VALUE
+				_curr_code_sec->add_op(L"ADDW X, " + val + L".l", false); //1C WORD_VALUE
 				const auto label = emit_label(true);
-				_curr_code_sec->add_op(L"JRNC " + label); //24 SIGNED_BYTE_OFFSET
+				_curr_code_sec->add_op(L"JRNC " + label, false); //24 SIGNED_BYTE_OFFSET
 				_req_symbols.insert(label);
-				_curr_code_sec->add_op(L"INCW Y"); //90 5C
-				_curr_code_sec->add_lbl(label);
+				_curr_code_sec->add_op(L"INCW Y", false); //90 5C
+				_curr_code_sec->add_lbl(label, false);
 				_all_symbols.insert(label);
-				_curr_code_sec->add_op(L"ADDW Y, " + val + L".h"); //72 A9 WORD_VALUE
+				_curr_code_sec->add_op(L"ADDW Y, " + val + L".h", false); //72 A9 WORD_VALUE
 			}
 			else
 			{
-				_curr_code_sec->add_op(L"SUBW X, " + val + L".l"); //1D WORD_VALUE
-				_curr_code_sec->add_op(L"RRWA Y"); //90 01
-				_curr_code_sec->add_op(L"SBC A, " + val + L".hl"); //A2 BYTE_VALUE
-				_curr_code_sec->add_op(L"RRWA Y"); //90 01
-				_curr_code_sec->add_op(L"SBC A, " + val + L".hh"); //A2 BYTE_VALUE
-				_curr_code_sec->add_op(L"RRWA Y"); //90 01
+				_curr_code_sec->add_op(L"SUBW X, " + val + L".l", false); //1D WORD_VALUE
+				_curr_code_sec->add_op(L"RRWA Y", false); //90 01
+				_curr_code_sec->add_op(L"SBC A, " + val + L".hl", false); //A2 BYTE_VALUE
+				_curr_code_sec->add_op(L"RRWA Y", false); //90 01
+				_curr_code_sec->add_op(L"SBC A, " + val + L".hh", false); //A2 BYTE_VALUE
+				_curr_code_sec->add_op(L"RRWA Y", false); //90 01
 			}
 		}
 		else
@@ -4943,23 +5030,23 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 		{
 			if(cmd.cmd == L"+")
 			{
-				_curr_code_sec->add_op(L"ADDW X, (" + val + L" + 2)"); //72 BB WORD_VALUE
+				_curr_code_sec->add_op(L"ADDW X, (" + val + L" + 2)", is_volatile); //72 BB WORD_VALUE
 				const auto label = emit_label(true);
-				_curr_code_sec->add_op(L"JRNC " + label); //24 SIGNED_BYTE_OFFSET
+				_curr_code_sec->add_op(L"JRNC " + label, is_volatile); //24 SIGNED_BYTE_OFFSET
 				_req_symbols.insert(label);
-				_curr_code_sec->add_op(L"INCW Y"); //90 5C
-				_curr_code_sec->add_lbl(label);
+				_curr_code_sec->add_op(L"INCW Y", is_volatile); //90 5C
+				_curr_code_sec->add_lbl(label, is_volatile);
 				_all_symbols.insert(label);
-				_curr_code_sec->add_op(L"ADDW Y, (" + val + L")"); //72 B9 WORD_VALUE
+				_curr_code_sec->add_op(L"ADDW Y, (" + val + L")", is_volatile); //72 B9 WORD_VALUE
 			}
 			else
 			{
-				_curr_code_sec->add_op(L"SUBW X, (" + val + L" + 2)"); //72 B0 WORD_VALUE
-				_curr_code_sec->add_op(L"RRWA Y"); //90 01
-				_curr_code_sec->add_op(L"SBC A, (" + val + L" + 1)"); //B2 BYTE_OFFSET C2 WORD_OFFSET
-				_curr_code_sec->add_op(L"RRWA Y"); //90 01
-				_curr_code_sec->add_op(L"SBC A, (" + val + L")"); //B2 BYTE_OFFSET C2 WORD_OFFSET
-				_curr_code_sec->add_op(L"RRWA Y"); //90 01
+				_curr_code_sec->add_op(L"SUBW X, (" + val + L" + 2)", is_volatile); //72 B0 WORD_VALUE
+				_curr_code_sec->add_op(L"RRWA Y", is_volatile); //90 01
+				_curr_code_sec->add_op(L"SBC A, (" + val + L" + 1)", is_volatile); //B2 BYTE_OFFSET C2 WORD_OFFSET
+				_curr_code_sec->add_op(L"RRWA Y", is_volatile); //90 01
+				_curr_code_sec->add_op(L"SBC A, (" + val + L")", is_volatile); //B2 BYTE_OFFSET C2 WORD_OFFSET
+				_curr_code_sec->add_op(L"RRWA Y", is_volatile); //90 01
 			}
 		}
 		else
@@ -4967,49 +5054,49 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 		{
 			if(cmd.cmd == L"+")
 			{
-				_curr_code_sec->add_op(L"ADDW X, (" + val + L" + 2, SP)"); //72 FB BYTE_OFFSET
+				_curr_code_sec->add_op(L"ADDW X, (" + val + L" + 2, SP)", false); //72 FB BYTE_OFFSET
 				const auto label = emit_label(true);
-				_curr_code_sec->add_op(L"JRNC " + label); //24 SIGNED_BYTE_OFFSET
+				_curr_code_sec->add_op(L"JRNC " + label, false); //24 SIGNED_BYTE_OFFSET
 				_req_symbols.insert(label);
-				_curr_code_sec->add_op(L"INCW Y"); //90 5C
-				_curr_code_sec->add_lbl(label);
+				_curr_code_sec->add_op(L"INCW Y", false); //90 5C
+				_curr_code_sec->add_lbl(label, false);
 				_all_symbols.insert(label);
-				_curr_code_sec->add_op(L"ADDW Y, (" + val + L", SP)"); //72 F9 WORD_VALUE
+				_curr_code_sec->add_op(L"ADDW Y, (" + val + L", SP)", false); //72 F9 WORD_VALUE
 			}
 			else
 			{
-				_curr_code_sec->add_op(L"SUBW X, (" + val + L" + 2, SP)"); //72 F0 WORD_VALUE
-				_curr_code_sec->add_op(L"RRWA Y"); //90 01
-				_curr_code_sec->add_op(L"SBC A, (" + val + L" + 1, SP)"); //12 BYTE_OFFSET
-				_curr_code_sec->add_op(L"RRWA Y"); //90 01
-				_curr_code_sec->add_op(L"SBC A, (" + val + L", SP)"); //12 BYTE_OFFSET
-				_curr_code_sec->add_op(L"RRWA Y"); //90 01
+				_curr_code_sec->add_op(L"SUBW X, (" + val + L" + 2, SP)", false); //72 F0 WORD_VALUE
+				_curr_code_sec->add_op(L"RRWA Y", false); //90 01
+				_curr_code_sec->add_op(L"SBC A, (" + val + L" + 1, SP)", false); //12 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RRWA Y", false); //90 01
+				_curr_code_sec->add_op(L"SBC A, (" + val + L", SP)", false); //12 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RRWA Y", false); //90 01
 			}
 		}
 		else
 		{
 			if(cmd.cmd == L"+")
 			{
-				_curr_code_sec->add_op(L"ADDW X, (0x3, SP)"); //72 FB BYTE_OFFSET
+				_curr_code_sec->add_op(L"ADDW X, (0x3, SP)", false); //72 FB BYTE_OFFSET
 				const auto label = emit_label(true);
-				_curr_code_sec->add_op(L"JRNC " + label); //24 SIGNED_BYTE_OFFSET
+				_curr_code_sec->add_op(L"JRNC " + label, false); //24 SIGNED_BYTE_OFFSET
 				_req_symbols.insert(label);
-				_curr_code_sec->add_op(L"INCW Y"); //90 5C
-				_curr_code_sec->add_lbl(label);
+				_curr_code_sec->add_op(L"INCW Y", false); //90 5C
+				_curr_code_sec->add_lbl(label, false);
 				_all_symbols.insert(label);
-				_curr_code_sec->add_op(L"ADDW Y, (0x1, SP)"); //72 F9 WORD_VALUE
+				_curr_code_sec->add_op(L"ADDW Y, (0x1, SP)", false); //72 F9 WORD_VALUE
 			}
 			else
 			{
-				_curr_code_sec->add_op(L"SUBW X, (0x3, SP)"); //72 F0 WORD_VALUE
-				_curr_code_sec->add_op(L"RRWA Y"); //90 01
-				_curr_code_sec->add_op(L"SBC A, (0x2, SP)"); //12 BYTE_OFFSET
-				_curr_code_sec->add_op(L"RRWA Y"); //90 01
-				_curr_code_sec->add_op(L"SBC A, (0x1, SP)"); //12 BYTE_OFFSET
-				_curr_code_sec->add_op(L"RRWA Y"); //90 01
+				_curr_code_sec->add_op(L"SUBW X, (0x3, SP)", false); //72 F0 WORD_VALUE
+				_curr_code_sec->add_op(L"RRWA Y", false); //90 01
+				_curr_code_sec->add_op(L"SBC A, (0x2, SP)", false); //12 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RRWA Y", false); //90 01
+				_curr_code_sec->add_op(L"SBC A, (0x1, SP)", false); //12 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RRWA Y", false); //90 01
 			}
 
-			_curr_code_sec->add_op(L"ADDW SP, 4"); //5B BYTE_VALUE
+			_curr_code_sec->add_op(L"ADDW SP, 4", false); //5B BYTE_VALUE
 			_stack_ptr -= 4;
 		}
 	}
@@ -5071,10 +5158,10 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_mul_op(const B1_CMP_CMD &cmd)
 
 		if(cmd.cmd == L"/" || cmd.cmd == L"%")
 		{
-			_curr_code_sec->add_op(L"CLRW X"); //5F
+			_curr_code_sec->add_op(L"CLRW X", false); //5F
 		}
 
-		_curr_code_sec->add_op(L"LD XL, A"); //97
+		_curr_code_sec->add_op(L"LD XL, A", false); //97
 
 		err = stm8_load(arg2, com_type, LVT::LVT_REG);
 		if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
@@ -5084,17 +5171,17 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_mul_op(const B1_CMP_CMD &cmd)
 
 		if(cmd.cmd == L"*")
 		{
-			_curr_code_sec->add_op(L"MUL X, A"); //42
+			_curr_code_sec->add_op(L"MUL X, A", false); //42
 		}
 		else
 		{
 			// div or mod
-			_curr_code_sec->add_op(L"DIV X, A"); //62
+			_curr_code_sec->add_op(L"DIV X, A", false); //62
 		}
 
 		if(cmd.cmd == L"*" || cmd.cmd == L"/")
 		{
-			_curr_code_sec->add_op(L"LD A, XL"); //9F
+			_curr_code_sec->add_op(L"LD A, XL", false); //9F
 		}
 	}
 	else
@@ -5107,7 +5194,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_mul_op(const B1_CMP_CMD &cmd)
 			return err;
 		}
 
-		_curr_code_sec->add_op(L"PUSHW X"); //89
+		_curr_code_sec->add_op(L"PUSHW X", false); //89
 		_stack_ptr += 2;
 
 		err = stm8_load(arg1, com_type, LVT::LVT_REG);
@@ -5116,14 +5203,14 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_mul_op(const B1_CMP_CMD &cmd)
 			return err;
 		}
 
-		_curr_code_sec->add_op(L"POPW Y"); //90 85
+		_curr_code_sec->add_op(L"POPW Y", false); //90 85
 		_stack_ptr -= 2;
 
-		_curr_code_sec->add_op(L"DIVW X, Y"); //62
+		_curr_code_sec->add_op(L"DIVW X, Y", false); //62
 
 		if(cmd.cmd == L"%")
 		{
-			_curr_code_sec->add_op(L"LDW X, Y"); //93
+			_curr_code_sec->add_op(L"LDW X, Y", false); //93
 		}
 	}
 	else
@@ -5135,11 +5222,11 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_mul_op(const B1_CMP_CMD &cmd)
 		{
 			return err;
 		}
-		_curr_code_sec->add_op(L"PUSHW X"); //89
+		_curr_code_sec->add_op(L"PUSHW X", false); //89
 		_stack_ptr += 2;
 		if(com_type == B1Types::B1T_LONG && cmd.cmd != L"^")
 		{
-			_curr_code_sec->add_op(L"PUSHW Y"); // 90 89
+			_curr_code_sec->add_op(L"PUSHW Y", false); // 90 89
 			_stack_ptr += 2;
 		}
 
@@ -5161,17 +5248,17 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_mul_op(const B1_CMP_CMD &cmd)
 
 		fn_name += (com_type == B1Types::B1T_LONG) ? L"32" : L"16";
 
-		_curr_code_sec->add_op(_call_stmt + L" " + fn_name); //AD SIGNED_BYTE_OFFSET (CALLR)
+		_curr_code_sec->add_op(_call_stmt + L" " + fn_name, false); //AD SIGNED_BYTE_OFFSET (CALLR)
 		_req_symbols.insert(fn_name);
 
 		if(com_type == B1Types::B1T_LONG && cmd.cmd != L"^")
 		{
-			_curr_code_sec->add_op(L"ADDW SP, 4"); //5B BYTE_VALUE
+			_curr_code_sec->add_op(L"ADDW SP, 4", false); //5B BYTE_VALUE
 			_stack_ptr -= 4;
 		}
 		else
 		{
-			_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
+			_curr_code_sec->add_op(L"ADDW SP, 2", false); //5B BYTE_VALUE
 			_stack_ptr -= 2;
 		}
 	}
@@ -5201,6 +5288,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_bit_op(const B1_CMP_CMD &cmd)
 	bool imm_val = false;
 	bool mem_ref = false;
 	bool stk = false;
+	bool is_volatile = false;
 
 	B1_CMP_ARG arg1 = cmd.args[0];
 	B1_CMP_ARG arg2 = cmd.args[1];
@@ -5236,7 +5324,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_bit_op(const B1_CMP_CMD &cmd)
 	}
 
 	lvt = comp ? (LVT::LVT_REG | LVT::LVT_IMMVAL | LVT::LVT_MEMREF | LVT::LVT_STKREF) : (LVT::LVT_REG | LVT::LVT_IMMVAL);
-	auto err1 = stm8_load(arg2, com_type, lvt, &lvt, &val);
+	auto err1 = stm8_load(arg2, com_type, lvt, &lvt, &val, &is_volatile);
 	if(err1 != C1STM8_T_ERROR::C1STM8_RES_OK)
 	{
 		return err1;
@@ -5261,16 +5349,16 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_bit_op(const B1_CMP_CMD &cmd)
 	{
 		if(com_type == B1Types::B1T_BYTE)
 		{
-			_curr_code_sec->add_op(L"PUSH A"); //88
+			_curr_code_sec->add_op(L"PUSH A", false); //88
 			_stack_ptr++;
 		}
 		else
 		{
-			_curr_code_sec->add_op(L"PUSHW X"); //89
+			_curr_code_sec->add_op(L"PUSHW X", false); //89
 			_stack_ptr += 2;
 			if(com_type == B1Types::B1T_LONG)
 			{
-				_curr_code_sec->add_op(L"PUSHW Y"); //90 89
+				_curr_code_sec->add_op(L"PUSHW Y", false); //90 89
 				_stack_ptr += 2;
 			}
 		}
@@ -5286,22 +5374,22 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_bit_op(const B1_CMP_CMD &cmd)
 	{
 		if(imm_val)
 		{
-			_curr_code_sec->add_op(inst + L" A, " + val); //A4/AA/A8 BYTE_VALUE
+			_curr_code_sec->add_op(inst + L" A, " + val, false); //A4/AA/A8 BYTE_VALUE
 		}
 		else
 		if(mem_ref)
 		{
-			_curr_code_sec->add_op(inst + L" A, (" + val + L")"); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
+			_curr_code_sec->add_op(inst + L" A, (" + val + L")", is_volatile); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
 		}
 		else
 		if(stk)
 		{
-			_curr_code_sec->add_op( inst + L" A, (" + val + L", SP)"); //14/1A/18 BYTE_OFFSET
+			_curr_code_sec->add_op( inst + L" A, (" + val + L", SP)", false); //14/1A/18 BYTE_OFFSET
 		}
 		else
 		{
-			_curr_code_sec->add_op(inst + L" A, (1, SP)"); //1B/10/14/1A/18 BYTE_OFFSET
-			_curr_code_sec->add_op(L"ADDW SP, 1"); //5B BYTE_VALUE
+			_curr_code_sec->add_op(inst + L" A, (1, SP)", false); //1B/10/14/1A/18 BYTE_OFFSET
+			_curr_code_sec->add_op(L"ADDW SP, 1", false); //5B BYTE_VALUE
 			_stack_ptr--;
 		}
 	}
@@ -5309,18 +5397,18 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_bit_op(const B1_CMP_CMD &cmd)
 	{
 		if(imm_val)
 		{
-			_curr_code_sec->add_op(L"RLWA X"); //02
-			_curr_code_sec->add_op(inst + L" A, " + val + L".lh"); //A4/AA/A8 BYTE_VALUE
-			_curr_code_sec->add_op(L"RLWA X"); //02
-			_curr_code_sec->add_op(inst + L" A, " + val + L".ll"); //A4/AA/A8 BYTE_VALUE
-			_curr_code_sec->add_op(L"RLWA X"); //02
+			_curr_code_sec->add_op(L"RLWA X", false); //02
+			_curr_code_sec->add_op(inst + L" A, " + val + L".lh", false); //A4/AA/A8 BYTE_VALUE
+			_curr_code_sec->add_op(L"RLWA X", false); //02
+			_curr_code_sec->add_op(inst + L" A, " + val + L".ll", false); //A4/AA/A8 BYTE_VALUE
+			_curr_code_sec->add_op(L"RLWA X", false); //02
 			if(com_type == B1Types::B1T_LONG)
 			{
-				_curr_code_sec->add_op(L"RLWA Y"); //90 02
-				_curr_code_sec->add_op(inst + L" A, " + val + L".hh"); //A4/AA/A8 BYTE_VALUE
-				_curr_code_sec->add_op(L"RLWA Y"); //90 02
-				_curr_code_sec->add_op(inst + L" A, " + val + L".hl"); //A4/AA/A8 BYTE_VALUE
-				_curr_code_sec->add_op(L"RLWA Y"); //90 02
+				_curr_code_sec->add_op(L"RLWA Y", false); //90 02
+				_curr_code_sec->add_op(inst + L" A, " + val + L".hh", false); //A4/AA/A8 BYTE_VALUE
+				_curr_code_sec->add_op(L"RLWA Y", false); //90 02
+				_curr_code_sec->add_op(inst + L" A, " + val + L".hl", false); //A4/AA/A8 BYTE_VALUE
+				_curr_code_sec->add_op(L"RLWA Y", false); //90 02
 			}
 		}
 		else
@@ -5328,25 +5416,25 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_bit_op(const B1_CMP_CMD &cmd)
 		{
 			if(com_type == B1Types::B1T_INT || com_type == B1Types::B1T_WORD)
 			{
-				_curr_code_sec->add_op(L"RLWA X"); //02
-				_curr_code_sec->add_op(inst + L" A, (" + val + L")"); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
-				_curr_code_sec->add_op(L"RLWA X"); //02
-				_curr_code_sec->add_op(inst + L" A, (" + val + L" + 1)"); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
-				_curr_code_sec->add_op(L"RLWA X"); //02
+				_curr_code_sec->add_op(L"RLWA X", is_volatile); //02
+				_curr_code_sec->add_op(inst + L" A, (" + val + L")", is_volatile); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
+				_curr_code_sec->add_op(L"RLWA X", is_volatile); //02
+				_curr_code_sec->add_op(inst + L" A, (" + val + L" + 1)", is_volatile); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
+				_curr_code_sec->add_op(L"RLWA X", is_volatile); //02
 			}
 			else
 			{
 				// LONG type
-				_curr_code_sec->add_op(L"RLWA X"); //02
-				_curr_code_sec->add_op(inst + L" A, (" + val + L" + 2)"); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
-				_curr_code_sec->add_op(L"RLWA X"); //02
-				_curr_code_sec->add_op(inst + L" A, (" + val + L" + 3)"); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
-				_curr_code_sec->add_op(L"RLWA X"); //02
-				_curr_code_sec->add_op(L"RLWA Y"); //90 02
-				_curr_code_sec->add_op(inst + L" A, (" + val + L")"); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
-				_curr_code_sec->add_op(L"RLWA Y"); //90 02
-				_curr_code_sec->add_op(inst + L" A, (" + val + L" + 1)"); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
-				_curr_code_sec->add_op(L"RLWA Y"); //90 02
+				_curr_code_sec->add_op(L"RLWA X", is_volatile); //02
+				_curr_code_sec->add_op(inst + L" A, (" + val + L" + 2)", is_volatile); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
+				_curr_code_sec->add_op(L"RLWA X", is_volatile); //02
+				_curr_code_sec->add_op(inst + L" A, (" + val + L" + 3)", is_volatile); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
+				_curr_code_sec->add_op(L"RLWA X", is_volatile); //02
+				_curr_code_sec->add_op(L"RLWA Y", is_volatile); //90 02
+				_curr_code_sec->add_op(inst + L" A, (" + val + L")", is_volatile); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
+				_curr_code_sec->add_op(L"RLWA Y", is_volatile); //90 02
+				_curr_code_sec->add_op(inst + L" A, (" + val + L" + 1)", is_volatile); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
+				_curr_code_sec->add_op(L"RLWA Y", is_volatile); //90 02
 			}
 		}
 		else
@@ -5354,52 +5442,52 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_bit_op(const B1_CMP_CMD &cmd)
 		{
 			if(com_type == B1Types::B1T_INT || com_type == B1Types::B1T_WORD)
 			{
-				_curr_code_sec->add_op(L"RLWA X"); //02
-				_curr_code_sec->add_op(inst + L" A, (" + val + L", SP)"); //14/1A/18 BYTE_OFFSET
-				_curr_code_sec->add_op(L"RLWA X"); //02
-				_curr_code_sec->add_op(inst + L" A, (" + val + L" + 1, SP)"); //14/1A/18 BYTE_OFFSET
-				_curr_code_sec->add_op(L"RLWA X"); //02
+				_curr_code_sec->add_op(L"RLWA X", false); //02
+				_curr_code_sec->add_op(inst + L" A, (" + val + L", SP)", false); //14/1A/18 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RLWA X", false); //02
+				_curr_code_sec->add_op(inst + L" A, (" + val + L" + 1, SP)", false); //14/1A/18 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RLWA X", false); //02
 			}
 			else
 			{
 				// LONG type
-				_curr_code_sec->add_op(L"RLWA X"); //02
-				_curr_code_sec->add_op(inst + L" A, (" + val + L" + 2, SP)"); //14/1A/18 BYTE_OFFSET
-				_curr_code_sec->add_op(L"RLWA X"); //02
-				_curr_code_sec->add_op(inst + L" A, (" + val + L" + 3, SP)"); //14/1A/18 BYTE_OFFSET
-				_curr_code_sec->add_op(L"RLWA X"); //02
-				_curr_code_sec->add_op(L"RLWA Y"); //90 02
-				_curr_code_sec->add_op(inst + L" A, (" + val + L", SP)"); //14/1A/18 BYTE_OFFSET
-				_curr_code_sec->add_op(L"RLWA Y"); //90 02
-				_curr_code_sec->add_op(inst + L" A, (" + val + L" + 1, SP)"); //14/1A/18 BYTE_OFFSET
-				_curr_code_sec->add_op(L"RLWA Y"); //90 02
+				_curr_code_sec->add_op(L"RLWA X", false); //02
+				_curr_code_sec->add_op(inst + L" A, (" + val + L" + 2, SP)", false); //14/1A/18 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RLWA X", false); //02
+				_curr_code_sec->add_op(inst + L" A, (" + val + L" + 3, SP)", false); //14/1A/18 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RLWA X", false); //02
+				_curr_code_sec->add_op(L"RLWA Y", false); //90 02
+				_curr_code_sec->add_op(inst + L" A, (" + val + L", SP)", false); //14/1A/18 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RLWA Y", false); //90 02
+				_curr_code_sec->add_op(inst + L" A, (" + val + L" + 1, SP)", false); //14/1A/18 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RLWA Y", false); //90 02
 			}
 		}
 		else
 		{
 			if(com_type == B1Types::B1T_INT || com_type == B1Types::B1T_WORD)
 			{
-				_curr_code_sec->add_op(L"RLWA X"); //02
-				_curr_code_sec->add_op(inst + L" A, (1, SP)"); //14/1A/18 BYTE_OFFSET
-				_curr_code_sec->add_op(L"RLWA X"); //02
-				_curr_code_sec->add_op(inst + L" A, (2, SP)"); //14/1A/18 BYTE_OFFSET
-				_curr_code_sec->add_op(L"RLWA X"); //02
-				_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
+				_curr_code_sec->add_op(L"RLWA X", false); //02
+				_curr_code_sec->add_op(inst + L" A, (1, SP)", false); //14/1A/18 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RLWA X", false); //02
+				_curr_code_sec->add_op(inst + L" A, (2, SP)", false); //14/1A/18 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RLWA X", false); //02
+				_curr_code_sec->add_op(L"ADDW SP, 2", false); //5B BYTE_VALUE
 				_stack_ptr -= 2;
 			}
 			else
 			{
-				_curr_code_sec->add_op(L"RLWA X"); //02
-				_curr_code_sec->add_op(inst + L" A, (3, SP)"); //14/1A/18 BYTE_OFFSET
-				_curr_code_sec->add_op(L"RLWA X"); //02
-				_curr_code_sec->add_op(inst + L" A, (4, SP)"); //14/1A/18 BYTE_OFFSET
-				_curr_code_sec->add_op(L"RLWA X"); //02
-				_curr_code_sec->add_op(L"RLWA Y"); //90 02
-				_curr_code_sec->add_op(inst + L" A, (1, SP)"); //14/1A/18 BYTE_OFFSET
-				_curr_code_sec->add_op(L"RLWA Y"); //90 02
-				_curr_code_sec->add_op(inst + L" A, (2, SP)"); //14/1A/18 BYTE_OFFSET
-				_curr_code_sec->add_op(L"RLWA Y"); //90 02
-				_curr_code_sec->add_op(L"ADDW SP, 4"); //5B BYTE_VALUE
+				_curr_code_sec->add_op(L"RLWA X", false); //02
+				_curr_code_sec->add_op(inst + L" A, (3, SP)", false); //14/1A/18 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RLWA X", false); //02
+				_curr_code_sec->add_op(inst + L" A, (4, SP)", false); //14/1A/18 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RLWA X", false); //02
+				_curr_code_sec->add_op(L"RLWA Y", false); //90 02
+				_curr_code_sec->add_op(inst + L" A, (1, SP)", false); //14/1A/18 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RLWA Y", false); //90 02
+				_curr_code_sec->add_op(inst + L" A, (2, SP)", false); //14/1A/18 BYTE_OFFSET
+				_curr_code_sec->add_op(L"RLWA Y", false); //90 02
+				_curr_code_sec->add_op(L"ADDW SP, 4", false); //5B BYTE_VALUE
 				_stack_ptr -= 4;
 			}
 		}
@@ -5426,11 +5514,11 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_shift_op(const std::wstring &shift_cmd, 
 	{
 		if(shift_cmd == L"<<")
 		{
-			_curr_code_sec->add_op(L"SLL A"); //48
+			_curr_code_sec->add_op(L"SLL A", false); //48
 		}
 		else
 		{
-			_curr_code_sec->add_op(L"SRL A"); //44
+			_curr_code_sec->add_op(L"SRL A", false); //44
 		}
 	}
 	else
@@ -5438,11 +5526,11 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_shift_op(const std::wstring &shift_cmd, 
 	{
 		if(shift_cmd == L"<<")
 		{
-			_curr_code_sec->add_op(L"SLAW X"); //58
+			_curr_code_sec->add_op(L"SLAW X", false); //58
 		}
 		else
 		{
-			_curr_code_sec->add_op(L"SRAW X"); //57
+			_curr_code_sec->add_op(L"SRAW X", false); //57
 		}
 	}
 	else
@@ -5450,11 +5538,11 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_shift_op(const std::wstring &shift_cmd, 
 	{
 		if(shift_cmd == L"<<")
 		{
-			_curr_code_sec->add_op(L"SLLW X"); //58
+			_curr_code_sec->add_op(L"SLLW X", false); //58
 		}
 		else
 		{
-			_curr_code_sec->add_op(L"SRLW X"); //54
+			_curr_code_sec->add_op(L"SRLW X", false); //54
 		}
 	}
 	else
@@ -5462,13 +5550,13 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_add_shift_op(const std::wstring &shift_cmd, 
 		// LONG type
 		if(shift_cmd == L"<<")
 		{
-			_curr_code_sec->add_op(L"SLLW X"); //58
-			_curr_code_sec->add_op(L"RLCW Y"); //90 59
+			_curr_code_sec->add_op(L"SLLW X", false); //58
+			_curr_code_sec->add_op(L"RLCW Y", false); //90 59
 		}
 		else
 		{
-			_curr_code_sec->add_op(L"SRAW Y"); //90 57
-			_curr_code_sec->add_op(L"RRCW X"); //56
+			_curr_code_sec->add_op(L"SRAW Y", false); //90 57
+			_curr_code_sec->add_op(L"RRCW X", false); //56
 		}
 	}
 
@@ -5525,28 +5613,28 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_shift_op(const B1_CMP_CMD &cmd)
 
 				if(arg1[0].type == B1Types::B1T_BYTE)
 				{
-					_curr_code_sec->add_op(L"LDW X, " + res_val + L".ll"); //AE WORD_VALUE
+					_curr_code_sec->add_op(L"LDW X, " + res_val + L".ll", false); //AE WORD_VALUE
 				}
 				else
 				{
-					_curr_code_sec->add_op(L"LD A, " + res_val); //A6 BYTE_VALUE
+					_curr_code_sec->add_op(L"LD A, " + res_val, false); //A6 BYTE_VALUE
 				}
 
 				const auto loop_label = emit_label(true);
-				_curr_code_sec->add_lbl(loop_label);
+				_curr_code_sec->add_lbl(loop_label, false);
 				_all_symbols.insert(loop_label);
 
 				stm8_add_shift_op(cmd.cmd, arg1[0].type);
 
 				if(arg1[0].type == B1Types::B1T_BYTE)
 				{
-					_curr_code_sec->add_op(L"DECW X"); //5A
+					_curr_code_sec->add_op(L"DECW X", false); //5A
 				}
 				else
 				{
-					_curr_code_sec->add_op(L"DEC A"); //4A
+					_curr_code_sec->add_op(L"DEC A", false); //4A
 				}
-				_curr_code_sec->add_op(L"JRNE " + loop_label); //26 SIGNED_BYTE_OFFSET
+				_curr_code_sec->add_op(L"JRNE " + loop_label, false); //26 SIGNED_BYTE_OFFSET
 				_req_symbols.insert(loop_label);
 			}
 		}
@@ -5557,7 +5645,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_shift_op(const B1_CMP_CMD &cmd)
 
 			if(arg1[0].type == B1Types::B1T_BYTE)
 			{
-				_curr_code_sec->add_op(L"PUSH A"); //88
+				_curr_code_sec->add_op(L"PUSH A", false); //88
 				_stack_ptr++;
 
 				err = stm8_load(arg2, B1Types::B1T_INT, LVT::LVT_REG);
@@ -5566,21 +5654,21 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_shift_op(const B1_CMP_CMD &cmd)
 					return err;
 				}
 
-				_curr_code_sec->add_op(L"POP A"); //84
+				_curr_code_sec->add_op(L"POP A", false); //84
 				_stack_ptr--;
 
-				_curr_code_sec->add_op(L"TNZW X"); //5D
-				_curr_code_sec->add_op(L"JREQ " + loop_end_label); //27 SIGNED_BYTE_OFFSET
+				_curr_code_sec->add_op(L"TNZW X", false); //5D
+				_curr_code_sec->add_op(L"JREQ " + loop_end_label, false); //27 SIGNED_BYTE_OFFSET
 				_req_symbols.insert(loop_end_label);
 
 			}
 			else
 			{
-				_curr_code_sec->add_op(L"PUSHW X"); //89
+				_curr_code_sec->add_op(L"PUSHW X", false); //89
 				_stack_ptr += 2;
 				if(arg1[0].type == B1Types::B1T_LONG)
 				{
-					_curr_code_sec->add_op(L"PUSHW Y"); //90 89
+					_curr_code_sec->add_op(L"PUSHW Y", false); //90 89
 					_stack_ptr += 2;
 				}
 
@@ -5592,34 +5680,34 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_shift_op(const B1_CMP_CMD &cmd)
 
 				if(arg1[0].type == B1Types::B1T_LONG)
 				{
-					_curr_code_sec->add_op(L"POPW Y"); //90 85
+					_curr_code_sec->add_op(L"POPW Y", false); //90 85
 					_stack_ptr -= 2;
 				}
-				_curr_code_sec->add_op(L"POPW X"); //85
+				_curr_code_sec->add_op(L"POPW X", false); //85
 				_stack_ptr -= 2;
 
-				_curr_code_sec->add_op(L"TNZ A"); //4D
-				_curr_code_sec->add_op(L"JREQ " + loop_end_label); //27 SIGNED_BYTE_OFFSET
+				_curr_code_sec->add_op(L"TNZ A", false); //4D
+				_curr_code_sec->add_op(L"JREQ " + loop_end_label, false); //27 SIGNED_BYTE_OFFSET
 				_req_symbols.insert(loop_end_label);
 			}
 
-			_curr_code_sec->add_lbl(loop_label);
+			_curr_code_sec->add_lbl(loop_label, false);
 			_all_symbols.insert(loop_label);
 
 			stm8_add_shift_op(cmd.cmd, arg1[0].type);
 
 			if(arg1[0].type == B1Types::B1T_BYTE)
 			{
-				_curr_code_sec->add_op(L"DECW X"); //5A
+				_curr_code_sec->add_op(L"DECW X", false); //5A
 			}
 			else
 			{
-				_curr_code_sec->add_op(L"DEC A"); //4A
+				_curr_code_sec->add_op(L"DEC A", false); //4A
 			}
 
-			_curr_code_sec->add_op(L"JRNE " + loop_label); //26 SIGNED_BYTE_OFFSET
+			_curr_code_sec->add_op(L"JRNE " + loop_label, false); //26 SIGNED_BYTE_OFFSET
 			_req_symbols.insert(loop_label);
-			_curr_code_sec->add_lbl(loop_end_label);
+			_curr_code_sec->add_lbl(loop_end_label, false);
 			_all_symbols.insert(loop_end_label);
 		}
 	}
@@ -5656,6 +5744,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_num_cmp_op(const B1_CMP_CMD &cmd)
 	bool imm_val = false;
 	bool mem_ref = false;
 	bool stk_ref = false;
+	bool is_volatile = false;
 
 	auto err = B1CUtils::get_com_type(cmd.args[0][0].type, cmd.args[1][0].type, com_type, comp);
 	if(err != B1_RES_OK)
@@ -5686,7 +5775,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_num_cmp_op(const B1_CMP_CMD &cmd)
 	}
 
 	lvt = comp ? (LVT::LVT_REG | LVT::LVT_IMMVAL | LVT::LVT_MEMREF | LVT::LVT_STKREF) : (LVT::LVT_REG | LVT::LVT_IMMVAL);
-	auto err1 = stm8_load(arg2, com_type, lvt, &lvt, &val);
+	auto err1 = stm8_load(arg2, com_type, lvt, &lvt, &val, &is_volatile);
 	if(err1 != C1STM8_T_ERROR::C1STM8_RES_OK)
 	{
 		return err1;
@@ -5711,16 +5800,16 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_num_cmp_op(const B1_CMP_CMD &cmd)
 	{
 		if(com_type == B1Types::B1T_BYTE)
 		{
-			_curr_code_sec->add_op(L"PUSH A"); //88
+			_curr_code_sec->add_op(L"PUSH A", false); //88
 			_stack_ptr++;
 		}
 		else
 		{
-			_curr_code_sec->add_op(L"PUSHW X"); //89
+			_curr_code_sec->add_op(L"PUSHW X", false); //89
 			_stack_ptr += 2;
 			if(com_type == B1Types::B1T_LONG)
 			{
-				_curr_code_sec->add_op(L"PUSHW Y"); //90 89
+				_curr_code_sec->add_op(L"PUSHW Y", false); //90 89
 				_stack_ptr += 2;
 			}
 		}
@@ -5736,22 +5825,22 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_num_cmp_op(const B1_CMP_CMD &cmd)
 	{
 		if(imm_val)
 		{
-			_curr_code_sec->add_op(L"CP A, " + val); //A1 BYTE_VALUE
+			_curr_code_sec->add_op(L"CP A, " + val, false); //A1 BYTE_VALUE
 		}
 		else
 		if(mem_ref)
 		{
-			_curr_code_sec->add_op(L"CP A, (" + val + L")"); //B1 BYTE_OFFSET C1 WORD_OFFSET
+			_curr_code_sec->add_op(L"CP A, (" + val + L")", is_volatile); //B1 BYTE_OFFSET C1 WORD_OFFSET
 		}
 		else
 		if(stk_ref)
 		{
-			_curr_code_sec->add_op(L"CP A, (" + val + L", SP)"); //11 BYTE_OFFSET
+			_curr_code_sec->add_op(L"CP A, (" + val + L", SP)", false); //11 BYTE_OFFSET
 		}
 		else
 		{
-			_curr_code_sec->add_op(L"CP A, (1, SP)"); //11 BYTE_OFFSET
-			_curr_code_sec->add_op(L"POP A"); //84
+			_curr_code_sec->add_op(L"CP A, (1, SP)", false); //11 BYTE_OFFSET
+			_curr_code_sec->add_op(L"POP A", false); //84
 			_stack_ptr--;
 		}
 	}
@@ -5760,22 +5849,22 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_num_cmp_op(const B1_CMP_CMD &cmd)
 	{
 		if(imm_val)
 		{
-			_curr_code_sec->add_op(L"CPW X, " + val); //A3 WORD_VALUE
+			_curr_code_sec->add_op(L"CPW X, " + val, false); //A3 WORD_VALUE
 		}
 		else
 		if(mem_ref)
 		{
-			_curr_code_sec->add_op(L"CPW X, (" + val + L")"); //B3 BYTE_OFFSET C3 WORD_OFFSET
+			_curr_code_sec->add_op(L"CPW X, (" + val + L")", is_volatile); //B3 BYTE_OFFSET C3 WORD_OFFSET
 		}
 		else
 		if(stk_ref)
 		{
-			_curr_code_sec->add_op(L"CPW X, (" + val + L", SP)"); //13 BYTE_OFFSET
+			_curr_code_sec->add_op(L"CPW X, (" + val + L", SP)", false); //13 BYTE_OFFSET
 		}
 		else
 		{
-			_curr_code_sec->add_op(L"CPW X, (1, SP)"); //13 BYTE_OFFSET
-			_curr_code_sec->add_op(L"POPW X"); //85
+			_curr_code_sec->add_op(L"CPW X, (1, SP)", false); //13 BYTE_OFFSET
+			_curr_code_sec->add_op(L"POPW X", false); //85
 			_stack_ptr -= 2;
 		}
 	}
@@ -5789,45 +5878,45 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_num_cmp_op(const B1_CMP_CMD &cmd)
 
 			if(imm_val)
 			{
-				_curr_code_sec->add_op(L"CPW X, " + val + L".l"); //A3 WORD_VALUE
-				_curr_code_sec->add_op(L"JRNE " + label); //26 SIGNED_BYTE_OFFSET
+				_curr_code_sec->add_op(L"CPW X, " + val + L".l", false); //A3 WORD_VALUE
+				_curr_code_sec->add_op(L"JRNE " + label, false); //26 SIGNED_BYTE_OFFSET
 				_req_symbols.insert(label);
-				_curr_code_sec->add_op(L"CPW Y, " + val + L".h"); //90 A3 WORD_VALUE
+				_curr_code_sec->add_op(L"CPW Y, " + val + L".h", false); //90 A3 WORD_VALUE
 			}
 			else
 			if(mem_ref)
 			{
-				_curr_code_sec->add_op(L"CPW X, (" + val + L" + 2)"); //B3 BYTE_OFFSET C3 WORD_OFFSET
-				_curr_code_sec->add_op(L"JRNE " + label); //26 SIGNED_BYTE_OFFSET
+				_curr_code_sec->add_op(L"CPW X, (" + val + L" + 2)", is_volatile); //B3 BYTE_OFFSET C3 WORD_OFFSET
+				_curr_code_sec->add_op(L"JRNE " + label, is_volatile); //26 SIGNED_BYTE_OFFSET
 				_req_symbols.insert(label);
-				_curr_code_sec->add_op(L"CPW Y, (" + val + L")"); //90 B3 BYTE_OFFSET 90 C3 WORD_OFFSET
+				_curr_code_sec->add_op(L"CPW Y, (" + val + L")", is_volatile); //90 B3 BYTE_OFFSET 90 C3 WORD_OFFSET
 			}
 			else
 			if(stk_ref)
 			{
-				_curr_code_sec->add_op(L"CPW X, (" + val + L" + 2, SP)"); //13 BYTE_OFFSET
-				_curr_code_sec->add_op(L"JRNE " + label); //26 SIGNED_BYTE_OFFSET
+				_curr_code_sec->add_op(L"CPW X, (" + val + L" + 2, SP)", false); //13 BYTE_OFFSET
+				_curr_code_sec->add_op(L"JRNE " + label, false); //26 SIGNED_BYTE_OFFSET
 				_req_symbols.insert(label);
-				_curr_code_sec->add_op(L"EXGW X, Y"); //51
-				_curr_code_sec->add_op(L"CPW X, (" + val + L", SP)"); //13 BYTE_OFFSET
+				_curr_code_sec->add_op(L"EXGW X, Y", false); //51
+				_curr_code_sec->add_op(L"CPW X, (" + val + L", SP)", false); //13 BYTE_OFFSET
 			}
 			else
 			{
-				_curr_code_sec->add_op(L"CPW X, (" + val + L" + 3, SP)"); //13 BYTE_OFFSET
-				_curr_code_sec->add_op(L"JRNE " + label); //26 SIGNED_BYTE_OFFSET
+				_curr_code_sec->add_op(L"CPW X, (" + val + L" + 3, SP)", false); //13 BYTE_OFFSET
+				_curr_code_sec->add_op(L"JRNE " + label, false); //26 SIGNED_BYTE_OFFSET
 				_req_symbols.insert(label);
-				_curr_code_sec->add_op(L"EXGW X, Y"); //51
-				_curr_code_sec->add_op(L"CPW X, (" + val + L" + 1, SP)"); //13 BYTE_OFFSET
+				_curr_code_sec->add_op(L"EXGW X, Y", false); //51
+				_curr_code_sec->add_op(L"CPW X, (" + val + L" + 1, SP)", false); //13 BYTE_OFFSET
 
 				clr_stk = true;
 			}
 
-			_curr_code_sec->add_lbl(label);
+			_curr_code_sec->add_lbl(label, is_volatile);
 			_all_symbols.insert(label);
 
 			if(clr_stk)
 			{
-				_curr_code_sec->add_op(L"ADDW SP, 4"); //5B BYTE_VALUE
+				_curr_code_sec->add_op(L"ADDW SP, 4", false); //5B BYTE_VALUE
 				_stack_ptr -= 4;
 			}
 		}
@@ -5835,38 +5924,38 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_num_cmp_op(const B1_CMP_CMD &cmd)
 		{
 			if(imm_val)
 			{
-				_curr_code_sec->add_op(L"CPW X, " + val + L".l"); //A3 WORD_VALUE
-				_curr_code_sec->add_op(L"LD A, YL"); //90 9F
-				_curr_code_sec->add_op(L"SBC A, " + val + L".hl"); //A2 BYTE_VALUE
-				_curr_code_sec->add_op(L"LD A, YH"); //90 9E
-				_curr_code_sec->add_op(L"SBC A, " + val + L".hh"); //A2 BYTE_VALUE
+				_curr_code_sec->add_op(L"CPW X, " + val + L".l", false); //A3 WORD_VALUE
+				_curr_code_sec->add_op(L"LD A, YL", false); //90 9F
+				_curr_code_sec->add_op(L"SBC A, " + val + L".hl", false); //A2 BYTE_VALUE
+				_curr_code_sec->add_op(L"LD A, YH", false); //90 9E
+				_curr_code_sec->add_op(L"SBC A, " + val + L".hh", false); //A2 BYTE_VALUE
 			}
 			else
 			if(mem_ref)
 			{
-				_curr_code_sec->add_op(L"CPW X, (" + val + L" + 2)"); //B3 BYTE_OFFSET C3 WORD_OFFSET
-				_curr_code_sec->add_op(L"LD A, YL"); //90 9F
-				_curr_code_sec->add_op(L"SBC A, (" + val + L" + 1)"); //B2 BYTE_OFFSET C2 WORD_OFFSET
-				_curr_code_sec->add_op(L"LD A, YH"); //90 9E
-				_curr_code_sec->add_op(L"SBC A, (" + val + L")"); //B2 BYTE_OFFSET C2 WORD_OFFSET
+				_curr_code_sec->add_op(L"CPW X, (" + val + L" + 2)", is_volatile); //B3 BYTE_OFFSET C3 WORD_OFFSET
+				_curr_code_sec->add_op(L"LD A, YL", is_volatile); //90 9F
+				_curr_code_sec->add_op(L"SBC A, (" + val + L" + 1)", is_volatile); //B2 BYTE_OFFSET C2 WORD_OFFSET
+				_curr_code_sec->add_op(L"LD A, YH", is_volatile); //90 9E
+				_curr_code_sec->add_op(L"SBC A, (" + val + L")", is_volatile); //B2 BYTE_OFFSET C2 WORD_OFFSET
 			}
 			else
 			if(stk_ref)
 			{
-				_curr_code_sec->add_op(L"CPW X, (" + val + L" + 2, SP)"); //13 BYTE_OFFSET
-				_curr_code_sec->add_op(L"LD A, YL"); //90 9F
-				_curr_code_sec->add_op(L"SBC A, (" + val + L" + 1, SP)"); //12 BYTE_OFFSET
-				_curr_code_sec->add_op(L"LD A, YH"); //90 9E
-				_curr_code_sec->add_op(L"SBC A, (" + val + L", SP)"); //12 BYTE_OFFSET
+				_curr_code_sec->add_op(L"CPW X, (" + val + L" + 2, SP)", false); //13 BYTE_OFFSET
+				_curr_code_sec->add_op(L"LD A, YL", false); //90 9F
+				_curr_code_sec->add_op(L"SBC A, (" + val + L" + 1, SP)", false); //12 BYTE_OFFSET
+				_curr_code_sec->add_op(L"LD A, YH", false); //90 9E
+				_curr_code_sec->add_op(L"SBC A, (" + val + L", SP)", false); //12 BYTE_OFFSET
 			}
 			else
 			{
-				_curr_code_sec->add_op(L"CPW X, (" + val + L" + 3, SP)"); //13 BYTE_OFFSET
-				_curr_code_sec->add_op(L"LD A, YL"); //90 9F
-				_curr_code_sec->add_op(L"SBC A, (" + val + L" + 2, SP)"); //12 BYTE_OFFSET
-				_curr_code_sec->add_op(L"LD A, YH"); //90 9E
-				_curr_code_sec->add_op(L"SBC A, (" + val + L" + 1, SP)"); //12 BYTE_OFFSET
-				_curr_code_sec->add_op(L"ADDW SP, 4"); //5B BYTE_VALUE
+				_curr_code_sec->add_op(L"CPW X, (" + val + L" + 3, SP)", false); //13 BYTE_OFFSET
+				_curr_code_sec->add_op(L"LD A, YL", false); //90 9F
+				_curr_code_sec->add_op(L"SBC A, (" + val + L" + 2, SP)", false); //12 BYTE_OFFSET
+				_curr_code_sec->add_op(L"LD A, YH", false); //90 9E
+				_curr_code_sec->add_op(L"SBC A, (" + val + L" + 1, SP)", false); //12 BYTE_OFFSET
+				_curr_code_sec->add_op(L"ADDW SP, 4", false); //5B BYTE_VALUE
 				_stack_ptr -= 4;
 			}
 		}
@@ -5895,7 +5984,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_str_cmp_op(const B1_CMP_CMD &cmd)
 		return err;
 	}
 
-	_curr_code_sec->add_op(L"PUSHW X"); //89
+	_curr_code_sec->add_op(L"PUSHW X", false); //89
 	_stack_ptr += 2;
 
 	err = stm8_load(arg1, B1Types::B1T_STRING, LVT::LVT_REG);
@@ -5904,12 +5993,12 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_str_cmp_op(const B1_CMP_CMD &cmd)
 		return err;
 	}
 
-	_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CMP"); //AD SIGNED_BYTE_OFFSET (CALLR)
+	_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CMP", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 	_req_symbols.insert(L"__LIB_STR_CMP");
-	_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
+	_curr_code_sec->add_op(L"ADDW SP, 2", false); //5B BYTE_VALUE
 	_stack_ptr -= 2;
 
-	_curr_code_sec->add_op(L"TNZ A"); //4D
+	_curr_code_sec->add_op(L"TNZ A", false); //4D
 
 	_cmp_active = true;
 	_cmp_op = cmd.cmd;
@@ -6196,37 +6285,37 @@ C1STM8_T_ERROR C1STM8Compiler::write_ioctl(std::list<B1_CMP_CMD>::const_iterator
 
 			if(data_type == B1Types::B1T_BYTE)
 			{
-				_curr_code_sec->add_op(L"LD A, " + std::to_wstring(values)); //A6 BYTE_VALUE
+				_curr_code_sec->add_op(L"LD A, " + std::to_wstring(values), false); //A6 BYTE_VALUE
 				if(mask != 0)
 				{
-					_curr_code_sec->add_op(L"PUSH " + std::to_wstring(mask)); //4B BYTE_VALUE
+					_curr_code_sec->add_op(L"PUSH " + std::to_wstring(mask), false); //4B BYTE_VALUE
 					_stack_ptr++;
 				}
 			}
 			else
 			if(data_type == B1Types::B1T_INT)
 			{
-				_curr_code_sec->add_op(L"LDW X, " + std::to_wstring(values)); //AE WORD_VALUE
+				_curr_code_sec->add_op(L"LDW X, " + std::to_wstring(values), false); //AE WORD_VALUE
 			}
 			else
 			if(data_type == B1Types::B1T_WORD)
 			{
-				_curr_code_sec->add_op(L"LDW X, " + std::to_wstring(values)); //AE WORD_VALUE
+				_curr_code_sec->add_op(L"LDW X, " + std::to_wstring(values), false); //AE WORD_VALUE
 			}
 			else
 			if(data_type == B1Types::B1T_LONG)
 			{
-				_curr_code_sec->add_op(L"LDW X, " + std::to_wstring(values & 0xFFFF)); //AE WORD_VALUE
-				_curr_code_sec->add_op(L"LDW Y, " + std::to_wstring((values >> 16) & 0xFFFF)); //90 AE WORD_VALUE
+				_curr_code_sec->add_op(L"LDW X, " + std::to_wstring(values & 0xFFFF), false); //AE WORD_VALUE
+				_curr_code_sec->add_op(L"LDW Y, " + std::to_wstring((values >> 16) & 0xFFFF), false); //90 AE WORD_VALUE
 			}
 		}
 
-		_curr_code_sec->add_op(_call_stmt + L" " + file_name);  //AD SIGNED_BYTE_OFFSET (CALLR)
+		_curr_code_sec->add_op(_call_stmt + L" " + file_name, false);  //AD SIGNED_BYTE_OFFSET (CALLR)
 		_req_symbols.insert(file_name);
 
 		if(pre_cmd && data_type == B1Types::B1T_BYTE && mask != 0)
 		{
-			_curr_code_sec->add_op(L"POP A"); //84
+			_curr_code_sec->add_op(L"POP A", false); //84
 			_stack_ptr--;
 		}
 
@@ -6271,7 +6360,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_ioctl(std::list<B1_CMP_CMD>::const_iterator
 	return C1STM8_T_ERROR::C1STM8_RES_OK;
 }
 
-C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
+C1STM8_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 {
 	// code
 	_stack_ptr = 0;
@@ -6289,6 +6378,8 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 	_allocated_arrays.clear();
 
 	bool int_handler = false;
+
+	bool omit_zero_init = code_init;
 
 	for(auto ci = cbegin(); ci != cend(); ci++)
 	{
@@ -6326,7 +6417,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				_curr_code_sec->add_comment(Utils::str_trim(_src_lines[cmd.src_line_id]));
 			}
 
-			_curr_code_sec->add_lbl(cmd.cmd);
+			_curr_code_sec->add_lbl(cmd.cmd, false);
 			// labels are processed in load_next_command() function
 			//_all_symbols.insert(cmd.cmd);
 
@@ -6364,20 +6455,20 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			{
 				if(_curr_udef_args_size == 1)
 				{
-					_curr_code_sec->add_op(L"PUSH A"); //88
+					_curr_code_sec->add_op(L"PUSH A", false); //88
 					_stack_ptr++;
 				}
 				else
 				if(_curr_udef_args_size == 2)
 				{
-					_curr_code_sec->add_op(L"PUSHW X"); //89
+					_curr_code_sec->add_op(L"PUSHW X", false); //89
 					_stack_ptr += 2;
 				}
 				else
 				{
 					// LONG type
-					_curr_code_sec->add_op(L"PUSHW X"); //89
-					_curr_code_sec->add_op(L"PUSHW Y"); //90 89
+					_curr_code_sec->add_op(L"PUSHW X", false); //89
+					_curr_code_sec->add_op(L"PUSHW Y", false); //90 89
 					_stack_ptr += 4;
 				}
 			}
@@ -6386,6 +6477,8 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			_retval_active = false;
 
 			_allocated_arrays.clear();
+
+			omit_zero_init = false;
 
 			continue;
 		}
@@ -6404,7 +6497,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				{
 					if(trimmed.front() == L':')
 					{
-						_curr_code_sec->add_lbl(trimmed.substr(1));
+						_curr_code_sec->add_lbl(trimmed.substr(1), true);
 					}
 					else
 					if(trimmed.front() == L';')
@@ -6417,11 +6510,11 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 						auto first2 = trimmed.substr(0, 2);
 						if(first2 == L"DB" || first2 == L"DW" || first2 == L"DD")
 						{
-							_curr_code_sec->add_data(trimmed);
+							_curr_code_sec->add_data(trimmed, true);
 						}
 						else
 						{
-							_curr_code_sec->add_op(trimmed);
+							_curr_code_sec->add_op(trimmed, true);
 						}
 					}
 					else
@@ -6435,6 +6528,8 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			_retval_active = false;
 
 			_allocated_arrays.clear();
+
+			omit_zero_init = false;
 
 			continue;
 		}
@@ -6469,11 +6564,14 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 
 			if(cmd.args.size() == 2)
 			{
-				// simple variable
-				auto err = stm8_st_gf(var, false);
-				if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+				// omit initialization of scalar non-volatile variables in .CODE INIT section
+				if(!omit_zero_init)
 				{
-					return err;
+					auto err = stm8_st_gf(var, false);
+					if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+					{
+						return err;
+					}
 				}
 			}
 			else
@@ -6553,7 +6651,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 
 			if(dev_opts->find(B1C_DEV_OPT_INL) == dev_opts->cend())
 			{
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_" + in_dev + L"_GET" + suffix); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_" + in_dev + L"_GET" + suffix, false); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_" + in_dev + L"_GET" + suffix);
 			}
 			else
@@ -6575,6 +6673,8 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			_cmp_active = false;
 			_retval_active = false;
 
+			omit_zero_init = false;
+
 			continue;
 		}
 
@@ -6585,13 +6685,15 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				_curr_code_sec->add_comment(Utils::str_trim(_src_lines[cmd.src_line_id]));
 			}
 
-			_curr_code_sec->add_op(_call_stmt + L" " + cmd.args[0][0].value); //AD SIGNED_BYTE_OFFSET (CALLR)
+			_curr_code_sec->add_op(_call_stmt + L" " + cmd.args[0][0].value, false); //AD SIGNED_BYTE_OFFSET (CALLR)
 			_req_symbols.insert(cmd.args[0][0].value);
 
 			_cmp_active = false;
 			_retval_active = false;
 
 			_allocated_arrays.clear();
+
+			omit_zero_init = false;
 
 			continue;
 		}
@@ -6615,7 +6717,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				if(size == 1)
 				{
 					// B1T_BYTE
-					_curr_code_sec->add_op(L"SUB SP, 1"); //52 BYTE_VALUE
+					_curr_code_sec->add_op(L"SUB SP, 1", false); //52 BYTE_VALUE
 				}
 				else
 				if(size == 2)
@@ -6625,20 +6727,20 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 					if(cmd.args[1][0].type == B1Types::B1T_STRING)
 					{
 						// string local variable must be emptied right after creation
-						_curr_code_sec->add_op(L"PUSH 0"); //4B BYTE_VALUE
-						_curr_code_sec->add_op(L"PUSH 0"); //4B BYTE_VALUE
+						_curr_code_sec->add_op(L"PUSH 0", false); //4B BYTE_VALUE
+						_curr_code_sec->add_op(L"PUSH 0", false); //4B BYTE_VALUE
 
 						_clear_locals.insert(cmd.args[0][0].value);
 					}
 					else
 					{
-						_curr_code_sec->add_op(L"SUB SP, 2"); //52 BYTE_VALUE
+						_curr_code_sec->add_op(L"SUB SP, 2", false); //52 BYTE_VALUE
 					}
 				}
 				else
 				{
 					// B1T_LONG
-					_curr_code_sec->add_op(L"SUB SP, 4"); //52 BYTE_VALUE
+					_curr_code_sec->add_op(L"SUB SP, 4", false); //52 BYTE_VALUE
 				}
 			}
 			else
@@ -6646,14 +6748,14 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				if(cmd.args[1][0].type == B1Types::B1T_STRING)
 				{
 					// string local variable must be emptied right after creation
-					_curr_code_sec->add_op(L"CLRW X"); //5F
-					_curr_code_sec->add_op(L"PUSHW X"); //89
+					_curr_code_sec->add_op(L"CLRW X", false); //5F
+					_curr_code_sec->add_op(L"PUSHW X", false); //89
 
 					_clear_locals.insert(cmd.args[0][0].value);
 				}
 				else
 				{
-					_curr_code_sec->add_op(L"SUB SP, " + Utils::str_tohex16(size)); //52 BYTE_VALUE
+					_curr_code_sec->add_op(L"SUB SP, " + Utils::str_tohex16(size), false); //52 BYTE_VALUE
 				}
 			}
 
@@ -6693,32 +6795,32 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				// use PUSH/POP for LA/LF after compare operations (in order not to overwrite flags register)
 				if(size == 1)
 				{
-					_curr_code_sec->add_op(L"ADDW SP, 1"); //5B BYTE_VALUE
+					_curr_code_sec->add_op(L"ADDW SP, 1", false); //5B BYTE_VALUE
 				}
 				else
 				if(size == 2)
 				{
 					if(loc.first.type == B1Types::B1T_STRING)
 					{
-						_curr_code_sec->add_op(L"POPW X"); //85
+						_curr_code_sec->add_op(L"POPW X", false); //85
 						if(!not_used)
 						{
-							_curr_code_sec->add_op(L"PUSH CC"); //8A
+							_curr_code_sec->add_op(L"PUSH CC", false); //8A
 							_stack_ptr += 1;
-							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 							_req_symbols.insert(L"__LIB_STR_RLS");
-							_curr_code_sec->add_op(L"POP CC"); //86
+							_curr_code_sec->add_op(L"POP CC", false); //86
 							_stack_ptr -= 1;
 						}
 					}
 					else
 					{
-						_curr_code_sec->add_op(L"ADDW SP, 2"); //5B BYTE_VALUE
+						_curr_code_sec->add_op(L"ADDW SP, 2", false); //5B BYTE_VALUE
 					}
 				}
 				else
 				{
-					_curr_code_sec->add_op(L"ADDW SP, 4"); //5B BYTE_VALUE
+					_curr_code_sec->add_op(L"ADDW SP, 4", false); //5B BYTE_VALUE
 				}
 			}
 			else
@@ -6731,62 +6833,62 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 					{
 						if(_retval_type == B1Types::B1T_BYTE)
 						{
-							_curr_code_sec->add_op(L"PUSH A"); //88
+							_curr_code_sec->add_op(L"PUSH A", false); //88
 							_stack_ptr += 1;
-							_curr_code_sec->add_op(L"LDW X, (2, SP)"); //1E BYTE_OFFSET
-							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+							_curr_code_sec->add_op(L"LDW X, (2, SP)", false); //1E BYTE_OFFSET
+							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 							_req_symbols.insert(L"__LIB_STR_RLS");
-							_curr_code_sec->add_op(L"POP A"); //84
+							_curr_code_sec->add_op(L"POP A", false); //84
 							_stack_ptr -= 1;
 						}
 						else
 						if(_retval_type == B1Types::B1T_INT || _retval_type == B1Types::B1T_WORD || _retval_type == B1Types::B1T_STRING)
 						{
-							_curr_code_sec->add_op(L"PUSHW X"); //89
+							_curr_code_sec->add_op(L"PUSHW X", false); //89
 							_stack_ptr += 2;
-							_curr_code_sec->add_op(L"LDW X, (3, SP)"); //1E BYTE_OFFSET
-							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+							_curr_code_sec->add_op(L"LDW X, (3, SP)", false); //1E BYTE_OFFSET
+							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 							_req_symbols.insert(L"__LIB_STR_RLS");
-							_curr_code_sec->add_op(L"POPW X"); //85
+							_curr_code_sec->add_op(L"POPW X", false); //85
 							_stack_ptr -= 2;
 						}
 						else
 						{
 							// LONG type
-							_curr_code_sec->add_op(L"PUSHW X"); //89
-							_curr_code_sec->add_op(L"PUSHW Y"); //90 89
+							_curr_code_sec->add_op(L"PUSHW X", false); //89
+							_curr_code_sec->add_op(L"PUSHW Y", false); //90 89
 							_stack_ptr += 4;
-							_curr_code_sec->add_op(L"LDW X, (5, SP)"); //1E BYTE_OFFSET
-							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+							_curr_code_sec->add_op(L"LDW X, (5, SP)", false); //1E BYTE_OFFSET
+							_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 							_req_symbols.insert(L"__LIB_STR_RLS");
-							_curr_code_sec->add_op(L"POPW Y"); //90 85
-							_curr_code_sec->add_op(L"POPW X"); //85
+							_curr_code_sec->add_op(L"POPW Y", false); //90 85
+							_curr_code_sec->add_op(L"POPW X", false); //85
 							_stack_ptr -= 4;
 						}
 					}
 
-					_curr_code_sec->add_op(L"ADDW SP, " + Utils::str_tohex16(size)); //5B BYTE_VALUE
+					_curr_code_sec->add_op(L"ADDW SP, " + Utils::str_tohex16(size), false); //5B BYTE_VALUE
 				}
 				else
 				{
-					_curr_code_sec->add_op(L"ADDW SP, " + Utils::str_tohex16(size)); //5B BYTE_VALUE
+					_curr_code_sec->add_op(L"ADDW SP, " + Utils::str_tohex16(size), false); //5B BYTE_VALUE
 				}
 			}
 			else
 			{
 				if(loc.first.type == B1Types::B1T_STRING)
 				{
-					_curr_code_sec->add_op(L"POPW X"); //85
+					_curr_code_sec->add_op(L"POPW X", false); //85
 
 					if(!not_used)
 					{
-						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 						_req_symbols.insert(L"__LIB_STR_RLS");
 					}
 				}
 				else
 				{
-					_curr_code_sec->add_op(L"ADDW SP, " + Utils::str_tohex16(size)); //5B BYTE_VALUE
+					_curr_code_sec->add_op(L"ADDW SP, " + Utils::str_tohex16(size), false); //5B BYTE_VALUE
 				}
 			}
 
@@ -6840,29 +6942,29 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				return C1STM8_T_ERROR::C1STM8_RES_EWDEVTYPE;
 			}
 
-			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_" + in_dev + L"_IN");  //AD SIGNED_BYTE_OFFSET (CALLR)
+			_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_" + in_dev + L"_IN", false);  //AD SIGNED_BYTE_OFFSET (CALLR)
 			_req_symbols.insert(L"__LIB_" + in_dev + L"_IN");
 			if(cmd.args[1][0].type == B1Types::B1T_BYTE)
 			{
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CBYTE"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CBYTE", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_STR_CBYTE");
 			}
 			else
 			if(cmd.args[1][0].type == B1Types::B1T_INT)
 			{
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CINT"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CINT", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_STR_CINT");
 			}
 			else
 			if(cmd.args[1][0].type == B1Types::B1T_WORD)
 			{
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CWRD"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CWRD", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_STR_CWRD");
 			}
 			else
 			if(cmd.args[1][0].type == B1Types::B1T_LONG)
 			{
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CLNG"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CLNG", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_STR_CLNG");
 			}
 
@@ -6875,6 +6977,8 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 
 			_cmp_active = false;
 			_retval_active = false;
+
+			omit_zero_init = false;
 
 			continue;
 		}
@@ -6889,6 +6993,8 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 
 			_cmp_active = false;
 			_retval_active = false;
+
+			omit_zero_init = false;
 
 			continue;
 		}
@@ -6923,7 +7029,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			if(cmd.args[1][0].value == L"NL")
 			{
 				// print new line
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_" + out_dev + L"_NL"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_" + out_dev + L"_NL", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_" + out_dev + L"_NL");
 			}
 			else
@@ -6937,7 +7043,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				{
 					return err;
 				}
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_" + out_dev + L"_TAB"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_" + out_dev + L"_TAB", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_" + out_dev + L"_TAB");
 			}
 			else
@@ -6950,7 +7056,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				{
 					return err;
 				}
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_" + out_dev + L"_SPC"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_" + out_dev + L"_SPC", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_" + out_dev + L"_SPC");
 			}
 			else
@@ -6972,11 +7078,11 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 						return err;
 					}
 
-					_curr_code_sec->add_op(L"PUSH 2"); //4B BYTE_VALUE
+					_curr_code_sec->add_op(L"PUSH 2", false); //4B BYTE_VALUE
 					_stack_ptr += 1;
-					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR16"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR16", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 					_req_symbols.insert(L"__LIB_STR_STR16");
-					_curr_code_sec->add_op(L"POP A"); //84
+					_curr_code_sec->add_op(L"POP A", false); //84
 					_stack_ptr -= 1;
 				}
 				else
@@ -6988,11 +7094,11 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 						return err;
 					}
 
-					_curr_code_sec->add_op(L"PUSH 3"); //4B BYTE_VALUE
+					_curr_code_sec->add_op(L"PUSH 3", false); //4B BYTE_VALUE
 					_stack_ptr += 1;
-					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR16"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR16", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 					_req_symbols.insert(L"__LIB_STR_STR16");
-					_curr_code_sec->add_op(L"POP A"); //84
+					_curr_code_sec->add_op(L"POP A", false); //84
 					_stack_ptr -= 1;
 				}
 				else
@@ -7004,20 +7110,22 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 						return err;
 					}
 
-					_curr_code_sec->add_op(L"PUSH 2"); //4B BYTE_VALUE
+					_curr_code_sec->add_op(L"PUSH 2", false); //4B BYTE_VALUE
 					_stack_ptr += 1;
-					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR32"); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_STR32", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 					_req_symbols.insert(L"__LIB_STR_STR32");
-					_curr_code_sec->add_op(L"POP A"); //84
+					_curr_code_sec->add_op(L"POP A", false); //84
 					_stack_ptr -= 1;
 				}
 
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_" + out_dev + L"_OUT"); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_" + out_dev + L"_OUT", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_" + out_dev + L"_OUT");
 			}
 
 			_cmp_active = false;
 			_retval_active = false;
+
+			omit_zero_init = false;
 
 			continue;
 		}
@@ -7063,7 +7171,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 
 			if(dev_opts->find(B1C_DEV_OPT_INL) == dev_opts->cend())
 			{
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_" + out_dev + L"_PUT" + suffix); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_" + out_dev + L"_PUT" + suffix, false); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_" + out_dev + L"_PUT" + suffix);
 			}
 			else
@@ -7081,6 +7189,8 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 
 			_cmp_active = false;
 			_retval_active = false;
+
+			omit_zero_init = false;
 
 			continue;
 		}
@@ -7103,7 +7213,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 
 			if(cmd.args.size() == 1)
 			{
-				_curr_code_sec->add_op(L"LDW X, " + name_space + L"__DAT_START"); //AE WORD_VALUE
+				_curr_code_sec->add_op(L"LDW X, " + name_space + L"__DAT_START", false); //AE WORD_VALUE
 				_req_symbols.insert(name_space + L"__DAT_START");
 			}
 			else
@@ -7113,10 +7223,10 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				{
 					return C1STM8_T_ERROR::C1STM8_RES_EUNRESSYMBOL;
 				}
-				_curr_code_sec->add_op(L"LDW X, " + rst_label->second); //AE WORD_VALUE
+				_curr_code_sec->add_op(L"LDW X, " + rst_label->second, false); //AE WORD_VALUE
 			}
 
-			_curr_code_sec->add_op(L"LDW (" + name_space + L"__DAT_PTR), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+			_curr_code_sec->add_op(L"LDW (" + name_space + L"__DAT_PTR), X", false); //BF SHORT_ADDRESS CF LONG_ADDRESS
 			_req_symbols.insert(name_space + L"__DAT_PTR");
 
 			_cmp_active = false;
@@ -7144,35 +7254,35 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			// load value
 			if(cmd.args[1][0].type == B1Types::B1T_BYTE)
 			{
-				_curr_code_sec->add_op(L"LDW X, (" + name_space + L"__DAT_PTR)"); //BE SHORT_ADDRESS, CE LONG_ADDRESS
-				_curr_code_sec->add_op(L"INCW X"); //5C
-				_curr_code_sec->add_op(L"LD A, (X)");
-				_curr_code_sec->add_op(L"INCW X"); //5C
-				_curr_code_sec->add_op(L"LDW (" + name_space + L"__DAT_PTR), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+				_curr_code_sec->add_op(L"LDW X, (" + name_space + L"__DAT_PTR)", false); //BE SHORT_ADDRESS, CE LONG_ADDRESS
+				_curr_code_sec->add_op(L"INCW X", false); //5C
+				_curr_code_sec->add_op(L"LD A, (X)", false);
+				_curr_code_sec->add_op(L"INCW X", false); //5C
+				_curr_code_sec->add_op(L"LDW (" + name_space + L"__DAT_PTR), X", false); //BF SHORT_ADDRESS CF LONG_ADDRESS
 			}
 			else
 			if(cmd.args[1][0].type == B1Types::B1T_INT || cmd.args[1][0].type == B1Types::B1T_WORD || cmd.args[1][0].type == B1Types::B1T_STRING)
 			{
-				_curr_code_sec->add_op(L"LDW X, (" + name_space + L"__DAT_PTR)"); //BE SHORT_ADDRESS, CE LONG_ADDRESS
-				_curr_code_sec->add_op(L"PUSHW X"); // 89
+				_curr_code_sec->add_op(L"LDW X, (" + name_space + L"__DAT_PTR)", false); //BE SHORT_ADDRESS, CE LONG_ADDRESS
+				_curr_code_sec->add_op(L"PUSHW X", false); // 89
 				_stack_ptr += 2;
-				_curr_code_sec->add_op(L"INCW X"); //5C
-				_curr_code_sec->add_op(L"INCW X"); //5C
-				_curr_code_sec->add_op(L"LDW (" + name_space + L"__DAT_PTR), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
-				_curr_code_sec->add_op(L"POPW X"); //85
+				_curr_code_sec->add_op(L"INCW X", false); //5C
+				_curr_code_sec->add_op(L"INCW X", false); //5C
+				_curr_code_sec->add_op(L"LDW (" + name_space + L"__DAT_PTR), X", false); //BF SHORT_ADDRESS CF LONG_ADDRESS
+				_curr_code_sec->add_op(L"POPW X", false); //85
 				_stack_ptr -= 2;
-				_curr_code_sec->add_op(L"LDW X, (X)"); //FE
+				_curr_code_sec->add_op(L"LDW X, (X)", false); //FE
 			}
 			else
 			{
 				// LONG type
-				_curr_code_sec->add_op(L"LDW X, (" + name_space + L"__DAT_PTR)"); //BE SHORT_ADDRESS, CE LONG_ADDRESS
-				_curr_code_sec->add_op(L"LDW Y, X"); //90 93
-				_curr_code_sec->add_op(L"ADDW X, 4"); //1C WORD_VALUE
-				_curr_code_sec->add_op(L"LDW (" + name_space + L"__DAT_PTR), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
-				_curr_code_sec->add_op(L"LDW X, Y"); //93
-				_curr_code_sec->add_op(L"LDW Y, (Y)"); //90 FE
-				_curr_code_sec->add_op(L"LDW X, (2, X)"); //EE BYTE_OFFSET
+				_curr_code_sec->add_op(L"LDW X, (" + name_space + L"__DAT_PTR)", false); //BE SHORT_ADDRESS, CE LONG_ADDRESS
+				_curr_code_sec->add_op(L"LDW Y, X", false); //90 93
+				_curr_code_sec->add_op(L"ADDW X, 4", false); //1C WORD_VALUE
+				_curr_code_sec->add_op(L"LDW (" + name_space + L"__DAT_PTR), X", false); //BF SHORT_ADDRESS CF LONG_ADDRESS
+				_curr_code_sec->add_op(L"LDW X, Y", false); //93
+				_curr_code_sec->add_op(L"LDW Y, (Y)", false); //90 FE
+				_curr_code_sec->add_op(L"LDW X, (2, X)", false); //EE BYTE_OFFSET
 			}
 			_req_symbols.insert(name_space + L"__DAT_PTR");
 
@@ -7185,6 +7295,8 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 
 			_cmp_active = false;
 			_retval_active = false;
+
+			omit_zero_init = false;
 
 			continue;
 		}
@@ -7206,6 +7318,8 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			_retval_active = true;
 			_retval_type = cmd.args[1][0].type;
 
+			omit_zero_init = false;
+
 			continue;
 		}
 
@@ -7226,39 +7340,39 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 
 					if(_retval_type == B1Types::B1T_BYTE)
 					{
-						_curr_code_sec->add_op(L"PUSH A"); //88
+						_curr_code_sec->add_op(L"PUSH A", false); //88
 						_stack_ptr += 1;
 						offset = _stack_ptr - _curr_udef_args_size + 1;
-						_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
-						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+						_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)", false); //1E BYTE_OFFSET
+						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 						_req_symbols.insert(L"__LIB_STR_RLS");
-						_curr_code_sec->add_op(L"POP A"); //84
+						_curr_code_sec->add_op(L"POP A", false); //84
 						_stack_ptr -= 1;
 					}
 					else
 					if(_retval_type == B1Types::B1T_INT || _retval_type == B1Types::B1T_WORD || _retval_type == B1Types::B1T_STRING)
 					{
-						_curr_code_sec->add_op(L"PUSHW X"); //89
+						_curr_code_sec->add_op(L"PUSHW X", false); //89
 						_stack_ptr += 2;
 						offset = _stack_ptr - _curr_udef_args_size + 1;
-						_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
-						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+						_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)", false); //1E BYTE_OFFSET
+						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 						_req_symbols.insert(L"__LIB_STR_RLS");
-						_curr_code_sec->add_op(L"POPW X"); //85
+						_curr_code_sec->add_op(L"POPW X", false); //85
 						_stack_ptr -= 2;
 					}
 					else
 					{
 						// LONG type
-						_curr_code_sec->add_op(L"PUSHW X"); //89
-						_curr_code_sec->add_op(L"PUSHW Y"); //90 89
+						_curr_code_sec->add_op(L"PUSHW X", false); //89
+						_curr_code_sec->add_op(L"PUSHW Y", false); //90 89
 						_stack_ptr += 4;
 						offset = _stack_ptr - _curr_udef_args_size + 1;
-						_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
-						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+						_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)", false); //1E BYTE_OFFSET
+						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 						_req_symbols.insert(L"__LIB_STR_RLS");
-						_curr_code_sec->add_op(L"POPW Y"); //90 85
-						_curr_code_sec->add_op(L"POPW X"); //85
+						_curr_code_sec->add_op(L"POPW Y", false); //90 85
+						_curr_code_sec->add_op(L"POPW X", false); //85
 						_stack_ptr -= 4;
 					}
 				}
@@ -7271,39 +7385,39 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				{
 					if(_retval_type == B1Types::B1T_BYTE)
 					{
-						_curr_code_sec->add_op(L"PUSH A"); //88
+						_curr_code_sec->add_op(L"PUSH A", false); //88
 						_stack_ptr += 1;
 						offset = _stack_ptr + _global_settings.GetRetAddressSize() + sa;
-						_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
-						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+						_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)", false); //1E BYTE_OFFSET
+						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 						_req_symbols.insert(L"__LIB_STR_RLS");
-						_curr_code_sec->add_op(L"POP A"); //84
+						_curr_code_sec->add_op(L"POP A", false); //84
 						_stack_ptr -= 1;
 					}
 					else
 					if(_retval_type == B1Types::B1T_INT || _retval_type == B1Types::B1T_WORD || _retval_type == B1Types::B1T_STRING)
 					{
-						_curr_code_sec->add_op(L"PUSHW X"); //89
+						_curr_code_sec->add_op(L"PUSHW X", false); //89
 						_stack_ptr += 2;
 						offset = _stack_ptr + _global_settings.GetRetAddressSize() + sa;
-						_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
-						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+						_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)", false); //1E BYTE_OFFSET
+						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 						_req_symbols.insert(L"__LIB_STR_RLS");
-						_curr_code_sec->add_op(L"POPW X"); //85
+						_curr_code_sec->add_op(L"POPW X", false); //85
 						_stack_ptr -= 2;
 					}
 					else
 					{
 						// LONG type
-						_curr_code_sec->add_op(L"PUSHW X"); //89
-						_curr_code_sec->add_op(L"PUSHW Y"); //90 89
+						_curr_code_sec->add_op(L"PUSHW X", false); //89
+						_curr_code_sec->add_op(L"PUSHW Y", false); //90 89
 						_stack_ptr += 4;
 						offset = _stack_ptr + _global_settings.GetRetAddressSize() + sa;
-						_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)"); //1E BYTE_OFFSET
-						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS"); //AD SIGNED_BYTE_OFFSET (CALLR)
+						_curr_code_sec->add_op(L"LDW X, (" + Utils::str_tohex16(offset) + L", SP)", false); //1E BYTE_OFFSET
+						_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_RLS", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 						_req_symbols.insert(L"__LIB_STR_RLS");
-						_curr_code_sec->add_op(L"POPW Y"); //90 85
-						_curr_code_sec->add_op(L"POPW X"); //85
+						_curr_code_sec->add_op(L"POPW Y", false); //90 85
+						_curr_code_sec->add_op(L"POPW X", false); //85
 						_stack_ptr -= 4;
 					}
 				}
@@ -7312,7 +7426,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			// temporary solution for a single argument case: function prologue code stores it in stack
 			if(_curr_udef_arg_offsets.size() == 1)
 			{
-				_curr_code_sec->add_op(L"ADDW SP, " + std::to_wstring(_curr_udef_args_size)); //5B BYTE_VALUE
+				_curr_code_sec->add_op(L"ADDW SP, " + std::to_wstring(_curr_udef_args_size), false); //5B BYTE_VALUE
 				_stack_ptr -= _curr_udef_args_size;
 			}
 
@@ -7321,7 +7435,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 				// probably some local variables are not released
 				if(_global_settings.GetFixRetStackPtr())
 				{
-					_curr_code_sec->add_op(L"ADDW SP, " + std::to_wstring(_stack_ptr)); //5B BYTE_VALUE
+					_curr_code_sec->add_op(L"ADDW SP, " + std::to_wstring(_stack_ptr), false); //5B BYTE_VALUE
 				}
 				else
 				{
@@ -7331,11 +7445,11 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 
 			if(int_handler)
 			{
-				_curr_code_sec->add_op(L"IRET"); //80
+				_curr_code_sec->add_op(L"IRET", false); //80
 			}
 			else
 			{
-				_curr_code_sec->add_op(_ret_stmt); //RET 81, RETF 87
+				_curr_code_sec->add_op(_ret_stmt, false); //RET 81, RETF 87
 			}
 
 			_cmp_active = false;
@@ -7346,6 +7460,8 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			_curr_udef_args_size = 0;
 			_curr_udef_arg_offsets.clear();
 			_curr_udef_str_arg_offsets.clear();
+
+			omit_zero_init = false;
 
 			continue;
 		}
@@ -7371,7 +7487,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 					return static_cast<C1STM8_T_ERROR>(err);
 				}
 
-				_curr_code_sec->add_op(L"MOV (__LIB_ERR_LAST_ERR), " + std::to_wstring(n)); //35 BYTE_VALUE LONG_ADDRESS
+				_curr_code_sec->add_op(L"MOV (__LIB_ERR_LAST_ERR), " + std::to_wstring(n), false); //35 BYTE_VALUE LONG_ADDRESS
 				_init_files.push_back(L"__LIB_ERR_LAST_ERR");
 			}
 
@@ -7421,7 +7537,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 
 			if(dev_opts->find(B1C_DEV_OPT_INL) == dev_opts->cend())
 			{
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_" + trr_dev + L"_TRR" + suffix); //AD SIGNED_BYTE_OFFSET (CALLR)
+				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_" + trr_dev + L"_TRR" + suffix, false); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_" + trr_dev + L"_TRR" + suffix);
 			}
 			else
@@ -7442,6 +7558,8 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 
 			_cmp_active = false;
 			_retval_active = false;
+
+			omit_zero_init = false;
 
 			continue;
 		}
@@ -7474,6 +7592,8 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			}
 			_end_placement.clear();
 
+			omit_zero_init = false;
+
 			continue;
 		}
 
@@ -7487,14 +7607,14 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			_init_files.push_back(L"__LIB_ERR_LAST_ERR");
 			if(cmd.args[0][0].value.empty())
 			{
-				_curr_code_sec->add_op(L"TNZ (__LIB_ERR_LAST_ERR)"); // 3D SHORT_ADDRESS 72 5D LONG_ADDRESS
-				_curr_code_sec->add_op(L"JRNE " + cmd.args[1][0].value); //26 SIGNED_BYTE_OFFSET
+				_curr_code_sec->add_op(L"TNZ (__LIB_ERR_LAST_ERR)", false); // 3D SHORT_ADDRESS 72 5D LONG_ADDRESS
+				_curr_code_sec->add_op(L"JRNE " + cmd.args[1][0].value, false); //26 SIGNED_BYTE_OFFSET
 			}
 			else
 			{
-				_curr_code_sec->add_op(L"LD A, (__LIB_ERR_LAST_ERR)"); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
-				_curr_code_sec->add_op(L"CP A, " + cmd.args[0][0].value); //A1 BYTE_VALUE
-				_curr_code_sec->add_op(L"JREQ " + cmd.args[1][0].value); //27 SIGNED_BYTE_OFFSET
+				_curr_code_sec->add_op(L"LD A, (__LIB_ERR_LAST_ERR)", false); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
+				_curr_code_sec->add_op(L"CP A, " + cmd.args[0][0].value, false); //A1 BYTE_VALUE
+				_curr_code_sec->add_op(L"JREQ " + cmd.args[1][0].value, false); //27 SIGNED_BYTE_OFFSET
 			}
 			_req_symbols.insert(cmd.args[1][0].value);
 
@@ -7530,18 +7650,20 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 
 			const auto int_lbl_name = L"__" + cmd.args[0][0].value;
 
-			_curr_code_sec->add_lbl(int_lbl_name);
+			_curr_code_sec->add_lbl(int_lbl_name, false);
 			_all_symbols.insert(int_lbl_name);
 			
 			_irq_handlers[int_ind] = int_lbl_name;
 			_req_symbols.insert(int_lbl_name);
+
+			omit_zero_init = false;
 
 			continue;
 		}
 
 		if(cmd.cmd == L"JMP")
 		{
-			_curr_code_sec->add_op(L"JRA " + cmd.args[0][0].value); //20 SIGNED_BYTE_OFFSET
+			_curr_code_sec->add_op(L"JRA " + cmd.args[0][0].value, false); //20 SIGNED_BYTE_OFFSET
 			_req_symbols.insert(cmd.args[0][0].value);
 
 			_cmp_active = false;
@@ -7560,11 +7682,11 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			{
 				if(cmd.cmd == L"JT")
 				{
-					_curr_code_sec->add_op(L"JREQ " + cmd.args[0][0].value); //27 SIGNED_BYTE_OFFSET
+					_curr_code_sec->add_op(L"JREQ " + cmd.args[0][0].value, false); //27 SIGNED_BYTE_OFFSET
 				}
 				else
 				{
-					_curr_code_sec->add_op(L"JRNE " + cmd.args[0][0].value); //26 SIGNED_BYTE_OFFSET
+					_curr_code_sec->add_op(L"JRNE " + cmd.args[0][0].value, false); //26 SIGNED_BYTE_OFFSET
 				}
 			}
 			else
@@ -7572,11 +7694,11 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			{
 				if(cmd.cmd == L"JT")
 				{
-					_curr_code_sec->add_op(L"JRNE " + cmd.args[0][0].value); //26 SIGNED_BYTE_OFFSET
+					_curr_code_sec->add_op(L"JRNE " + cmd.args[0][0].value, false); //26 SIGNED_BYTE_OFFSET
 				}
 				else
 				{
-					_curr_code_sec->add_op(L"JREQ " + cmd.args[0][0].value); //27 SIGNED_BYTE_OFFSET
+					_curr_code_sec->add_op(L"JREQ " + cmd.args[0][0].value, false); //27 SIGNED_BYTE_OFFSET
 				}
 			}
 			else
@@ -7587,11 +7709,11 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 					// signed comparison
 					if(cmd.cmd == L"JT")
 					{
-						_curr_code_sec->add_op(L"JRSGT " + cmd.args[0][0].value); //2C SIGNED_BYTE_OFFSET
+						_curr_code_sec->add_op(L"JRSGT " + cmd.args[0][0].value, false); //2C SIGNED_BYTE_OFFSET
 					}
 					else
 					{
-						_curr_code_sec->add_op(L"JRSLE " + cmd.args[0][0].value); //2D SIGNED_BYTE_OFFSET
+						_curr_code_sec->add_op(L"JRSLE " + cmd.args[0][0].value, false); //2D SIGNED_BYTE_OFFSET
 					}
 				}
 				else
@@ -7599,11 +7721,11 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 					// unsigned comparison
 					if(cmd.cmd == L"JT")
 					{
-						_curr_code_sec->add_op(L"JRUGT " + cmd.args[0][0].value); //22 SIGNED_BYTE_OFFSET
+						_curr_code_sec->add_op(L"JRUGT " + cmd.args[0][0].value, false); //22 SIGNED_BYTE_OFFSET
 					}
 					else
 					{
-						_curr_code_sec->add_op(L"JRULE " + cmd.args[0][0].value); //23 SIGNED_BYTE_OFFSET
+						_curr_code_sec->add_op(L"JRULE " + cmd.args[0][0].value, false); //23 SIGNED_BYTE_OFFSET
 					}
 				}
 			}
@@ -7615,11 +7737,11 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 					// signed comparison
 					if(cmd.cmd == L"JT")
 					{
-						_curr_code_sec->add_op(L"JRSGE " + cmd.args[0][0].value); //2E SIGNED_BYTE_OFFSET
+						_curr_code_sec->add_op(L"JRSGE " + cmd.args[0][0].value, false); //2E SIGNED_BYTE_OFFSET
 					}
 					else
 					{
-						_curr_code_sec->add_op(L"JRSLT " + cmd.args[0][0].value); //2F SIGNED_BYTE_OFFSET
+						_curr_code_sec->add_op(L"JRSLT " + cmd.args[0][0].value, false); //2F SIGNED_BYTE_OFFSET
 					}
 				}
 				else
@@ -7627,11 +7749,11 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 					// unsigned comparison
 					if(cmd.cmd == L"JT")
 					{
-						_curr_code_sec->add_op(L"JRUGE " + cmd.args[0][0].value); //24 SIGNED_BYTE_OFFSET
+						_curr_code_sec->add_op(L"JRUGE " + cmd.args[0][0].value, false); //24 SIGNED_BYTE_OFFSET
 					}
 					else
 					{
-						_curr_code_sec->add_op(L"JRULT " + cmd.args[0][0].value); //25 SIGNED_BYTE_OFFSET
+						_curr_code_sec->add_op(L"JRULT " + cmd.args[0][0].value, false); //25 SIGNED_BYTE_OFFSET
 					}
 				}
 			}
@@ -7643,11 +7765,11 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 					// signed comparison
 					if(cmd.cmd == L"JT")
 					{
-						_curr_code_sec->add_op(L"JRSLT " + cmd.args[0][0].value); //2F SIGNED_BYTE_OFFSET
+						_curr_code_sec->add_op(L"JRSLT " + cmd.args[0][0].value, false); //2F SIGNED_BYTE_OFFSET
 					}
 					else
 					{
-						_curr_code_sec->add_op(L"JRSGE " + cmd.args[0][0].value); //2E SIGNED_BYTE_OFFSET
+						_curr_code_sec->add_op(L"JRSGE " + cmd.args[0][0].value, false); //2E SIGNED_BYTE_OFFSET
 					}
 				}
 				else
@@ -7655,11 +7777,11 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 					// unsigned comparison
 					if(cmd.cmd == L"JT")
 					{
-						_curr_code_sec->add_op(L"JRULT " + cmd.args[0][0].value); //25 SIGNED_BYTE_OFFSET
+						_curr_code_sec->add_op(L"JRULT " + cmd.args[0][0].value, false); //25 SIGNED_BYTE_OFFSET
 					}
 					else
 					{
-						_curr_code_sec->add_op(L"JRUGE " + cmd.args[0][0].value); //24 SIGNED_BYTE_OFFSET
+						_curr_code_sec->add_op(L"JRUGE " + cmd.args[0][0].value, false); //24 SIGNED_BYTE_OFFSET
 					}
 				}
 			}
@@ -7671,11 +7793,11 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 					// signed comparison
 					if(cmd.cmd == L"JT")
 					{
-						_curr_code_sec->add_op(L"JRSLE " + cmd.args[0][0].value); //2D SIGNED_BYTE_OFFSET
+						_curr_code_sec->add_op(L"JRSLE " + cmd.args[0][0].value, false); //2D SIGNED_BYTE_OFFSET
 					}
 					else
 					{
-						_curr_code_sec->add_op(L"JRSGT " + cmd.args[0][0].value); //2C SIGNED_BYTE_OFFSET
+						_curr_code_sec->add_op(L"JRSGT " + cmd.args[0][0].value, false); //2C SIGNED_BYTE_OFFSET
 					}
 				}
 				else
@@ -7683,11 +7805,11 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 					// unsigned comparison
 					if(cmd.cmd == L"JT")
 					{
-						_curr_code_sec->add_op(L"JRULE " + cmd.args[0][0].value); //23 SIGNED_BYTE_OFFSET
+						_curr_code_sec->add_op(L"JRULE " + cmd.args[0][0].value, false); //23 SIGNED_BYTE_OFFSET
 					}
 					else
 					{
-						_curr_code_sec->add_op(L"JRUGT " + cmd.args[0][0].value); //22 SIGNED_BYTE_OFFSET
+						_curr_code_sec->add_op(L"JRUGT " + cmd.args[0][0].value, false); //22 SIGNED_BYTE_OFFSET
 					}
 				}
 			}
@@ -7711,7 +7833,7 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			}
 
 			// unary operation
-			auto err = stm8_un_op(cmd);
+			auto err = stm8_un_op(cmd, omit_zero_init);
 			if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 			{
 				return err;
@@ -7719,6 +7841,11 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 
 			_cmp_active = false;
 			_retval_active = false;
+
+			if(cmd.cmd != L"=")
+			{
+				omit_zero_init = false;
+			}
 
 			continue;
 		}
@@ -7773,6 +7900,8 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			_cmp_active = false;
 			_retval_active = false;
 
+			omit_zero_init = false;
+
 			continue;
 		}
 
@@ -7798,6 +7927,8 @@ C1STM8_T_ERROR C1STM8Compiler::write_code_sec()
 			}
 
 			_retval_active = false;
+
+			omit_zero_init = false;
 
 			continue;
 		}
@@ -7988,7 +8119,7 @@ C1STM8_T_ERROR C1STM8Compiler::WriteCode(bool code_init)
 
 	_curr_code_sec = code_init ? &_code_init_sec : &_code_sec;
 
-	err = write_code_sec();
+	err = write_code_sec(code_init);
 	if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 	{
 		return err;
@@ -8000,7 +8131,7 @@ C1STM8_T_ERROR C1STM8Compiler::WriteCode(bool code_init)
 C1STM8_T_ERROR C1STM8Compiler::WriteCodeInitBegin()
 {
 	// interrupt vector table
-	_code_init_sec.add_op(L"INT __START");
+	_code_init_sec.add_op(L"INT __START", false);
 	_req_symbols.insert(L"__START");
 
 	int prev = 0;
@@ -8009,11 +8140,11 @@ C1STM8_T_ERROR C1STM8Compiler::WriteCodeInitBegin()
 	{
 		for(int n = prev + 1; n < i.first; n++)
 		{
-			_code_init_sec.add_op(L"INT __UNHANDLED");
+			_code_init_sec.add_op(L"INT __UNHANDLED", false);
 			_req_symbols.insert(L"__UNHANDLED");
 		}
 
-		_code_init_sec.add_op(L"INT " + i.second);
+		_code_init_sec.add_op(L"INT " + i.second, false);
 		_req_symbols.insert(i.second);
 
 		prev = i.first;
@@ -8022,14 +8153,14 @@ C1STM8_T_ERROR C1STM8Compiler::WriteCodeInitBegin()
 	if(_req_symbols.find(L"__UNHANDLED") != _req_symbols.end())
 	{
 		// unhandled interrupt handler (empty loop)
-		_code_init_sec.add_lbl(L"__UNHANDLED");
+		_code_init_sec.add_lbl(L"__UNHANDLED", false);
 		_all_symbols.insert(L"__UNHANDLED");
-		_code_init_sec.add_op(L"JRA __UNHANDLED"); //20 SIGNED_BYTE_OFFSET
+		_code_init_sec.add_op(L"JRA __UNHANDLED", false); //20 SIGNED_BYTE_OFFSET
 		_req_symbols.insert(L"__UNHANDLED");
 	}
 
 	// init code begin
-	_code_init_sec.add_lbl(L"__START");
+	_code_init_sec.add_lbl(L"__START", false);
 	_all_symbols.insert(L"__START");
 
 	return C1STM8_T_ERROR::C1STM8_RES_OK;
@@ -8042,9 +8173,9 @@ C1STM8_T_ERROR C1STM8Compiler::WriteCodeInitDAT()
 	{
 		std::wstring name_space = ns.empty() ? std::wstring() : (ns + L"::");
 
-		_code_init_sec.add_op(L"LDW X, " + name_space + L"__DAT_START"); //AE WORD_VALUE
+		_code_init_sec.add_op(L"LDW X, " + name_space + L"__DAT_START", false); //AE WORD_VALUE
 		_req_symbols.insert(name_space + L"__DAT_START");
-		_code_init_sec.add_op(L"LDW (" + name_space + L"__DAT_PTR), X"); //BF SHORT_ADDRESS CF LONG_ADDRESS
+		_code_init_sec.add_op(L"LDW (" + name_space + L"__DAT_PTR), X", false); //BF SHORT_ADDRESS CF LONG_ADDRESS
 		_req_symbols.insert(name_space + L"__DAT_PTR");
 	}
 	return C1STM8_T_ERROR::C1STM8_RES_OK;
@@ -8054,7 +8185,7 @@ C1STM8_T_ERROR C1STM8Compiler::WriteCodeInitEnd()
 {
 	if(_const_size != 0)
 	{
-		_code_init_sec.add_op(L"JRA __CODE_START"); //20 SIGNED_BYTE_OFFSET
+		_code_init_sec.add_op(L"JRA __CODE_START", false); //20 SIGNED_BYTE_OFFSET
 	}
 
 	return C1STM8_T_ERROR::C1STM8_RES_OK;

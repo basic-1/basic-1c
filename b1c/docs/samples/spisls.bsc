@@ -1,4 +1,4 @@
-REM SPI slave simplex RX-only example
+REM SPI slave simplex RX-only example. Works in pair with spimss.bsc
 
 DIM L AS BYTE
 DIM STATIC DATA(254) AS BYTE

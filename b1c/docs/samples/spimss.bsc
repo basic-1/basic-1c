@@ -1,4 +1,4 @@
-REM SPI master simplex TX-only example
+REM SPI master simplex TX-only example. Works in pair with spisls.bsc
 
 ' enable UART (8N1 9600 baud)
 IOCTL UART, ENABLE

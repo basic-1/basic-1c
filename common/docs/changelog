@@ -1,3 +1,16 @@
+b1c (1.0.0-25) unstable; urgency=low
+
+  * optimizations and bugfixes
+  * more SPI examples
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Mon, 01 Apr 2024 18:11:38 +0300
+
+b1c (1.0.0-24) unstable; urgency=low
+
+  * updated distr scripts
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Thu, 28 Mar 2024 20:07:54 +0300
+
 b1c (1.0.0-23) unstable; urgency=low
 
   * use MOV instruction in variable assignment operations if possible
