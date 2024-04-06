@@ -1,3 +1,9 @@
+b1c (1.0.0-26) unstable; urgency=low
+
+  * simple asm code optimizer implemented
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Sat, 06 Apr 2024 10:24:07 +0300
+
 b1c (1.0.0-25) unstable; urgency=low
 
   * optimizations and bugfixes

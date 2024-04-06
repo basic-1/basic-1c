@@ -43,8 +43,8 @@ inline LVT &operator |=(LVT &lhs, LVT rhs)
 inline bool operator &(LVT lhs, LVT rhs)
 {
 	using T = std::underlying_type_t<LVT>;
-	LVT bit_and = static_cast<LVT>(static_cast<T>(lhs) & static_cast<T>(rhs));
-	return (bit_and == rhs) || (bit_and == lhs);
+	auto bit_and = static_cast<T>(lhs) & static_cast<T>(rhs);
+	return (bit_and != 0);
 }
 
 
@@ -65,17 +65,24 @@ public:
 	std::wstring _comment;
 	bool _volatile;
 
+	bool _parsed;
+	std::wstring _op;
+	std::vector<std::wstring> _args;
+
 	B1_ASM_OP(AOT type, const std::wstring &data, const std::wstring &comment, bool is_volatile)
 	: _type(type)
 	, _data(data)
 	, _comment(comment)
 	, _volatile(is_volatile)
+	, _parsed(false)
 	{
 	}
+
+	bool Parse();
 };
 
 
-class B1_ASM_OPS: public std::vector<B1_ASM_OP>
+class B1_ASM_OPS: public std::list<B1_ASM_OP>
 {
 private:
 	std::wstring _comment;
@@ -257,6 +264,7 @@ private:
 	bool is_udef_or_var_used(const B1_CMP_CMD &cmd, std::set<std::wstring> &vars_to_free);
 	C1STM8_T_ERROR write_ioctl(std::list<B1_CMP_CMD>::const_iterator &cmd_it);
 	C1STM8_T_ERROR write_code_sec(bool code_init);
+	std::wstring correct_SP_offset(const std::wstring &arg, int32_t op_size, bool &no_SP_off, int32_t *offset = nullptr);
 
 
 public:
@@ -271,6 +279,8 @@ public:
 	C1STM8_T_ERROR WriteCodeInitBegin();
 	C1STM8_T_ERROR WriteCodeInitDAT();
 	C1STM8_T_ERROR WriteCodeInitEnd();
+	C1STM8_T_ERROR Optimize1(bool &changed);
+	C1STM8_T_ERROR Optimize2(bool &changed);
 	C1STM8_T_ERROR Save(const std::string &file_name);
 
 	C1STM8_T_ERROR GetUndefinedSymbols(std::set<std::wstring> &symbols);

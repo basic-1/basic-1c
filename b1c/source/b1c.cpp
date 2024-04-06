@@ -9756,7 +9756,6 @@ int main(int argc, char **argv)
 	int retcode = 0;
 	bool print_err_desc = false;
 	bool print_version = false;
-	bool no_opt = false;
 	bool no_comp = false;
 	bool no_asm = false;
 	bool out_src_lines = false;
@@ -9944,7 +9943,7 @@ int main(int argc, char **argv)
 			(argv[i][2] == 'O' || argv[i][2] == 'o') &&
 			argv[i][3] == 0)
 		{
-			no_opt = true;
+			args = args + " -no";
 			continue;
 		}
 
@@ -10325,7 +10324,7 @@ int main(int argc, char **argv)
 	}
 
 
-	B1Compiler b1c(no_opt, out_src_lines);
+	B1Compiler b1c(false, out_src_lines);
 
 	// load program files
 	B1C_T_ERROR err = b1c.Load(src_files);

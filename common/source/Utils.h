@@ -54,6 +54,8 @@ public:
 	static std::wstring str_ltrim(const std::wstring &str, const std::wstring &del);
 	[[nodiscard]]
 	static std::wstring str_rtrim(const std::wstring &str, const std::wstring &del);
+	[[nodiscard]]
+	static std::wstring str_delspaces(const std::wstring &str);
 
 	[[nodiscard]]
 	static std::string str_trim(const std::string &str);
@@ -69,8 +71,11 @@ public:
 
 	[[nodiscard]]
 	static std::wstring str_tohex16(uint32_t n);
+	[[nodiscard]]
+	static std::wstring str_tohex32(int32_t n);
 
-	static size_t str_split(const std::wstring &str, const std::wstring &del, std::vector<std::wstring> &out_strs);
+	static size_t str_split(const std::wstring &str, const std::wstring &del, std::vector<std::wstring> &out_strs, bool include_dels = false);
+	static size_t str_split(const std::wstring &str, const std::vector<wchar_t> &dels, std::vector<std::wstring> &out_strs, bool include_dels = false);
 
 	[[nodiscard]]
 	static std::wstring get_type_name(B1Types type);

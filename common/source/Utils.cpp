@@ -259,6 +259,20 @@ std::wstring Utils::str_rtrim(const std::wstring &str, const std::wstring &del)
 	return std::wstring(b, e);
 }
 
+std::wstring Utils::str_delspaces(const std::wstring &str)
+{
+	std::wstring res;
+
+	for(auto c: str)
+	{
+		if(!std::iswspace(c))
+		{
+			res += c;
+		}
+	}
+	return res;
+}
+
 std::string Utils::str_trim(const std::string &str)
 {
 	auto b = str.begin();
@@ -324,15 +338,57 @@ std::wstring Utils::str_tohex16(uint32_t n)
 	return ss.str();
 }
 
-size_t Utils::str_split(const std::wstring &str, const std::wstring &del, std::vector<std::wstring> &out_strs)
+std::wstring Utils::str_tohex32(int32_t n)
+{
+	std::wostringstream ss;
+	ss << L"0x" << std::hex << n;
+	return ss.str();
+}
+
+size_t Utils::str_split(const std::wstring &str, const std::wstring &del, std::vector<std::wstring> &out_strs, bool include_dels /*= false*/)
 {
 	size_t prev = 0;
+
+	if(str.empty())
+	{
+		return 0;
+	}
+
 	auto pos = str.find(del);
 	while(pos != str.npos)
 	{
 		out_strs.push_back(str.substr(prev, pos - prev));
+		if(include_dels)
+		{
+			out_strs.push_back(del);
+		}
 		prev = pos + del.length();
 		pos = str.find(del, prev);
+	}
+	out_strs.push_back(str.substr(prev));
+	return out_strs.size();
+}
+
+size_t Utils::str_split(const std::wstring &str, const std::vector<wchar_t> &dels, std::vector<std::wstring> &out_strs, bool include_dels /*= false*/)
+{
+	size_t prev = 0;
+
+	if(str.empty())
+	{
+		return 0;
+	}
+
+	const std::wstring sdels(dels.cbegin(), dels.cend());
+	auto pos = str.find_first_of(sdels);
+	while(pos != str.npos)
+	{
+		out_strs.push_back(str.substr(prev, pos - prev));
+		if(include_dels)
+		{
+			out_strs.push_back(std::wstring(1, str[pos]));
+		}
+		prev = pos + 1;
+		pos = str.find_first_of(sdels, prev);
 	}
 	out_strs.push_back(str.substr(prev));
 	return out_strs.size();
