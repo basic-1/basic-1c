@@ -265,7 +265,7 @@ private:
 	C1STM8_T_ERROR write_ioctl(std::list<B1_CMP_CMD>::const_iterator &cmd_it);
 	C1STM8_T_ERROR write_code_sec(bool code_init);
 	std::wstring correct_SP_offset(const std::wstring &arg, int32_t op_size, bool &no_SP_off, int32_t *offset = nullptr);
-
+	bool is_arithm_op(const std::wstring &op, int32_t &size);
 
 public:
 	C1STM8Compiler() = delete;

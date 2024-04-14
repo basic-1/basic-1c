@@ -1462,18 +1462,11 @@ C1STM8_T_ERROR C1STM8Compiler::check_arg(B1_CMP_ARG &arg)
 				}
 				else
 				{
-					if(v->second.type == B1Types::B1T_UNKNOWN && a->type != B1Types::B1T_UNKNOWN)
+					B1Types com_type;
+					bool comp_types = false;
+					if(B1CUtils::get_com_type(v->second.type, a->type, com_type, comp_types) != B1_RES_OK || !comp_types)
 					{
-						v->second.type = a->type;
-					}
-					else
-					{
-						B1Types com_type;
-						bool comp_types = false;
-						if(B1CUtils::get_com_type(v->second.type, a->type, com_type, comp_types) != B1_RES_OK || !comp_types)
-						{
-							return C1STM8_T_ERROR::C1STM8_RES_EVARTYPMIS;
-						}
+						return C1STM8_T_ERROR::C1STM8_RES_EVARTYPMIS;
 					}
 
 					if(v->second.dim_num != 0)
@@ -1484,18 +1477,11 @@ C1STM8_T_ERROR C1STM8Compiler::check_arg(B1_CMP_ARG &arg)
 			}
 			else
 			{
-				if(ma->second.type == B1Types::B1T_UNKNOWN && a->type != B1Types::B1T_UNKNOWN)
+				B1Types com_type;
+				bool comp_types = false;
+				if(B1CUtils::get_com_type(ma->second.type, a->type, com_type, comp_types) != B1_RES_OK || !comp_types)
 				{
-					ma->second.type = a->type;
-				}
-				else
-				{
-					B1Types com_type;
-					bool comp_types = false;
-					if(B1CUtils::get_com_type(ma->second.type, a->type, com_type, comp_types) != B1_RES_OK || !comp_types)
-					{
-						return C1STM8_T_ERROR::C1STM8_RES_EVARTYPMIS;
-					}
+					return C1STM8_T_ERROR::C1STM8_RES_EVARTYPMIS;
 				}
 
 				if(ma->second.dim_num != 0)
@@ -1572,18 +1558,11 @@ C1STM8_T_ERROR C1STM8Compiler::check_arg(B1_CMP_ARG &arg)
 			}
 			else
 			{
-				if(v->second.type == B1Types::B1T_UNKNOWN && arg[0].type != B1Types::B1T_UNKNOWN)
+				B1Types com_type;
+				bool comp_types = false;
+				if(B1CUtils::get_com_type(v->second.type, arg[0].type, com_type, comp_types) != B1_RES_OK || !comp_types)
 				{
-					v->second.type = arg[0].type;
-				}
-				else
-				{
-					B1Types com_type;
-					bool comp_types = false;
-					if(B1CUtils::get_com_type(v->second.type, arg[0].type, com_type, comp_types) != B1_RES_OK || !comp_types)
-					{
-						return C1STM8_T_ERROR::C1STM8_RES_EVARTYPMIS;
-					}
+					return C1STM8_T_ERROR::C1STM8_RES_EVARTYPMIS;
 				}
 
 				if(v->second.dim_num != arg.size() - 1)
@@ -1594,18 +1573,11 @@ C1STM8_T_ERROR C1STM8Compiler::check_arg(B1_CMP_ARG &arg)
 		}
 		else
 		{
-			if(ma->second.type == B1Types::B1T_UNKNOWN && arg[0].type != B1Types::B1T_UNKNOWN)
+			B1Types com_type;
+			bool comp_types = false;
+			if(B1CUtils::get_com_type(ma->second.type, arg[0].type, com_type, comp_types) != B1_RES_OK || !comp_types)
 			{
-				ma->second.type = arg[0].type;
-			}
-			else
-			{
-				B1Types com_type;
-				bool comp_types = false;
-				if(B1CUtils::get_com_type(ma->second.type, arg[0].type, com_type, comp_types) != B1_RES_OK || !comp_types)
-				{
-					return C1STM8_T_ERROR::C1STM8_RES_EVARTYPMIS;
-				}
+				return C1STM8_T_ERROR::C1STM8_RES_EVARTYPMIS;
 			}
 
 			if(ma->second.dim_num != arg.size() - 1)
@@ -3712,10 +3684,8 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 				return static_cast<C1STM8_T_ERROR>(B1_RES_EWRARGCNT);
 			}
 
-			if(!(req_valtype & LVT::LVT_REG))
+			if(req_valtype & LVT::LVT_MEMREF)
 			{
-				// LVT_MEMREF without alternative, check subscripts (in order not to generate useless
-				// code for them with stm8_arr_offset function call)
 				for(int32_t i = (arg.size() - 2); i >= 0; i--)
 				{
 					if(!B1CUtils::is_imm_val(arg[i + 1].value))
@@ -3729,10 +3699,8 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 		}
 		else
 		{
-			if(!(req_valtype & LVT::LVT_REG))
+			if(req_valtype & LVT::LVT_MEMREF)
 			{
-				// LVT_MEMREF without alternative, impossible for non-static arrays (do not generate
-				// code for subscripts with stm8_arr_offset function call)
 				return C1STM8_T_ERROR::C1STM8_RES_EINTERR;
 			}
 
@@ -4210,6 +4178,19 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 			std::wstring res_val;
 
 			const auto &farg = fn->args[arg_ind];
+
+			// for BYTE type try to use memref
+			if(farg.type == B1Types::B1T_BYTE)
+			{
+				auto err = stm8_load(arg[arg_ind + 1], B1Types::B1T_BYTE, LVT::LVT_MEMREF, nullptr, &res_val);
+				if(err == C1STM8_T_ERROR::C1STM8_RES_OK)
+				{
+					_curr_code_sec->add_op(L"PUSH (" + res_val + L")", false); //3B LONG_ADDRESS
+					_stack_ptr++;
+					args_size++;
+					continue;
+				}
+			}
 
 			auto err = stm8_load(arg[arg_ind + 1], farg.type, LVT::LVT_REG | LVT::LVT_IMMVAL, &lvt, &res_val);
 			if(err != static_cast<C1STM8_T_ERROR>(B1_RES_OK))
@@ -4858,12 +4839,7 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_assign(const B1_CMP_CMD &cmd, bool omit_zero
 		LVT srctype = LVT::LVT_NONE;
 		std::wstring srcval, dstval;
 
-		// try imm. value first
-		auto err = stm8_load(cmd.args[0], B1Types::B1T_BYTE, LVT::LVT_IMMVAL, &srctype, &srcval);
-		if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
-		{
-			err = stm8_load(cmd.args[0], B1Types::B1T_BYTE, LVT::LVT_MEMREF, &srctype, &srcval);
-		}
+		auto err = stm8_load(cmd.args[0], B1Types::B1T_BYTE, LVT::LVT_IMMVAL | LVT::LVT_MEMREF, &srctype, &srcval);
 		if(err == C1STM8_T_ERROR::C1STM8_RES_OK)
 		{
 			err = stm8_load(cmd.args[1], B1Types::B1T_BYTE, LVT::LVT_MEMREF, nullptr, &dstval);
@@ -8510,7 +8486,7 @@ std::wstring C1STM8Compiler::correct_SP_offset(const std::wstring &arg, int32_t 
 		{
 			n -= op_size;
 
-			if(!(n < 0 || n > 255))
+			if(!(n <= 0 || n > 255))
 			{
 				if(offset != nullptr)
 				{
@@ -8525,6 +8501,21 @@ std::wstring C1STM8Compiler::correct_SP_offset(const std::wstring &arg, int32_t 
 	return std::wstring();
 }
 
+bool C1STM8Compiler::is_arithm_op(const std::wstring &op, int32_t &size)
+{
+	if(op == L"LDW" || op == L"ADDW" || op == L"SUBW" || op == L"MUL" || op == L"DIV" || op == L"DIVW" || op == L"INCW" || op == L"DECW" || op == L"NEGW" || op == L"CPLW")
+	{
+		size = 2;
+		return true;
+	}
+	if(op == L"LD" || op == L"ADD" || op == L"SUB" || op == L"ADC" || op == L"SBC" || op == L"INC" || op == L"DEC" || op == L"NEG" || op == L"AND" || op == L"OR" || op == L"XOR" || op == L"CPL" )
+	{
+		size = 1;
+		return true;
+	}
+	return false;
+}
+
 C1STM8_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 {
 	auto i = _code_sec.begin();
@@ -8534,6 +8525,31 @@ C1STM8_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 		if(!i->Parse())
 		{
 			i++;
+			continue;
+		}
+
+		for(auto a = i->_args.cbegin(); a != i->_args.cend(); a++)
+		{
+			auto new_arg =
+				*a == L"(0x0,X)" ? L"(X)" :
+				*a == L"(0x0,Y)" ? L"(Y)" : L"";
+
+			if(new_arg[0] != L'\0')
+			{
+				i->_data = i->_op + L" ";
+				for(auto a1 = i->_args.cbegin(); a1 != i->_args.cend(); a1++)
+				{
+					i->_data += ((a1 == a) ? new_arg : *a1) + L", ";
+				}
+				i->_data.pop_back();
+				i->_data.pop_back();
+				i->_parsed = false;
+				changed = true;
+				break;
+			}
+		}
+		if(!i->_parsed)
+		{
 			continue;
 		}
 
@@ -8619,43 +8635,46 @@ C1STM8_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 			continue;
 		}
 
+		int n1_size = 0;
+		bool n1_arithm_op = is_arithm_op(next1->_op, n1_size);
+
 		if (
 			(((i->_op == L"PUSHW" && i->_args[0] == L"X") || ((i->_op == L"SUBW" || i->_op == L"SUB") && i->_args[0] == L"SP" && i->_args[1] == L"0x2")) &&
-			((next1->_op == L"LDW" || next1->_op == L"ADDW" || next1->_op == L"SUBW" || next1->_op == L"MUL" || next1->_op == L"DIV" || next1->_op == L"DIVW" || next1->_op == L"INCW" || next1->_op == L"DECW" || next1->_op == L"NEGW") && next1->_args[0] == L"X") &&
+			(n1_arithm_op && n1_size == 2 && next1->_args[0] == L"X") &&
 			(next2->_op == L"LDW" && next2->_args[0] == L"(0x1,SP)" && next2->_args[1] == L"X")) ||
 
 			(((i->_op == L"PUSH" && i->_args[0] == L"A") || ((i->_op == L"SUBW" || i->_op == L"SUB") && i->_args[0] == L"SP" && i->_args[1] == L"0x1")) &&
-			((next1->_op == L"LD" || next1->_op == L"ADD" || next1->_op == L"SUB" || next1->_op == L"ADC" || next1->_op == L"SBC" || next1->_op == L"INC" || next1->_op == L"DEC" || next1->_op == L"NEG") && next1->_args[0] == L"A") &&
+			(n1_arithm_op && n1_size == 1 && next1->_args[0] == L"A") &&
 			(next2->_op == L"LD" && next2->_args[0] == L"(0x1,SP)" && next2->_args[1] == L"A"))
 			)
 		{
 			// PUSH/PUSHW A/X or SUBW SP, 1/2
-			// LD/LDW A/X, smth
+			// LD/LDW A/X, <smth>
 			// LD/LDW (0x1, SP), A/X
 			// ->
 			// LD/LDW A/X, smth
 			// PUSH/PUSHW A/X
+
 			bool err = false;
-			int32_t size = (next2->_op == L"LD") ? 1 : 2;
 
 			if(next1->_args.size() > 1)
 			{
 				bool no_SP_off = true;
-				auto new_off = correct_SP_offset(next1->_args[1], size, no_SP_off);
+				auto new_off = correct_SP_offset(next1->_args[1], n1_size, no_SP_off);
 				if(new_off.empty())
 				{
 					err = !no_SP_off;
 				}
 				else
 				{
-					next1->_data = next1->_op + (size == 1 ? L" A, " : L" X, ") + new_off;
+					next1->_data = next1->_op + (n1_size == 1 ? L" A, " : L" X, ") + new_off;
 					next1->_parsed = false;
 				}
 			}
 
 			if(!err)
 			{
-				next2->_data = size == 1 ? L"PUSH A" : L"PUSHW X";
+				next2->_data = n1_size == 1 ? L"PUSH A" : L"PUSHW X";
 				next2->_parsed = false;
 				_code_sec.erase(i);
 				i = next1;
@@ -8664,12 +8683,15 @@ C1STM8_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 			}
 		}
 
+		int i_size = 0;
+		bool i_arithm_op = is_arithm_op(i->_op, i_size);
+
 		if (
-			(((i->_op == L"LDW" && i->_args[0] == L"X" && i->_args[1] != L"Y") || ((i->_op == L"SUBW" || i->_op == L"ADDW" || i->_op == L"INCW" || i->_op == L"DECW" || i->_op == L"DIV" || i->_op == L"DIVW" || i->_op == L"NEGW") && i->_args[0] == L"X")) &&
+			((i_arithm_op && i_size == 2 && i->_args[0] == L"X" && !((i->_op == L"LDW" && i->_args[1] == L"Y") || i->_op == L"MUL")) &&
 			(next1->_op == L"PUSHW" && next1->_args[0] == L"X") &&
 			(next2->_op == L"LDW" && next2->_args[0] == L"X" && next2->_args[1] == L"(0x1,SP)")) ||
 
-			(((i->_op == L"LD" && i->_args[0] == L"A") || ((i->_op == L"SUB" || i->_op == L"ADD" || i->_op == L"INC" || i->_op == L"DEC" || i->_op == L"ADC" || i->_op == L"SBC" || i->_op == L"NEG") && i->_args[0] == L"A")) &&
+			((i_arithm_op && i_size == 1 && i->_args[0] == L"A") &&
 			(next1->_op == L"PUSH" && next1->_args[0] == L"A") &&
 			(next2->_op == L"LD" && next2->_args[0] == L"A" && next2->_args[1] == L"(0x1,SP)"))
 			)
@@ -8682,10 +8704,8 @@ C1STM8_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 			continue;
 		}
 
-		if( ((i->_op == L"PUSHW" && next2->_op == L"POPW") || (i->_op == L"PUSH" && next2->_op == L"POP")) && (i->_args[0] == next2->_args[0] && i->_args[0] != L"CC")&&
-			((next1->_op == L"LD" || next1->_op == L"LDW" || next1->_op == L"ADD" || next1->_op == L"ADDW" || next1->_op == L"SUB" || next1->_op == L"SUBW" || next1->_op == L"MUL" ||
-			next1->_op == L"DIV" || next1->_op == L"DIVW" || next1->_op == L"INC" || next1->_op == L"INCW" || next1->_op == L"DEC" || next1->_op == L"DECW" || next1->_op == L"NEG" || next1->_op == L"NEGW") &&
-			i->_args[0] != next1->_args[0])
+		if( ((i->_op == L"PUSHW" && next2->_op == L"POPW") || (i->_op == L"PUSH" && next2->_op == L"POP")) && (i->_args[0] == next2->_args[0] && i->_args[0] != L"CC") &&
+			(n1_arithm_op && i->_args[0] != next1->_args[0])
 			)
 		{
 			// -PUSH/PUSHW <reg>
@@ -8744,15 +8764,18 @@ C1STM8_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 			continue;
 		}
 
+		int n2_size = 0;
+		bool n2_arithm_op = is_arithm_op(next2->_op, n2_size);
+
 		if (
 			(((i->_op == L"PUSHW" && i->_args[0] == L"X") || ((i->_op == L"SUBW" || i->_op == L"SUB") && i->_args[0] == L"SP" && i->_args[1] == L"0x2")) &&
 			(next1->_op == L"LDW" && next1->_args[0] == L"X") &&
-			((next2->_op == L"ADDW" || next2->_op == L"SUBW" || next2->_op == L"DIV" || next2->_op == L"DIVW" || next2->_op == L"INCW" || next2->_op == L"DECW" || next2->_op == L"NEGW") && next2->_args[0] == L"X") &&
+			(n2_arithm_op && n2_size == 2 && next2->_op != L"MUL" && next2->_args[0] == L"X") &&
 			(next3->_op == L"LDW" && next3->_args[0] == L"(0x1,SP)" && next3->_args[1] == L"X")) ||
 
 			(((i->_op == L"PUSH" && i->_args[0] == L"A") || ((i->_op == L"SUBW" || i->_op == L"SUB") && i->_args[0] == L"SP" && i->_args[1] == L"0x1")) &&
 			(next1->_op == L"LD" && next1->_args[0] == L"A") &&
-			((next2->_op == L"ADD" || next2->_op == L"SUB" || next2->_op == L"ADC" || next2->_op == L"SBC" || next2->_op == L"INC" || next2->_op == L"DEC" || next2->_op == L"NEG") && next2->_args[0] == L"A") &&
+			(n2_arithm_op && n2_size == 1 && next2->_args[0] == L"A") &&
 			(next3->_op == L"LD" && next3->_args[0] == L"(0x1,SP)" && next3->_args[1] == L"A"))
 			)
 		{
@@ -8858,7 +8881,7 @@ C1STM8_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 
 	while(i != _code_sec.end())
 	{
-		if(!i->Parse())
+		if (!i->Parse())
 		{
 			i++;
 			continue;
@@ -8872,7 +8895,7 @@ C1STM8_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 			continue;
 		}
 
-		if(	((i->_op == L"PUSH" && i->_args[0] == L"A") || i->_op == L"PUSHW" || ((i->_op == L"ADD" || i->_op == L"ADDW" || i->_op == L"SUB" || i->_op == L"SUBW") && i->_args[0] == L"SP")) &&
+		if (((i->_op == L"PUSH" && i->_args[0] == L"A") || i->_op == L"PUSHW" || ((i->_op == L"ADD" || i->_op == L"ADDW" || i->_op == L"SUB" || i->_op == L"SUBW") && i->_args[0] == L"SP")) &&
 			(((next1->_op == L"ADD" || next1->_op == L"ADDW" || next1->_op == L"SUB" || next1->_op == L"SUBW") && next1->_args[0] == L"SP"))
 			)
 		{
@@ -8971,11 +8994,11 @@ C1STM8_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 			}
 		}
 
-		if (((i->_op == L"PUSHW") &&
+		if( ((i->_op == L"PUSHW") &&
 			(next1->_op == L"LDW" && next1->_args[0] == i->_args[0] && next1->_args[1] == L"(0x1,SP)")) ||
 
 			((i->_op == L"PUSH" && i->_args[0] == L"A") &&
-			(next1->_op == L"LD" && next1->_args[0] == L"A" && next1->_args[1] == L"(0x1,SP)"))
+				(next1->_op == L"LD" && next1->_args[0] == L"A" && next1->_args[1] == L"(0x1,SP)"))
 			)
 		{
 			// PUSH/PUSHW <reg>
@@ -9030,22 +9053,25 @@ C1STM8_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 			}
 		}
 
-		if(!next1->_volatile && (i->_op == L"LDW" || i->_op == L"ADDW" || i->_op == L"SUBW" || i->_op == L"DIV" || i->_op == L"DIVW" || i->_op == L"INCW" || i->_op == L"DECW" || i->_op == L"NEGW") && next1->_op == L"TNZW" && i->_args[0] == next1->_args[0])
+		int i_size = 0;
+		bool i_arithm_op = is_arithm_op(i->_op, i_size);
+
+		if(!next1->_volatile && i_arithm_op && i_size == 2 && i->_op != L"MUL" && next1->_op == L"TNZW" && i->_args[0] == next1->_args[0])
 		{
 			// LDW X, smth not reg
 			// -TNZW X
-			if(!(i->_op == L"LDW" && (i->_args[1] == L"X" || i->_args[1] == L"Y")))
+			if (!(i->_op == L"LDW" && (i->_args[1] == L"X" || i->_args[1] == L"Y")))
 			{
 				_code_sec.erase(next1);
 				changed = true;
 				continue;
 			}
 		}
-		if(!next1->_volatile && (i->_op == L"LD" || i->_op == L"ADD" || i->_op == L"SUB" || i->_op == L"ADC" || i->_op == L"SBC" || i->_op == L"INC" || i->_op == L"DEC" || i->_op == L"NEG") && next1->_op == L"TNZ" && i->_args[0] == next1->_args[0])
+		if(!next1->_volatile && i_arithm_op && i_size == 1 && next1->_op == L"TNZ" && i->_args[0] == next1->_args[0])
 		{
 			// LD A, smth not reg
 			// -TNZ A
-			if(!(i->_op == L"LD" && (i->_args[1] == L"XL" || i->_args[1] == L"YL" || i->_args[1] == L"XH" || i->_args[1] == L"YH")))
+			if (!(i->_op == L"LD" && (i->_args[1] == L"XL" || i->_args[1] == L"YL" || i->_args[1] == L"XH" || i->_args[1] == L"YH")))
 			{
 				_code_sec.erase(next1);
 				changed = true;
@@ -9060,12 +9086,13 @@ C1STM8_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 			continue;
 		}
 
+		int n1_size = 0;
+		bool n1_arithm_op = is_arithm_op(next1->_op, n1_size);
+
 		if(
 			((i->_op == L"LDW" || i->_op == L"LD") && (i->_op == next2->_op) && (i->_args == next2->_args) && (i->_args[1] == L"X" || i->_args[1] == L"A" || i->_args[1] == L"Y")) &&
 			(next1->_type == AOT::AOT_LABEL ||
-			(((next1->_op == L"LDW" || next1->_op == L"ADDW" || next1->_op == L"SUBW" || next1->_op == L"DIV" || next1->_op == L"DIVW" || next1->_op == L"MUL" || next1->_op == L"INCW" || next1->_op == L"DECW" || next1->_op == L"NEGW") ||
-			(next1->_op == L"LD" || next1->_op == L"ADD" || next1->_op == L"SUB" || next1->_op == L"INC" || next1->_op == L"DEC" || next1->_op == L"NEG")) &&
-			(next1->_args[0] == L"X" || next1->_args[0] == L"A" || next1->_args[0] == L"Y")))
+				(n1_arithm_op && (next1->_args[0] == L"X" || next1->_args[0] == L"A" || next1->_args[0] == L"Y")))
 			)
 		{
 			// -LDW (0x1, SP), <reg1>
@@ -9080,6 +9107,116 @@ C1STM8_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 			}
 		}
 
+		if(
+			(i->_op == L"LD" && i->_args[0] == L"A" && next2->_op == L"LD" && i->_args[1] == next2->_args[0]) &&
+				(
+				((next1->_op == L"ADD" || next1->_op == L"SUB") && next1->_args[1] == L"0x1") ||
+				((next1->_op == L"INC" || next1->_op == L"DEC" || next1->_op == L"NEG" || next1->_op == L"CPL") && next1->_args[0] == L"A") ||
+				((next1->_op == L"AND" || next1->_op == L"OR" || next1->_op == L"XOR") && i->_args[1][0] == L'(' && i->_args[1][0] != L'[' && i->_args[1].find(L',') == std::wstring::npos && i->_args[1] != L"(X)" && i->_args[1] != L"(Y)")
+				)
+			)
+		{
+			// LD A, (...)
+			// ADD A, 1  or INC A
+			// LD (...), A
+			// ->
+			// INC (...)
+			// or
+			// LD A, (<mem>)
+			// AND/OR/XOR A, 2^n
+			// LD (<mem>), A
+			// ->
+			// BRES/BSET/BCPL (<mem>), n
+
+			bool proceed = true;
+
+			if(next1->_op == L"ADD" || next1->_op == L"INC")
+			{
+				i->_data = L"INC " + i->_args[1];
+			}
+			else
+			if(next1->_op == L"SUB" || next1->_op == L"DEC")
+			{
+				i->_data = L"DEC " + i->_args[1];
+			}
+			else
+			if(next1->_op == L"NEG" || next1->_op == L"CPL")
+			{
+				i->_data = next1->_op + L" " + i->_args[1];
+			}
+			else
+			{
+				int32_t n = 0;
+				int bpos = -1;
+
+				if(Utils::str2int32(next1->_args[1], n) == B1_RES_OK)
+				{
+					if(next1->_op == L"AND")
+					{
+						n = ~n;
+					}
+					n = n & 0xFF;
+
+					for(int i = 0; i < 8; i++)
+					{
+						if(n % 2 == 1)
+						{
+							if(bpos < 0)
+							{
+								bpos = i;
+							}
+							else
+							{
+								bpos = -1;
+								break;
+							}
+						}
+						n >>= 1;
+					}
+				}
+
+				if(bpos >= 0)
+				{
+					i->_data =	(next1->_op == L"AND")	? L"BRES " :
+								(next1->_op == L"OR")	? L"BSET " : L"BCPL ";
+					i->_data += i->_args[1] + L", " + Utils::str_tohex16(bpos);
+				}
+				else
+				{
+					proceed = false;
+				}
+			}
+
+			if(proceed)
+			{
+				i->_parsed = false;
+				_code_sec.erase(next1);
+				_code_sec.erase(next2);
+				changed = true;
+				continue;
+			}
+		}
+
+		if (!i->_volatile &&
+			(((i->_op == L"LD" && next1->_op == L"LD") && (next2->_op == L"ADD" || next2->_op == L"AND" || next2->_op == L"OR" || next2->_op == L"XOR")) ||
+				((i->_op == L"LDW" && next1->_op == L"LDW") && (next2->_op == L"ADDW") &&
+					next1->_args[1] != L"(X)" && next1->_args[1] != L"(Y)" && next1->_args[1].front() != L'[' &&
+					next1->_args[1].find(L",X)") == std::wstring::npos && next1->_args[1].find(L",Y)") == std::wstring::npos)) &&
+			(i->_args[0] == next2->_args[1])
+			)
+		{
+			// LD/LDW (0x1, SP), A/X
+			// LD/LDW A/X, <smth>
+			// ADD/AND/OR/XOR/ADDW A/X, (0x1, SP)
+			// ->
+			// LD/LDW (0x1, SP), A/X
+			// ADD/AND/OR/XOR/ADDW A/X, <smth>
+			next2->_data = next2->_op + L" " + next2->_args[0] + L", " + next1->_args[1];
+			next2->_parsed = false;
+			_code_sec.erase(next1);
+			changed = true;
+			continue;
+		}
 
 		auto next3 = std::next(next2);
 		if(next3 == _code_sec.end() || !next3->Parse())
@@ -9088,6 +9225,247 @@ C1STM8_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 			continue;
 		}
 
+		if (
+			((((i->_op == L"PUSH" && next1->_op == L"LD" && (next3->_op == L"ADD" || next3->_op == L"ADDW")) && (next2->_op == L"ADD" || next2->_op == L"AND" || next2->_op == L"OR" || next2->_op == L"XOR")) &&
+			(next1->_args[1].find(L",SP)") != std::wstring::npos && next2->_args[1] == L"(0x1,SP)") &&
+			(i->_args[0] == L"A" && next1->_args[0] == L"A" && next2->_args[0] == L"A" && next3->_args[0] == L"SP"))) ||
+
+			((i->_op == L"PUSHW" && next1->_op == L"LDW" && (next2->_op == L"ADDW" || next2->_op == L"SUBW") && (next3->_op == L"ADDW" || next3->_op == L"ADD")) &&
+			(i->_args[0] == L"X" && next1->_args[0] == L"X" && next2->_args[0] == L"X" && next3->_args[0] == L"SP" && next2->_args[1] == L"(0x1,SP)" && next3->_args[1] == L"0x2") &&
+			(next1->_args[1][0] != L'[' && next1->_args[1].find(L",SP)") == std::wstring::npos && next1->_args[1].find(L",X)") == std::wstring::npos && next1->_args[1] != L"(X)"))
+			)
+		{
+			// PUSH A
+			// LD A, (0x3, SP)
+			// AND/ADD/OR/XOR A, (1, SP)
+			// ADDW SP, 1
+			// ->
+			// AND/ADD/OR/XOR A, (2, SP)
+			// or
+			// PUSHW X
+			// LDW X, 100
+			// ADDW X, (0x1, SP)
+			// ADDW SP, 2
+			// ->
+			// ADDW X, 100
+			// or
+			// PUSHW X
+			// LDW X, 100
+			// SUBW X, (0x1, SP)
+			// ADDW SP, 2
+			// ->
+			// NEGW X
+			// ADDW X, 100
+
+			if(i->_op == L"PUSH")
+			{
+				int32_t n;
+				if(Utils::str2int32(next3->_args[1], n) == B1_RES_OK)
+				{
+					if(n > 0 && n <= 255)
+					{
+						bool no_SP_off;
+						auto new_off = correct_SP_offset(next1->_args[1], 1, no_SP_off);
+
+						if(!new_off.empty())
+						{
+							_code_sec.erase(i);
+							_code_sec.erase(next1);
+							next2->_data = next2->_op + L" A, " + new_off;
+							next2->_parsed = false;
+							if(n == 1)
+							{
+								_code_sec.erase(next3);
+							}
+							else
+							{
+								next3->_data = L"ADDW SP, " + Utils::str_tohex16(n - 1);
+								next3->_parsed = false;
+							}
+
+							i = next2;
+
+							changed = true;
+							continue;
+						}
+					}
+				}
+			}
+			else
+			{
+				if(next2->_op == L"ADDW")
+				{
+					_code_sec.erase(i);
+					i = next1;
+				}
+				else
+				{
+					i->_data = L"NEGW X";
+					i->_parsed = false;
+				}
+				next1->_data = L"ADDW X, " + next1->_args[1];
+				next1->_parsed = false;
+				_code_sec.erase(next2);
+				_code_sec.erase(next3);
+				changed = true;
+				continue;
+			}
+		}
+
+		int n2_size = 0;
+		bool n2_arithm_op = is_arithm_op(next2->_op, n2_size);
+
+		if (
+			((next3->_op == L"ADD" || next3->_op == L"ADDW") && next3->_args[0] == L"SP" && ((i->_op == L"PUSH" && next3->_args[1] == L"0x1") || (i->_op == L"PUSHW" && next3->_args[1] == L"0x2"))) &&
+			(n1_arithm_op && n2_arithm_op)
+			)
+		{
+			// PUSH A or PUSHW X/Y
+			// AND A, 0x20
+			// LD (4096), A
+			// ADDW SP, 0x1 or ADDW SP, 0x2
+			// ->
+			// AND A, 0x20
+			// LD (4096), A
+
+			bool no_SP_off_n1_0 = true;
+			auto new_off_n1_0 = correct_SP_offset(next1->_args[0], n1_size, no_SP_off_n1_0);
+			bool no_SP_off_n1_1 = true;
+			auto new_off_n1_1 = (next1->_args.size() > 1) ? correct_SP_offset(next1->_args[1], n1_size, no_SP_off_n1_1) : std::wstring();
+
+			bool no_SP_off_n2_0 = true;
+			auto new_off_n2_0 = correct_SP_offset(next2->_args[0], n2_size, no_SP_off_n2_0);
+			bool no_SP_off_n2_1 = true;
+			auto new_off_n2_1 = (next2->_args.size() > 1) ? correct_SP_offset(next2->_args[1], n2_size, no_SP_off_n2_1) : std::wstring();
+
+			if(!((!no_SP_off_n1_0 && new_off_n1_0.empty()) || (!no_SP_off_n1_1 && new_off_n1_1.empty()) || (!no_SP_off_n2_0 && new_off_n2_0.empty()) || (!no_SP_off_n2_1 && new_off_n2_1.empty())))
+			{
+				if(!new_off_n1_0.empty() || !new_off_n1_1.empty())
+				{
+					new_off_n1_0 = new_off_n1_0.empty() ? next1->_args[0] : new_off_n1_0;
+					next1->_data = next1->_op + L" " + new_off_n1_0;
+					if(next1->_args.size() > 1)
+					{
+						new_off_n1_1 = new_off_n1_1.empty() ? next1->_args[1] : new_off_n1_1;
+						next1->_data += L", " + new_off_n1_1;
+					}
+					next1->_parsed = false;
+				}
+
+				if(!new_off_n2_0.empty() || !new_off_n2_1.empty())
+				{
+					new_off_n2_0 = new_off_n2_0.empty() ? next2->_args[0] : new_off_n2_0;
+					next2->_data = next2->_op + L" " + new_off_n2_0;
+					if(next2->_args.size() > 1)
+					{
+						new_off_n2_1 = new_off_n2_1.empty() ? next2->_args[1] : new_off_n2_1;
+						next2->_data += L", " + new_off_n2_1;
+					}
+					next2->_parsed = false;
+				}
+
+				_code_sec.erase(i);
+				_code_sec.erase(next3);
+				i = next1;
+
+				changed = true;
+				continue;
+			}
+		}
+
+		if(
+			(i->_op == L"LDW" && next1->_op == L"LDW" && next2->_op == L"LDW" && next3->_op == L"LDW") &&
+			(i->_args[0] == L"X" && next1->_args[0] == L"Y" && next1->_args[1] == L"X" && next2->_args[0] == L"X" && next3->_args[1] == L"Y") &&
+			(next2->_args[1].front() == L'(' && next2->_args[1].find(L",X)") == std::wstring::npos && next2->_args[1].find(L",SP)") == std::wstring::npos) &&
+			(next3->_args[0].size() >= 3 && next3->_args[0][1] != L'[' && (next3->_args[0] == L"(X)" || next3->_args[0].find(L",X)") != std::wstring::npos))
+			)
+		{
+			// LDW X, <smth>
+			// LDW Y, X
+			// LDW X, (NS1::__VAR_C)
+			// LDW (0x4, X), Y or LDW (X), Y
+			// ->
+			// LDW X, 0x4
+			// LDW Y, <smth>
+			// LDW ([NS1::__VAR_C], X), Y
+			// or
+			// LDW X, <smth>
+			// LDW [NS1::__VAR_C], X
+
+			const auto smth = i->_args[1];
+			const auto addr = next2->_args[1].substr(1, next2->_args[1].length() - 2);
+
+			if(next3->_args[0] == L"(X)")
+			{
+				next1->_data = L"LDW [" + addr + L"], X";
+				next1->_parsed = false;
+				_code_sec.erase(next2);
+				_code_sec.erase(next3);
+				changed = true;
+				continue;
+			}
+			else
+			{
+				// no LDW Y, (X) and LDW Y, (offset, X) instructions
+				if(smth != L"(X)" && smth.find(L",X)") == std::wstring::npos)
+				{
+					i->_data = L"LDW X, " + next3->_args[0].substr(1, next3->_args[0].length() - 4);
+					i->_parsed = false;
+					next1->_data = L"LDW Y, " + smth;
+					next1->_parsed = false;
+					next2->_data = L"LDW ([" + addr + L"], X), Y";
+					next2->_parsed = false;
+					_code_sec.erase(next3);
+					changed = true;
+					continue;
+				}
+			}
+		}
+
+		if(
+			(i->_op == L"POPW" && next1->_op == L"LDW" && next2->_op == L"LDW" && next3->_op == L"LDW") &&
+			(i->_args[0] == L"X" && next1->_args[0] == L"X" && next1->_args[1] == L"(X)" && next2->_args[0] == L"Y" && next2->_args[1] == L"X" && next3->_args[0] == L"X")
+			)
+		{
+			// POPW X
+			// LDW X, (X)
+			// LDW Y, X
+			// LDW X, <smth>
+			// ->
+			// POPW Y
+			// LDW Y, (Y)
+			// LDW X, <smth>
+			i->_data = L"POPW Y";
+			i->_parsed = false;
+			next1->_data = L"LDW Y, (Y)";
+			next1->_parsed = false;
+			_code_sec.erase(next2);
+			changed = true;
+			continue;
+		}
+
+		if(
+			(i->_op == L"POPW" && next1->_op == L"LDW" && next2->_op == L"LDW" && next3->_op == L"LDW") &&
+			(i->_args[0] == L"Y" && next1->_args[0] == L"X" && next1->_args[1].front() == L'(' && next1->_args[1][1] != L'[' &&
+				next1->_args[1].find(L",X)") == std::wstring::npos && next1->_args[1].find(L",SP)") == std::wstring::npos && next2->_args[0] == L"(X)" && next2->_args[1] == L"Y" && next3->_args[0] == L"X")
+			)
+		{
+			// POPW Y
+			// LDW X, (NS1::__VAR_ARR)
+			// LDW (X), Y
+			// LDW X, <smth>
+			// ->
+			// POPW X
+			// LDW [NS1::__VAR_ARR], X
+			// LDW X, <smth>
+			i->_data = L"POPW X";
+			i->_parsed = false;
+			next1->_data = L"LDW [" + next1->_args[1].substr(1, next1->_args[1].length() - 2) + L"], X";
+			next1->_parsed = false;
+			_code_sec.erase(next2);
+			changed = true;
+			continue;
+		}
 
 
 
@@ -9159,7 +9537,6 @@ int main(int argc, char** argv)
 	int32_t heap_size = -1;
 	const std::string target_name = "STM8";
 	bool opt_nocheck = false;
-	bool no_opt = false;
 	std::string args;
 
 
@@ -9298,16 +9675,6 @@ int main(int argc, char** argv)
 			argv[i][3] == 0)
 		{
 			no_asm = true;
-			continue;
-		}
-
-		// disable optimizations
-		if ((argv[i][0] == '-' || argv[i][0] == '/') &&
-			(argv[i][1] == 'N' || argv[i][1] == 'n') &&
-			(argv[i][2] == 'O' || argv[i][2] == 'o') &&
-			argv[i][3] == 0)
-		{
-			no_opt = true;
 			continue;
 		}
 
@@ -9576,7 +9943,6 @@ int main(int argc, char** argv)
 		std::fputs("-ms or /ms - set small memory model (default)\n", stderr);
 		std::fputs("-mu or /mu - print memory usage\n", stderr);
 		std::fputs("-na or /na - don't run assembler\n", stderr);
-		std::fputs("-no or /no - disable optimizations\n", stderr);
 		std::fputs("-o or /o - output file name, e.g.: -o out.asm\n", stderr);
 		std::fputs("-op or /op - specify option (EXPLICIT, BASE1 or NOCHECK), e.g. -op NOCHECK\n", stderr);
 		std::fputs("-ram_size or /ram_size - specify RAM size, e.g.: -ram_size 0x400\n", stderr);
@@ -9597,6 +9963,7 @@ int main(int argc, char** argv)
 		c1stm8_print_version(stdout);
 		return 0;
 	}
+
 
 	// read settings
 	_global_settings.SetTargetName(target_name);
@@ -9852,33 +10219,29 @@ int main(int argc, char** argv)
 		return retcode;
 	}
 
-	if(!no_opt)
+	bool changed = true;
+	while(changed)
 	{
-		bool changed = true;
-		while(changed)
+		changed = false;
+
+		err = c1stm8.Optimize1(changed);
+		if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 		{
-			changed = false;
+			c1stm8_print_warnings(c1stm8.GetWarnings());
+			c1stm8_print_error(err, -1, "", print_err_desc);
+			retcode = 14;
+			return retcode;
+		}
 
-			err = c1stm8.Optimize1(changed);
-			if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
-			{
-				c1stm8_print_warnings(c1stm8.GetWarnings());
-				c1stm8_print_error(err, -1, "", print_err_desc);
-				retcode = 14;
-				return retcode;
-			}
-
-			err = c1stm8.Optimize2(changed);
-			if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
-			{
-				c1stm8_print_warnings(c1stm8.GetWarnings());
-				c1stm8_print_error(err, -1, "", print_err_desc);
-				retcode = 15;
-				return retcode;
-			}
+		err = c1stm8.Optimize2(changed);
+		if (err != C1STM8_T_ERROR::C1STM8_RES_OK)
+		{
+			c1stm8_print_warnings(c1stm8.GetWarnings());
+			c1stm8_print_error(err, -1, "", print_err_desc);
+			retcode = 15;
+			return retcode;
 		}
 	}
-
 	err = c1stm8.Save(ofn);
 	if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 	{
