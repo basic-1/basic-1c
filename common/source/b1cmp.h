@@ -238,6 +238,7 @@ public:
 	B1Types type;
 	int32_t size;				// variable size in bytes (sengle element size for subscripted variable)
 	bool is_volatile;			// volatile variable
+	bool is_const;				// constant variable
 	int32_t dim_num;			// dimensions count (0 for simple variable)
 	bool use_symbol;			// use symbolic name instead of address (address is unknown on this stage)
 	int32_t address;			// variable address
@@ -249,5 +250,5 @@ public:
 	int32_t src_file_id;
 
 	B1_CMP_VAR();
-	B1_CMP_VAR(const std::wstring &nm, const B1Types tp, int32_t dn, bool vlt, int32_t sfid, int32_t slc);
+	B1_CMP_VAR(const std::wstring &nm, const B1Types tp, int32_t dn, bool vlt, bool cnst, int32_t sfid, int32_t slc);
 };

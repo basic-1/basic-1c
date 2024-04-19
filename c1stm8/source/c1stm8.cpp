@@ -854,7 +854,7 @@ C1STM8_T_ERROR C1STM8Compiler::load_next_command(const std::wstring &line, const
 
 			bool is_static = false;
 
-			// read optional type modifiers (V - stands for volatile, S - static)
+			// read optional type modifiers (V - stands for volatile, S - static, C - const)
 			if(offset != std::wstring::npos && line[offset - 1] == L'(')
 			{
 				sval = Utils::str_trim(get_next_value(line, L")", offset));
@@ -869,9 +869,16 @@ C1STM8_T_ERROR C1STM8Compiler::load_next_command(const std::wstring &line, const
 				lpos = sval.find(L'S');
 				if(lpos != std::wstring::npos)
 				{
-					// here tv.value already contains variable name
+					// here tv.value already contains variable name (for GA stmt)
 					is_static = true;
-					cmd = L"MA";
+					sval.erase(lpos, 1);
+				}
+				lpos = sval.find(L'C');
+				if(lpos != std::wstring::npos)
+				{
+					// here tv.value already contains variable name (for GA stmt)
+					is_static = true;
+					type_mod += L'C';
 					sval.erase(lpos, 1);
 				}
 
@@ -895,19 +902,25 @@ C1STM8_T_ERROR C1STM8Compiler::load_next_command(const std::wstring &line, const
 			// read var. address
 			if(cmd == L"MA")
 			{
-				if(!is_static)
+				err = get_simple_arg(line, tv, offset);
+				if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
 				{
-					err = get_simple_arg(line, tv, offset);
-					if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
-					{
-						return err;
-					}
-					if(!Utils::check_const_name(tv.value) && !check_address(tv.value))
-					{
-						return static_cast<C1STM8_T_ERROR>(B1_RES_EINVNUM);
-					}
+					return err;
 				}
-				// for static variable save its name as address
+				if(!Utils::check_const_name(tv.value) && !check_address(tv.value))
+				{
+					return static_cast<C1STM8_T_ERROR>(B1_RES_EINVNUM);
+				}
+			}
+			else
+			if(is_static)
+			{
+				// turn static GA stmt into MA with variable name as address
+				cmd = L"MA";
+			}
+
+			if(cmd == L"MA")
+			{
 				args.push_back(tv.value);
 			}
 
@@ -1457,7 +1470,7 @@ C1STM8_T_ERROR C1STM8Compiler::check_arg(B1_CMP_ARG &arg)
 							_vars_order.push_back(a->value);
 						}
 						
-						_vars[a->value] = B1_CMP_VAR(a->value, a->type, 0, false, _curr_src_file_id, _curr_line_cnt);
+						_vars[a->value] = B1_CMP_VAR(a->value, a->type, 0, false, false, _curr_src_file_id, _curr_line_cnt);
 					}
 				}
 				else
@@ -1553,7 +1566,7 @@ C1STM8_T_ERROR C1STM8Compiler::check_arg(B1_CMP_ARG &arg)
 						_vars_order.push_back(arg[0].value);
 					}
 
-					_vars[arg[0].value] = B1_CMP_VAR(arg[0].value, arg[0].type, arg.size() - 1, false, _curr_src_file_id, _curr_line_cnt);
+					_vars[arg[0].value] = B1_CMP_VAR(arg[0].value, arg[0].type, arg.size() - 1, false, false, _curr_src_file_id, _curr_line_cnt);
 				}
 			}
 			else
@@ -1662,7 +1675,7 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_locals()
 				return C1STM8_T_ERROR::C1STM8_RES_ELCLREDEF;
 			}
 
-			_locals[cmd.args[0][0].value] = B1_CMP_VAR(cmd.args[0][0].value, cmd.args[1][0].type, 0, false, _curr_src_file_id, _curr_line_cnt);
+			_locals[cmd.args[0][0].value] = B1_CMP_VAR(cmd.args[0][0].value, cmd.args[1][0].type, 0, false, false, _curr_src_file_id, _curr_line_cnt);
 		}
 	}
 
@@ -1726,6 +1739,7 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 			int32_t dims_off = is_ma ? 3 : 2;
 			int32_t dims = cmd.args.size() - dims_off;
 			bool is_volatile = (cmd.args[1].size() > 1) && (cmd.args[1][1].value.find(L'V') != std::wstring::npos);
+			bool is_const = (cmd.args[1].size() > 1) && (cmd.args[1][1].value.find(L'C') != std::wstring::npos);
 
 			if(is_ma)
 			{
@@ -1756,7 +1770,7 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 
 			if(v == vars.end())
 			{
-				vars[vname] = B1_CMP_VAR(vname, vtype, dims / 2, is_volatile, _curr_src_file_id, _curr_line_cnt);
+				vars[vname] = B1_CMP_VAR(vname, vtype, dims / 2, is_volatile, is_const, _curr_src_file_id, _curr_line_cnt);
 				v = vars.find(vname);
 
 				if(is_ma)
@@ -1819,11 +1833,12 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 				}
 				v->second.dim_num = dims / 2;
 
-				if(v->second.type != B1Types::B1T_UNKNOWN && v->second.is_volatile != is_volatile)
+				if(v->second.type != B1Types::B1T_UNKNOWN && ((v->second.is_volatile != is_volatile) || (v->second.is_const != is_const)))
 				{
 					return C1STM8_T_ERROR::C1STM8_RES_EVARTYPMIS;
 				}
 				v->second.is_volatile = is_volatile;
+				v->second.is_const = is_const;
 			}
 
 			for(auto a = cmd.args.begin() + dims_off; a != cmd.args.end(); a++)
@@ -1894,7 +1909,7 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 					_vars_order_set.insert(vname);
 					_vars_order.push_back(vname);
 				}
-				_vars[vname] = B1_CMP_VAR(vname, B1Types::B1T_UNKNOWN, 0, false, _curr_src_file_id, _curr_line_cnt);
+				_vars[vname] = B1_CMP_VAR(vname, B1Types::B1T_UNKNOWN, 0, false, false, _curr_src_file_id, _curr_line_cnt);
 			}
 
 			continue;
@@ -2023,9 +2038,11 @@ C1STM8_T_ERROR C1STM8Compiler::read_and_check_vars()
 		}
 	}
 
-	// remove mem. references from variables list
+	// remove mem. references from variables list and const variables data from DAT statements init list
 	for(auto &ma: _mem_areas)
 	{
+		_data_stmts_init.erase(ma.first);
+
 		_vars.erase(ma.first);
 
 		// leave static variables only
@@ -2249,6 +2266,12 @@ C1STM8_T_ERROR C1STM8Compiler::write_data_sec()
 		auto v = _mem_areas.find(vn);
 		if(v != _mem_areas.end())
 		{
+			// constant variables are placed in .CONST section
+			if(v->second.is_const)
+			{
+				continue;
+			}
+
 			is_static = true;
 		}
 		else
@@ -2326,10 +2349,17 @@ C1STM8_T_ERROR C1STM8Compiler::write_data_sec()
 		{
 			// namespace
 			std::wstring label = dt.first;
+
+			// no __DAT_PTR variable for const variables data
+			if(_mem_areas.find(label) != _mem_areas.cend())
+			{
+				continue;
+			}
+
 			label = label.empty() ? std::wstring() : (label + L"::");
 
 			label = label + L"__DAT_PTR";
-			B1_CMP_VAR var(label, B1Types::B1T_WORD, 0, false, -1, 0);
+			B1_CMP_VAR var(label, B1Types::B1T_WORD, 0, false, false, -1, 0);
 			B1CUtils::get_asm_type(B1Types::B1T_WORD, nullptr, &var.size);
 			var.address = _data_size;
 			_vars[label] = var;
@@ -2364,9 +2394,21 @@ C1STM8_T_ERROR C1STM8Compiler::write_const_sec()
 		for(auto const &dt: _data_stmts)
 		{
 			bool dat_start = true;
+			bool const_var_data = false;
 
 			std::wstring name_space = dt.first;
-			name_space = name_space.empty() ? std::wstring() : (name_space + L"::");
+
+			const auto &ma = _mem_areas.find(name_space);
+			if(ma != _mem_areas.cend())
+			{
+				const_var_data = true;
+			}
+			else
+			{
+				name_space = name_space.empty() ? std::wstring() : (name_space + L"::");
+			}
+
+			int32_t values_num = 0;
 
 			for(const auto &i: dt.second)
 			{
@@ -2382,23 +2424,34 @@ C1STM8_T_ERROR C1STM8Compiler::write_const_sec()
 
 				if(dat_start)
 				{
-					_const_sec.add_lbl(name_space + L"__DAT_START", false);
-					_all_symbols.insert(name_space + L"__DAT_START");
+					if(const_var_data)
+					{
+						_const_sec.add_lbl(name_space, false);
+						_all_symbols.insert(name_space);
+					}
+					else
+					{
+						_const_sec.add_lbl(name_space + L"__DAT_START", false);
+						_all_symbols.insert(name_space + L"__DAT_START");
+					}
 					dat_start = false;
 				}
 
-				std::wstring dat_label;
-				iterator prev = i;
-				while(prev != begin() && B1CUtils::is_label(*std::prev(prev)))
+				if(!const_var_data)
 				{
-					prev--;
-					if(dat_label.empty())
+					std::wstring dat_label;
+					iterator prev = i;
+					while(prev != begin() && B1CUtils::is_label(*std::prev(prev)))
 					{
-						dat_label = L"__DAT_" + std::to_wstring(_dat_rst_labels.size());
-						_const_sec.add_lbl(dat_label, false);
-						_all_symbols.insert(dat_label);
+						prev--;
+						if(dat_label.empty())
+						{
+							dat_label = L"__DAT_" + std::to_wstring(_dat_rst_labels.size());
+							_const_sec.add_lbl(dat_label, false);
+							_all_symbols.insert(dat_label);
+						}
+						_dat_rst_labels[prev->cmd] = dat_label;
 					}
-					_dat_rst_labels[prev->cmd] = dat_label;
 				}
 
 				bool skip_nmspc = true;
@@ -2433,13 +2486,57 @@ C1STM8_T_ERROR C1STM8Compiler::write_const_sec()
 						int32_t size;
 
 						// store bytes as words (for all types to be 2 bytes long, to simplify READ statement)
-						if(!B1CUtils::get_asm_type(a[0].type == B1Types::B1T_BYTE ? B1Types::B1T_WORD : a[0].type, &asmtype, &size))
+						if(!B1CUtils::get_asm_type((a[0].type == B1Types::B1T_BYTE && !const_var_data) ? B1Types::B1T_WORD : a[0].type, &asmtype, &size))
 						{
 							return C1STM8_T_ERROR::C1STM8_RES_EINVTYPNAME;
 						}
 
 						_const_sec.add_data(asmtype + L" " + a[0].value, false);
 						_const_size += size;
+					}
+
+					values_num++;
+				}
+			}
+
+			if(const_var_data)
+			{
+				int32_t arr_size = 1;
+
+				for(int32_t i = 0; i < ma->second.dim_num; i++)
+				{
+					arr_size *= ma->second.dims[i * 2 + 1] - ma->second.dims[i * 2] + 1;
+				}
+
+				if(arr_size > values_num)
+				{
+					arr_size -= values_num;
+					for(int32_t i = 0; i < arr_size; i++)
+					{
+						if(ma->second.type == B1Types::B1T_STRING)
+						{
+							auto err = process_imm_str_value(B1_CMP_ARG(L"\"\"", B1Types::B1T_STRING));
+							if(err != C1STM8_T_ERROR::C1STM8_RES_OK)
+							{
+								return err;
+							}
+
+							_const_sec.add_data(L"DW " + std::get<0>(_str_labels[L"\"\""]), false);
+							_const_size += 2;
+						}
+						else
+						{
+							std::wstring asmtype;
+							int32_t size;
+
+							if(!B1CUtils::get_asm_type(ma->second.type, &asmtype, &size))
+							{
+								return C1STM8_T_ERROR::C1STM8_RES_EINVTYPNAME;
+							}
+
+							_const_sec.add_data(asmtype + L" 0", false);
+							_const_size += size;
+						}
 					}
 				}
 			}
@@ -3519,6 +3616,11 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_
 		return C1STM8_T_ERROR::C1STM8_RES_OK;
 	}
 
+	if(imm_offset)
+	{
+		return C1STM8_T_ERROR::C1STM8_RES_ENOIMMOFF;
+	}
+
 	if(arg.size() == 2)
 	{
 		// one-dimensional array
@@ -3684,22 +3786,11 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 				return static_cast<C1STM8_T_ERROR>(B1_RES_EWRARGCNT);
 			}
 
-			if(req_valtype & LVT::LVT_MEMREF)
-			{
-				for(int32_t i = (arg.size() - 2); i >= 0; i--)
-				{
-					if(!B1CUtils::is_imm_val(arg[i + 1].value))
-					{
-						return C1STM8_T_ERROR::C1STM8_RES_EINTERR;
-					}
-				}
-			}
-
 			is_volatile = ma->second.is_volatile;
 		}
 		else
 		{
-			if(req_valtype & LVT::LVT_MEMREF)
+			if(!(req_valtype & LVT::LVT_REG))
 			{
 				return C1STM8_T_ERROR::C1STM8_RES_EINTERR;
 			}
@@ -3729,7 +3820,8 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 		}
 
 		// calculate memory offset
-		bool imm_offset = false;
+		// request immediate offset value if LVT_MEMREF is the only option
+		bool imm_offset = (req_valtype & LVT::LVT_MEMREF) && !(req_valtype & LVT::LVT_REG);
 		int32_t offset = 0;
 		auto err = stm8_arr_offset(arg, imm_offset, offset);
 		if(err != static_cast<C1STM8_T_ERROR>(B1_RES_OK))
@@ -4106,8 +4198,11 @@ C1STM8_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types re
 					_curr_code_sec->add_op(L"LDW X, ([" + rv + L"], X)", is_volatile); //92 DE BYTE_OFFSET 72 DE WORD_OFFSET
 				}
 
-				_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CPY", is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
-				_req_symbols.insert(L"__LIB_STR_CPY");
+				if(!(is_ma && ma->second.is_const))
+				{
+					_curr_code_sec->add_op(_call_stmt + L" " + L"__LIB_STR_CPY", is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
+					_req_symbols.insert(L"__LIB_STR_CPY");
+				}
 
 				rv.clear();
 			}

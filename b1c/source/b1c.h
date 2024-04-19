@@ -58,8 +58,10 @@ private:
 	std::pair<B1_CMP_STATE, std::vector<std::wstring>> _state;
 	std::map<int32_t, std::wstring> _src_lines;
 
-	//       gen. name                type     dim  volatile mem   static
-	std::map<std::wstring, std::tuple<B1Types, int, bool,    bool, bool>> _vars;
+	//       gen. name                type     dim  volatile mem   static const
+	std::map<std::wstring, std::tuple<B1Types, int, bool,    bool, bool,  bool>> _vars;
+	//       var name                type     values
+	std::map<std::wstring, std::pair<B1Types, std::vector<std::wstring>>> _const_init;
 
 	//       user name     gen. name
 	std::map<std::wstring, std::wstring> _var_names;
@@ -73,10 +75,11 @@ private:
 	std::set<std::wstring> _req_labels;
 
 
-	B1C_T_ERROR put_var_name(const std::wstring &name, const B1Types type, int dims, bool global, bool volat, bool mem_var, bool stat);
+	B1C_T_ERROR put_var_name(const std::wstring &name, const B1Types type, int dims, bool is_global, bool is_volatile, bool is_mem_var, bool is_static, bool is_const, const std::vector<std::wstring> &const_init);
 	std::wstring get_var_name(const std::wstring &name, bool &expl) const;
 	bool is_mem_var_name(const std::wstring &name) const;
 	bool is_volatile_var(const std::wstring &name) const;
+	bool is_const_var(const std::wstring &name) const;
 	int get_var_dim(const std::wstring &name) const;
 	B1Types get_var_type(const std::wstring &name) const;
 
@@ -115,6 +118,7 @@ private:
 	B1_T_ERROR st_if_end();
 	B1_T_ERROR st_for();
 	B1_T_ERROR st_next();
+	B1_T_ERROR st_data_read_data(const B1_T_CHAR **value_separators, const B1_T_CHAR **stop_tokens, const std::vector<B1Types> *types, std::vector<B1_TYPED_VALUE> &args);
 	B1_T_ERROR st_data();
 	B1_T_ERROR st_read();
 	B1_T_ERROR st_restore();
@@ -210,7 +214,7 @@ public:
 	B1C_T_ERROR CollectDeclStmts();
 	B1C_T_ERROR WriteUFns(const std::string &file_name) const;
 	B1C_T_ERROR WriteStmt(const B1_CMP_CMD &cmd, std::FILE *ofp, int &curr_line_id) const;
-	B1C_T_ERROR WriteMAs(const std::string &file_name) const;
+	B1C_T_ERROR WriteMAs(const std::string &file_name);
 	B1C_T_ERROR WriteDATs(const std::string &file_name) const;
 	B1C_T_ERROR Write(const std::string &file_name) const;
 
@@ -230,8 +234,10 @@ class B1Compiler
 	friend class B1FileCompiler;
 
 private:
-	//       gen. name                type     dim  volatile mem   stat
-	std::map<std::wstring, std::tuple<B1Types, int, bool,    bool, bool>> _global_vars;
+	//       gen. name                type     dim  volatile mem   static const
+	std::map<std::wstring, std::tuple<B1Types, int, bool,    bool, bool,  bool>> _global_vars;
+	//       var name                scalar   values
+	std::map<std::wstring, std::pair<B1Types, std::vector<std::wstring>>> _global_const_init;
 
 	//       user name     gen. name
 	std::map<std::wstring, std::wstring> _global_var_names;
@@ -258,11 +264,12 @@ protected:
 	mutable std::string _curr_file_name;
 
 
-	B1C_T_ERROR put_global_var_name(const std::wstring &name, const B1Types type, int dims, bool volat, bool mem_var, bool stat);
-	bool global_var_check(bool global, bool mem_var, bool stat, const std::wstring &name) const;
+	B1C_T_ERROR put_global_var_name(const std::wstring &name, const B1Types type, int dims, bool is_volatile, bool is_mem_var, bool is_static, bool is_const, const std::vector<std::wstring> &const_init);
+	bool global_var_check(bool is_global, bool is_mem_var, bool is_static, bool is_const, const std::wstring &name) const;
 	std::wstring get_global_var_name(const std::wstring &name) const;
 	bool is_global_mem_var_name(const std::wstring &name) const;
 	bool is_global_volatile_var(const std::wstring &name) const;
+	bool is_global_const_var(const std::wstring &name) const;
 	int get_global_var_dim(const std::wstring &name) const;
 	B1Types get_global_var_type(const std::wstring &name) const;
 
@@ -290,7 +297,7 @@ public:
 	B1C_T_ERROR Load(const std::vector<std::string> &file_names);
 	B1C_T_ERROR Compile();
 	B1C_T_ERROR WriteUFns(const std::string &file_name) const;
-	B1C_T_ERROR Write(const std::string &file_name) const;
+	B1C_T_ERROR Write(const std::string &file_name);
 
 	bool GetOptExplicit() const;
 	bool GetOptBase1() const;

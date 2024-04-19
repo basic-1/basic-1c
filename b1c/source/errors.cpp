@@ -71,6 +71,10 @@ static const std::string b1c_err_msgs[] =
 	"unknown IO device",
 	"wrong device type",
 	"unknown IO device or command name",
+	"constant varable can't be volatile",
+	"only constant variables can be initialized with DIM statement",
+	"constant variable with address specified",
+	"initializers missing",
 
 	"the last message"
 };
@@ -83,6 +87,7 @@ static const std::string b1c_wrn_msgs[] =
 	"option NOCHECK is enabled for all source files",
 	"unknown MCU name",
 	"non-subscripted variables are already static",
+	"constant variables are always static",
 
 	"the last message"
 };

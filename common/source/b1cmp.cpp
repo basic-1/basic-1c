@@ -2551,18 +2551,20 @@ B1_CMP_VAR::B1_CMP_VAR()
 , use_symbol(false)
 , fixed_size(false)
 , is_volatile(false)
+, is_const(false)
 , src_file_id(-1)
 , src_line_cnt(0)
 {
 }
 
-B1_CMP_VAR::B1_CMP_VAR(const std::wstring &nm, const B1Types tp, int32_t dn, bool vlt, int32_t sfid, int32_t slc)
+B1_CMP_VAR::B1_CMP_VAR(const std::wstring &nm, const B1Types tp, int32_t dn, bool vlt, bool cnst, int32_t sfid, int32_t slc)
 : B1_CMP_VAR()
 {
 	name = nm;
 	type = tp;
 	dim_num = dn;
 	is_volatile = vlt;
+	is_const = cnst;
 	src_file_id = sfid;
 	src_line_cnt = slc;
 }
