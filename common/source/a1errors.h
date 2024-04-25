@@ -1,6 +1,6 @@
 /*
  A1 assembler
- Copyright (c) 2021-2023 Nikolay Pletnev
+ Copyright (c) 2021-2024 Nikolay Pletnev
  MIT license
 
  a1errors.h: error codes definition and function prototypes
@@ -58,6 +58,8 @@ enum class A1_T_WARNING
 	A1_WRN_WMANYSTKSECT,
 	A1_WRN_EWNORAM,
 	A1_WRN_WMANYHPSECT,
+	A1_WRN_WBADWCHAR,
+	A1_WRN_WNONANSICHAR,
 
 	A1_WRN_LASTWRNCODE
 };

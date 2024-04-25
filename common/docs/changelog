@@ -1,3 +1,13 @@
+b1c (1.0.0-29) unstable; urgency=low
+
+  * better source files processing (avoid extended ASCII characters loss)
+  * new example added (const.bsc)
+  * new hash algorithm (for keywords and identifiers)
+  * more optimizer rules
+  * optimizations and bugfixes
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Thu, 25 Apr 2024 18:21:46 +0300
+
 b1c (1.0.0-28) unstable; urgency=low
 
   * constants support added (declaring constant variables with DIM CONST)

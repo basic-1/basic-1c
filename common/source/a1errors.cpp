@@ -1,6 +1,6 @@
 /*
  A1 assembler
- Copyright (c) 2021-2023 Nikolay Pletnev
+ Copyright (c) 2021-2024 Nikolay Pletnev
  MIT license
 
  a1errors.cpp: error messages and error reporting functions
@@ -97,6 +97,8 @@ static const std::string wrn_msgs[] =
 	"more than one .STACK section",
 	"stack, heap and data sections size exceeds the overall RAM size",
 	"more than one .HEAP section",
+	"invalid wide character",
+	"non-ANSI character",
 
 	"the last message"
 };

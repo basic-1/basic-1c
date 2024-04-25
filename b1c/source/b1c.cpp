@@ -5569,21 +5569,28 @@ B1C_T_ERROR B1FileCompiler::remove_locals(bool &changed)
 						// LA,local
 						// =,X,local
 						// LF,local   ->  remove all commands
+						// or
+						// LA,local
+						// +,A,B,C
+						// LF,local   ->  remove LA and LF
 						if(rd.size() == 0)
 						{
-							bool leave_local = false;
+							bool remove_local = true;
 
 							for(auto &w: wr)
 							{
-								if(!is_volatile_used(*w))
+								if(is_volatile_used(*w))
+								{
+									remove_local = false;
+								}
+								else
 								{
 									rem.push_back(w);
-									leave_local = true;
 								}
 							}
 							wr.clear();
 
-							if(!leave_local)
+							if(remove_local)
 							{
 								rem.push_back(la);
 								rem.push_back(i);
@@ -5676,64 +5683,6 @@ B1C_T_ERROR B1FileCompiler::remove_locals(bool &changed)
 				{
 					sub_or_arg = true;
 				}
-			}
-		}
-	}
-
-	// remove sequental assignments to the same local variable
-	for(auto i = cbegin(); i != cend(); i++)
-	{
-		auto &cmd = *i;
-
-		if(B1CUtils::is_label(cmd))
-		{
-			continue;
-		}
-
-		std::wstring vname;
-
-		if(!is_volatile_used(cmd))
-		{
-			if(B1CUtils::is_un_op(cmd) && is_gen_local(cmd.args[1][0].value))
-			{
-				vname = cmd.args[1][0].value;
-			}
-			else
-			if(B1CUtils::is_bin_op(cmd) && is_gen_local(cmd.args[2][0].value))
-			{
-				vname = cmd.args[2][0].value;
-			}
-		}
-
-		if(vname.empty())
-		{
-			continue;
-		}
-
-		for(auto j = std::next(i); j != cend(); j++)
-		{
-			auto &cmd1 = *j;
-
-			if(B1CUtils::is_label(cmd1))
-			{
-				break;
-			}
-
-			if(cmd1.cmd == L"JMP" || cmd1.cmd == L"JF" || cmd1.cmd == L"JT" || cmd1.cmd == L"RET" || cmd1.cmd == L"END" || cmd1.cmd == L"ERR")
-			{
-				break;
-			}
-
-			if(B1CUtils::is_src(cmd1, vname) || B1CUtils::is_sub_or_arg(cmd1, vname))
-			{
-				break;
-			}
-
-			if(B1CUtils::is_dst(cmd1, vname) || (cmd1.cmd == L"LF" && cmd1.args[0][0].value == vname))
-			{
-				erase(i--);
-				changed = true;
-				break;
 			}
 		}
 	}
@@ -6164,12 +6113,10 @@ B1C_T_ERROR B1FileCompiler::put_types()
 		}
 	}
 
-	// process LA
-	for(auto &cmd: *this)
+	// process LA stmts
+	for(auto i = begin(); i != end(); i++)
 	{
-		_curr_line_cnt = cmd.line_cnt;
-		_curr_line_num = cmd.line_num;
-		_curr_src_line_id = cmd.src_line_id;
+		auto &cmd = *i;
 
 		if(B1CUtils::is_label(cmd))
 		{
@@ -6187,7 +6134,18 @@ B1C_T_ERROR B1FileCompiler::put_types()
 			}
 			else
 			{
-				return static_cast<B1C_T_ERROR>(B1_RES_ETYPMISM);
+				for(auto i1 = std::next(i); i1 != end(); i1++)
+				{
+					if(i1->cmd == L"LF" && i1->args[0][0].value == cmd.args[0][0].value)
+					{
+						auto next = std::prev(i);
+						erase(i);
+						erase(i1);
+						i = next;
+						break;
+					}
+				}
+				continue;
 			}
 		}
 	}
@@ -6454,7 +6412,7 @@ B1C_T_ERROR B1FileCompiler::reuse_locals(bool &changed)
 
 		while(true)
 		{
-			if(!get_LA_LF(s1, e1, la1, lf1))
+			if(!get_LA_LF(s1, e1, la1, lf1) || std::next(la1) == lf1)
 			{
 				break;
 			}
@@ -6806,6 +6764,125 @@ B1C_T_ERROR B1FileCompiler::reuse_vars(bool &changed)
 				}
 
 				break;
+			}
+		}
+	}
+
+	// = <smth>,var1
+	// ... <- <smth> must not be used here
+	// +,var1,var2,var1
+	// ->
+	// ...
+	// +,<smth>,var2,var1
+	// or
+	// = <smth>,var1
+	// ... <- <smth> must not be used here
+	// +,var1,var2,var3
+	// +,var3,var4,var1
+	// ->
+	// ...
+	// +,<smth>,var2,var3
+	// +,var3,var4,var1
+
+	for(auto i = begin(); i != end(); i++)
+	{
+		auto &cmd = *i;
+
+		if(B1CUtils::is_label(cmd))
+		{
+			continue;
+		}
+
+		if(cmd.cmd == L"=" && !is_volatile_used(cmd.args[1]) && !is_udef_used(cmd.args[1]))
+		{
+			iterator rd = end(), wr = end();
+
+			for(auto j = std::next(i); j != end(); j++)
+			{
+				auto &cmd1 = *j;
+
+				if (B1CUtils::is_label(cmd1) || cmd1.cmd == L"JMP" || cmd1.cmd == L"JT" || cmd1.cmd == L"JF" || cmd1.cmd == L"CALL" ||
+					cmd1.cmd == L"RETVAL" || cmd1.cmd == L"RET" || cmd1.cmd == L"ERR" || cmd1.cmd == L"END" || cmd1.cmd == L"DEF")
+				{
+					break;
+				}
+
+				if(cmd.args[1].size() == 1 && B1CUtils::is_sub_or_arg(cmd1, cmd.args[1][0].value))
+				{
+					break;
+				}
+
+				bool is_src = B1CUtils::arg_is_src(cmd1, cmd.args[1]);
+				bool is_dst = B1CUtils::arg_is_dst(cmd1, cmd.args[1], false);
+
+				if(cmd1.cmd == L"TRR" && (is_dst || is_src))
+				{
+					break;
+				}
+
+				if(!is_dst && ((cmd1.cmd == L"LF" && cmd1.args[0][0].value == cmd.args[1][0].value) || ((cmd1.cmd == L"GA" || cmd1.cmd == L"GF") && cmd1.args[0][0].value == cmd.args[1][0].value)))
+				{
+					is_dst = true;
+				}
+
+				if(is_src)
+				{
+					if(rd != end())
+					{
+						break;
+					}
+
+					rd = j;
+				}
+
+				if(is_dst)
+				{
+					if(rd == end())
+					{
+						break;
+					}
+
+					wr = j;
+				}
+
+				if(rd != end() && wr != end())
+				{
+					bool arg_or_sub_changed = false;
+
+					if(cmd.args[0].size() > 1)
+					{
+						auto last = (wr == rd) ? wr : std::next(wr);
+						for(auto i1 = std::next(i); !arg_or_sub_changed && i1 != last; i1++)
+						{
+							for(auto a = cmd.args[0].cbegin() + 1; a != cmd.args[0].cend(); a++)
+							{
+								if(B1CUtils::is_dst(*i1, a->value))
+								{
+									arg_or_sub_changed = true;
+									break;
+								}
+							}
+						}
+					}
+					if(arg_or_sub_changed)
+					{
+						break;
+					}
+
+					int count = 0;
+					auto ctmp = *rd;
+					B1CUtils::replace_src(ctmp, cmd.args[1], cmd.args[0], &count);
+					if(count == 1 || !(is_volatile_used(cmd.args[0]) || is_udef_used(cmd.args[0])))
+					{
+						*rd = ctmp;
+						auto next = std::prev(i);
+						erase(i);
+						i = next;
+						changed = true;
+					}
+
+					break;
+				}
 			}
 		}
 	}
@@ -9739,8 +9816,8 @@ B1C_T_ERROR B1Compiler::Load(const std::vector<std::string> &file_names)
 {
 	_curr_file_name.clear();
 
-	// set numeric properties from C locale for sprintf to use dot as decimal delimiter
-	std::setlocale(LC_NUMERIC, "C");
+	// use current locale
+	std::setlocale(LC_ALL, "");
 
 	std::copy(file_names.begin(), file_names.end(), std::back_inserter(_file_names));
 

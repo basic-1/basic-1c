@@ -62,8 +62,8 @@ public:
 	static bool is_used(const B1_CMP_CMD &cmd, const std::wstring &val);
 
 	static bool replace_dst(B1_CMP_CMD &cmd, const std::wstring &val, const B1_CMP_ARG &arg, bool preserve_type = false);
-	static bool replace_src(B1_CMP_CMD &cmd, const std::wstring &val, const B1_CMP_ARG &arg);
-	static bool replace_src(B1_CMP_CMD &cmd, const B1_CMP_ARG &src_arg, const B1_CMP_ARG &arg);
+	static bool replace_src(B1_CMP_CMD &cmd, const std::wstring &val, const B1_CMP_ARG &arg, int *count_replaced = nullptr);
+	static bool replace_src(B1_CMP_CMD &cmd, const B1_CMP_ARG &src_arg, const B1_CMP_ARG &arg, int *count_replaced = nullptr);
 	static bool replace_src_with_subs(B1_CMP_CMD &cmd, const std::wstring &val, const B1_TYPED_VALUE &tv, bool preserve_type = false);
 	static bool replace_all(B1_CMP_CMD &cmd, const std::wstring &val, const B1_TYPED_VALUE &tv, bool preserve_type = false);
 

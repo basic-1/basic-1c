@@ -1,0 +1,24 @@
+10  DIM CONST ENGLISH = 0, CONST GERMAN = 1, CONST FRENCH = 2
+20  DIM CONST LANGUAGE = 0, CONST GREETING = 1, CONST QUESTION = 2, CONST GOODBYE = 3
+30  DIM CONST MSG$(0 TO 2, 0 TO 3) = ("English", "Hello!", "What is your name?", "Have a nice day", "Deutsch", "Hallo!", "Wie heißen sie?", "Einen schönen Tag noch", "Français", "Salut!", "Comment vous appelez-vous?", "Passe une bonne journée")
+
+40  IOCTL UART, ENABLE
+50  IOCTL UART, START
+
+60  WHILE 1 > 0
+
+70  PRINT "Choose your language ("; MSG$(ENGLISH, LANGUAGE); " - "; STR$(ENGLISH); ", "; MSG$(GERMAN, LANGUAGE); " - "; STR$(GERMAN); ", "; MSG$(FRENCH, LANGUAGE); " - "; STR$(FRENCH); "): ";
+80  INPUT "", LANG
+90  IF LANG < 0 THEN 70
+100 IF LANG > 2 THEN 70
+
+110 PRINT MSG$(LANG, GREETING)
+120 PRINT MSG$(LANG, QUESTION)
+130 INPUT NAME$
+140 PRINT MSG$(LANG, GOODBYE); ", "; NAME$; "!"
+
+150 INPUT "Press <Enter> to repeat...", S$
+
+160 WEND
+
+200 END

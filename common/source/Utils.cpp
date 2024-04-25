@@ -182,47 +182,39 @@ std::wstring Utils::str2wstr(const std::string &str)
 
 B1_T_ERROR Utils::read_line(std::FILE *fp, std::wstring &str)
 {
-	static char buffer[256];
-	bool newline;
+	wint_t c;
+	B1_T_ERROR err;
 
-	if(std::feof(fp))
-	{
-		return B1_RES_EEOF;
-	}
+	err = B1_RES_OK;
 
 	str.clear();
 
-	while(std::fgets(buffer, sizeof(buffer), fp) != nullptr)
+	while(true)
 	{
-		newline = false;
-
-		for(auto c: buffer)
+		c = std::fgetwc(fp);
+		if(c == WEOF)
 		{
-			if(c == 0)
+			if(std::feof(fp))
 			{
-				if(newline || std::feof(fp))
-				{
-					return B1_RES_OK;
-				}
-
-				break;
+				err = B1_RES_EEOF;
+			}
+			else
+			{
+				err = B1_RES_EENVFAT;
 			}
 
-			if(c == '\r' || c == '\n')
-			{
-				newline = true;
-			}
-
-			str += (wchar_t)c;
+			break;
 		}
+
+		if(c == '\n')
+		{
+			break;
+		}
+
+		str += c;
 	}
 
-	if(std::feof(fp))
-	{
-		return B1_RES_EEOF;
-	}
-
-	return B1_RES_EENVFAT;
+	return err;
 }
 
 std::wstring Utils::str_trim(const std::wstring &str)

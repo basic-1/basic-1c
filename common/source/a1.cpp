@@ -1,6 +1,6 @@
 /*
  A1 assembler
- Copyright (c) 2021-2023 Nikolay Pletnev
+ Copyright (c) 2021-2024 Nikolay Pletnev
  MIT license
 
  a1.cpp: basic assembler classes
@@ -1501,20 +1501,47 @@ A1_T_ERROR ConstStmt::Read(std::vector<Token>::const_iterator &start, const std:
 				return err;
 			}
 
+			char mbc[6];
+
 			for(const auto c: str)
 			{
 				if(_size1 == 4)
 				{
 					_data.push_back((uint8_t)(((uint32_t)c) >> 24));
 					_data.push_back((uint8_t)(((uint32_t)c) >> 16));
+					_data.push_back((uint8_t)(((uint16_t)c) >> 8));
+					_data.push_back((uint8_t)c);
 				}
-
-				if(_size1 >= 2)
+				else
+				if(_size1 == 2)
 				{
 					_data.push_back((uint8_t)(((uint16_t)c) >> 8));
+					_data.push_back((uint8_t)c);
 				}
+				else
+				if(c > 127)
+				{
+					// non-ASCII character
+					mbstate_t mbs{};
+					auto n = std::wcrtomb(mbc, c, &mbs);
+					if(n == static_cast<std::size_t>(-1))
+					{
+						_warnings.push_back(A1_T_WARNING::A1_WRN_WBADWCHAR);
+						mbc[0] = '?';
+					}
+					else
+					if(n != 1)
+					{
+						_warnings.push_back(A1_T_WARNING::A1_WRN_WNONANSICHAR);
+						mbc[0] = '?';
+					}
 
-				_data.push_back((uint8_t)c);
+					_data.push_back((uint8_t)mbc[0]);
+				}
+				else
+				{
+					_data.push_back((uint8_t)c);
+				}
 			}
 
 			start++;

@@ -1071,9 +1071,13 @@ bool B1CUtils::replace_dst(B1_CMP_CMD &cmd, const std::wstring &val, const B1_CM
 	return true;
 }
 
-bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const std::wstring &val, const B1_CMP_ARG &arg)
+bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const std::wstring &val, const B1_CMP_ARG &arg, int *count_replaced /*= nullptr*/)
 {
 	bool replaced = false;
+	if(count_replaced != nullptr)
+	{
+		*count_replaced = 0;
+	}
 
 	if(cmd.cmd == L"GA" || cmd.cmd == L"MA")
 	{
@@ -1083,6 +1087,10 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const std::wstring &val, const B1_CM
 			{
 				*a = arg;
 				replaced = true;
+				if(count_replaced != nullptr)
+				{
+					*count_replaced = *count_replaced + 1;
+				}
 			}
 		}
 
@@ -1094,6 +1102,10 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const std::wstring &val, const B1_CM
 		if(cmd.args[0][0].value == val)
 		{
 			cmd.args[0] = arg;
+			if(count_replaced != nullptr)
+			{
+				*count_replaced = 1;
+			}
 			return true;
 		}
 
@@ -1105,6 +1117,10 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const std::wstring &val, const B1_CM
 		if(cmd.args[1][0].value == val)
 		{
 			cmd.args[1] = arg;
+			if(count_replaced != nullptr)
+			{
+				*count_replaced = 1;
+			}
 			return true;
 		}
 
@@ -1116,6 +1132,10 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const std::wstring &val, const B1_CM
 		if(cmd.args[1][0].value == val)
 		{
 			cmd.args[1] = arg;
+			if(count_replaced != nullptr)
+			{
+				*count_replaced = 1;
+			}
 			return true;
 		}
 
@@ -1127,6 +1147,10 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const std::wstring &val, const B1_CM
 		if(cmd.args[1][0].value == val)
 		{
 			cmd.args[1] = arg;
+			if(count_replaced != nullptr)
+			{
+				*count_replaced = 1;
+			}
 			return true;
 		}
 
@@ -1138,6 +1162,10 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const std::wstring &val, const B1_CM
 		if(cmd.args[1][0].value == val)
 		{
 			cmd.args[1] = arg;
+			if(count_replaced != nullptr)
+			{
+				*count_replaced = 1;
+			}
 			return true;
 		}
 
@@ -1149,6 +1177,10 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const std::wstring &val, const B1_CM
 		if(cmd.args.size() > 2 && cmd.args[2][0].value == val)
 		{
 			cmd.args[2] = arg;
+			if(count_replaced != nullptr)
+			{
+				*count_replaced = 1;
+			}
 			return true;
 		}
 
@@ -1164,6 +1196,10 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const std::wstring &val, const B1_CM
 				if(cmd.args[0][0].value == val)
 				{
 					cmd.args[0] = arg;
+					if(count_replaced != nullptr)
+					{
+						*count_replaced = 1;
+					}
 					return true;
 				}
 
@@ -1180,6 +1216,10 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const std::wstring &val, const B1_CM
 					if((*a)[0].value == val)
 					{
 						*a = arg;
+						if(count_replaced != nullptr)
+						{
+							*count_replaced = *count_replaced + 1;
+						}
 						replaced = true;
 					}
 				}
@@ -1200,6 +1240,10 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const std::wstring &val, const B1_CM
 					if((*a)[0].value == val)
 					{
 						*a = arg;
+						if(count_replaced != nullptr)
+						{
+							*count_replaced = *count_replaced + 1;
+						}
 						replaced = true;
 					}
 				}
@@ -1212,9 +1256,13 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const std::wstring &val, const B1_CM
 	return replaced;
 }
 
-bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const B1_CMP_ARG &src_arg, const B1_CMP_ARG &arg)
+bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const B1_CMP_ARG &src_arg, const B1_CMP_ARG &arg, int *count_replaced /*= nullptr*/)
 {
 	bool replaced = false;
+	if(count_replaced != nullptr)
+	{
+		*count_replaced = 0;
+	}
 
 	if(cmd.cmd == L"GA" || cmd.cmd == L"MA")
 	{
@@ -1223,6 +1271,10 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const B1_CMP_ARG &src_arg, const B1_
 			if(*a == src_arg)
 			{
 				*a = arg;
+				if(count_replaced != nullptr)
+				{
+					*count_replaced = *count_replaced + 1;
+				}
 				replaced = true;
 			}
 		}
@@ -1235,6 +1287,10 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const B1_CMP_ARG &src_arg, const B1_
 		if(cmd.args[0] == src_arg)
 		{
 			cmd.args[0] = arg;
+			if(count_replaced != nullptr)
+			{
+				*count_replaced = 1;
+			}
 			replaced = true;
 		}
 
@@ -1246,6 +1302,10 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const B1_CMP_ARG &src_arg, const B1_
 		if(cmd.args[1] == src_arg)
 		{
 			cmd.args[1] = arg;
+			if(count_replaced != nullptr)
+			{
+				*count_replaced = 1;
+			}
 			replaced = true;
 		}
 
@@ -1257,6 +1317,10 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const B1_CMP_ARG &src_arg, const B1_
 		if(cmd.args[1] == src_arg)
 		{
 			cmd.args[1] = arg;
+			if(count_replaced != nullptr)
+			{
+				*count_replaced = 1;
+			}
 			replaced = true;
 		}
 
@@ -1268,6 +1332,10 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const B1_CMP_ARG &src_arg, const B1_
 		if(cmd.args[1] == src_arg)
 		{
 			cmd.args[1] = arg;
+			if(count_replaced != nullptr)
+			{
+				*count_replaced = 1;
+			}
 			replaced = true;
 		}
 
@@ -1279,6 +1347,10 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const B1_CMP_ARG &src_arg, const B1_
 		if(cmd.args[1] == src_arg)
 		{
 			cmd.args[1] = arg;
+			if(count_replaced != nullptr)
+			{
+				*count_replaced = 1;
+			}
 			replaced = true;
 		}
 
@@ -1292,6 +1364,10 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const B1_CMP_ARG &src_arg, const B1_
 			if(cmd.args[2] == src_arg)
 			{
 				cmd.args[2] = arg;
+				if(count_replaced != nullptr)
+				{
+					*count_replaced = 1;
+				}
 				replaced = true;
 			}
 		}
@@ -1308,6 +1384,10 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const B1_CMP_ARG &src_arg, const B1_
 				if(cmd.args[0] == src_arg)
 				{
 					cmd.args[0] = arg;
+					if(count_replaced != nullptr)
+					{
+						*count_replaced = 1;
+					}
 					return true;
 				}
 
@@ -1324,6 +1404,10 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const B1_CMP_ARG &src_arg, const B1_
 					if(*a == src_arg)
 					{
 						*a = arg;
+						if(count_replaced != nullptr)
+						{
+							*count_replaced = *count_replaced + 1;
+						}
 						replaced = true;
 					}
 				}
@@ -1344,6 +1428,10 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const B1_CMP_ARG &src_arg, const B1_
 					if(*a == src_arg)
 					{
 						*a = arg;
+						if(count_replaced != nullptr)
+						{
+							*count_replaced = *count_replaced + 1;
+						}
 						replaced = true;
 					}
 				}

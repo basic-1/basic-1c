@@ -1,6 +1,6 @@
 /*
  STM8 assembler
- Copyright (c) 2021-2023 Nikolay Pletnev
+ Copyright (c) 2021-2024 Nikolay Pletnev
  MIT license
 
  a1stm8.cpp: STM8 assembler
@@ -1253,8 +1253,8 @@ int main(int argc, char **argv)
 	A1_T_ERROR err;
 
 
-	// set numeric properties from C locale for sprintf to use dot as decimal delimiter
-	std::setlocale(LC_NUMERIC, "C");
+	// use current locale
+	std::setlocale(LC_ALL, "");
 
 
 	// read options and input file names
