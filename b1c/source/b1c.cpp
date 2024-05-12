@@ -1675,7 +1675,7 @@ B1_T_ERROR B1FileCompiler::st_gosub()
 	return B1_RES_OK;
 }
 
-B1_T_ERROR B1FileCompiler::st_dim_get_size(bool allow_TO_stop_word, std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE> &res, bool first_run)
+B1_T_ERROR B1FileCompiler::st_dim_get_one_size(bool first_run, bool allow_TO_stop_word, bool TO_stop_word_only, std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE> &res)
 {
 	B1_T_ERROR err;
 
@@ -1691,8 +1691,65 @@ B1_T_ERROR B1FileCompiler::st_dim_get_size(bool allow_TO_stop_word, std::pair<B1
 		return B1_RES_ESYNTAX;
 	}
 
+	if(TO_stop_word_only)
+	{
+		// TO, comma or close bracket
+		auto c = b1_progline[b1_curr_prog_line_offset];
+
+		if(c == B1_T_C_CLBRACK || B1_T_ISCOMMA(c))
+		{
+			return B1_RES_ESYNTAX;
+		}
+	}
+
 	// do not produce code during the first run
 	return first_run ? B1_RES_OK : process_expression(res.second, res.first);
+}
+
+B1_T_ERROR B1FileCompiler::st_dim_get_size(bool first_run, bool range_only, std::vector<std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE>> &range)
+{
+	// get either dimension size or lbound
+	std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE> res;
+	auto err = st_dim_get_one_size(first_run, true, range_only, res);
+	if(err != B1_RES_OK)
+	{
+		return err;
+	}
+
+	// TO, comma or close bracket
+	auto c = b1_progline[b1_curr_prog_line_offset];
+
+	if(c == B1_T_C_CLBRACK || B1_T_ISCOMMA(c))
+	{
+		if(!first_run)
+		{
+			range.push_back(std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE>(std::to_wstring(_opt_base1 ? 1 : 0), B1_CMP_EXP_TYPE::B1_CMP_ET_IMM_VAL));
+			range.push_back(res);
+		}
+	}
+	else
+	{
+		// get ubound
+		b1_curr_prog_line_offset += 2;
+
+		if(!first_run)
+		{
+			range.push_back(res);
+		}
+
+		err = st_dim_get_one_size(first_run, false, false, res);
+		if(err != B1_RES_OK)
+		{
+			return err;
+		}
+
+		if(!first_run)
+		{
+			range.push_back(res);
+		}
+	}
+
+	return B1_RES_OK;
 }
 
 B1C_T_ERROR B1FileCompiler::st_dim(bool first_run)
@@ -1807,64 +1864,25 @@ B1C_T_ERROR B1FileCompiler::st_dim(bool first_run)
 					return static_cast<B1C_T_ERROR>(B1_RES_EWSUBSCNT);
 				}
 
-				// get either dimension size or lbound
-				std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE> res;
-				err = st_dim_get_size(true, res, first_run);
+				err = st_dim_get_size(first_run, false, subs);
 				if(err != B1_RES_OK)
 				{
 					return static_cast<B1C_T_ERROR>(err);
 				}
 
-				// TO, comma or close bracket
+				dimsnum++;
+
 				c = b1_progline[b1_curr_prog_line_offset];
+				b1_curr_prog_line_offset++;
 
-				if(c == B1_T_C_CLBRACK || B1_T_ISCOMMA(c))
+				if(B1_T_ISCOMMA(c))
 				{
-					subs.push_back(std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE>(std::to_wstring(_opt_base1 ? 1 : 0), B1_CMP_EXP_TYPE::B1_CMP_ET_IMM_VAL));
-					subs.push_back(res);
-
-					dimsnum++;
-
-					b1_curr_prog_line_offset++;
-
-					if(B1_T_ISCOMMA(c))
-					{
-						continue;
-					}
-					else
-					{
-						break;
-					}
+					continue;
 				}
-				else
+
+				if(c == B1_T_C_CLBRACK)
 				{
-					// get ubound
-					b1_curr_prog_line_offset += 2;
-
-					subs.push_back(res);
-
-					err = st_dim_get_size(false, res, first_run);
-					if(err != B1_RES_OK)
-					{
-						return static_cast<B1C_T_ERROR>(err);
-					}
-
-					subs.push_back(res);
-
-					dimsnum++;
-
-					c = b1_progline[b1_curr_prog_line_offset];
-					b1_curr_prog_line_offset++;
-
-					if(B1_T_ISCOMMA(c))
-					{
-						continue;
-					}
-
-					if(c == B1_T_C_CLBRACK)
-					{
-						break;
-					}
+					break;
 				}
 			}
 
@@ -3768,6 +3786,102 @@ B1_T_ERROR B1FileCompiler::st_input()
 	return B1_RES_OK;
 }
 
+B1C_T_ERROR B1FileCompiler::st_read_range(std::vector<std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE>> &range)
+{
+	B1_TOKENDATA td;
+	auto saved_line_offset = b1_curr_prog_line_offset;
+
+	auto err = b1_tok_get(b1_curr_prog_line_offset, 0, &td);
+	if(err != B1_RES_OK)
+	{
+		b1_curr_prog_line_offset = saved_line_offset;
+		return static_cast<B1C_T_ERROR>(err);
+	}
+	if(td.length == 0 || !(td.type & B1_TOKEN_TYPE_IDNAME))
+	{
+		b1_curr_prog_line_offset = saved_line_offset;
+		return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+	}
+
+	auto name = Utils::str_toupper(B1CUtils::get_progline_substring(td.offset, td.offset + td.length));
+	auto fn = get_fn(name);
+	if(fn != nullptr)
+	{
+		b1_curr_prog_line_offset = saved_line_offset;
+		return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+	}
+
+	bool expl = true;
+	name = get_var_name(name, expl);
+
+	b1_curr_prog_line_offset = td.offset + td.length;
+	err = b1_tok_get(b1_curr_prog_line_offset, 0, &td);
+	if(err != B1_RES_OK)
+	{
+		b1_curr_prog_line_offset = saved_line_offset;
+		return static_cast<B1C_T_ERROR>(err);
+	}
+	if(td.length == 0 || !(td.type & B1_TOKEN_TYPE_OPERATION) || b1_progline[b1_curr_prog_line_offset] != B1_T_C_OPBRACK)
+	{
+		b1_curr_prog_line_offset = saved_line_offset;
+		return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+	}
+
+	b1_curr_prog_line_offset = td.offset + td.length;
+	err = st_dim_get_size(true, true, range);
+	if(err != B1_RES_OK)
+	{
+		b1_curr_prog_line_offset = saved_line_offset;
+		return static_cast<B1C_T_ERROR>(err);
+	}
+
+	if(b1_progline[b1_curr_prog_line_offset] != B1_T_C_CLBRACK)
+	{
+		b1_curr_prog_line_offset = saved_line_offset;
+		return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+	}
+
+	b1_curr_prog_line_offset = td.offset + td.length;
+	err = st_dim_get_size(false, true, range);
+	if(err != B1_RES_OK)
+	{
+		return B1C_T_ERROR::B1C_RES_ERANGSNTX;
+	}
+
+	if(b1_progline[b1_curr_prog_line_offset] != B1_T_C_CLBRACK)
+	{
+		return B1C_T_ERROR::B1C_RES_ERANGSNTX;
+	}
+
+	b1_curr_prog_line_offset++;
+
+	if(!expl || get_var_type(name) != B1Types::B1T_BYTE || get_var_dim(name) != 1)
+	{
+		return static_cast<B1C_T_ERROR>(B1_RES_ETYPMISM);
+	}
+
+	err = b1_tok_get(b1_curr_prog_line_offset, 0, &td);
+	if(err != B1_RES_OK)
+	{
+		b1_curr_prog_line_offset = saved_line_offset;
+		return static_cast<B1C_T_ERROR>(err);
+	}
+
+	if(td.length == 0)
+	{
+		b1_curr_prog_line_offset = 0;
+	}
+	else
+	{
+		b1_curr_prog_line_offset = td.offset;
+	}
+
+	range[0].first.insert(range[0].first.begin(), B1_TYPED_VALUE(name, B1Types::B1T_BYTE));
+	range[0].second = B1_CMP_EXP_TYPE::B1_CMP_ET_VAR;
+
+	return B1C_T_ERROR::B1C_RES_OK;
+}
+
 // PUT [#<dev_name>, ] <value1> [, <value2>, ..., <valueN>]: is_input = false
 // GET [#<dev_name>, ] <var1> [, <var2>, ..., <varN>]: is_input = true
 // TRANSFER [#<dev_name>, ] <var1> [, <var2>, ..., <varN>]: is_input = true
@@ -3825,65 +3939,106 @@ B1C_T_ERROR B1FileCompiler::st_put_get_trr(const std::wstring &cmd_name, bool is
 	// read other statement arguments
 	while(b1_curr_prog_line_offset != 0)
 	{
-		// build RPN
-		err = b1_rpn_build(b1_curr_prog_line_offset, INPUT_STOP_TOKEN, &b1_curr_prog_line_offset);
-		if(err != B1_RES_OK)
+		// first try to read array range
+		std::vector<std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE>> range;
+		auto err1 = st_read_range(range);
+		if(err1 == static_cast<B1C_T_ERROR>(B1_RES_ETYPMISM) || err1 == B1C_T_ERROR::B1C_RES_ERANGSNTX)
 		{
-			return static_cast<B1C_T_ERROR>(err);
+			return err1;
 		}
 
-		// no RPN: empty expression was specified to b1_rpn_build function
-		if(b1_rpn[0].flags == 0)
+		if(err1 == B1C_T_ERROR::B1C_RES_OK)
 		{
-			return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
-		}
-
-		// compile the expression
-		B1_CMP_EXP_TYPE exp_type;
-		B1_CMP_ARG res;
-		err = process_expression(exp_type, res, is_input);
-		if(err != B1_RES_OK)
-		{
-			return static_cast<B1C_T_ERROR>(err);
-		}
-
-		if(is_input)
-		{
-			if(exp_type != B1_CMP_EXP_TYPE::B1_CMP_ET_VAR)
+			if(range[1].second == B1_CMP_EXP_TYPE::B1_CMP_ET_LOGICAL)
 			{
 				return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
 			}
 
-			if(is_const_var(res[0].value))
+			if(is_input)
 			{
-				return static_cast<B1C_T_ERROR>(B1_RES_ETYPMISM);
+				if(is_const_var(range[0].first[0].value))
+				{
+					return static_cast<B1C_T_ERROR>(B1_RES_ETYPMISM);
+				}
 			}
 
-			emit_command(cmd_name, std::vector<B1_CMP_ARG>({ dev_name, res }));
+			std::wstring count_local = emit_local(B1Types::B1T_UNKNOWN);
+			emit_command(L"-", { range[1].first, B1_CMP_ARG(range[0].first[1].value, range[0].first[1].type), B1_CMP_ARG(count_local) });
+			emit_command(L"+", { count_local, L"1", count_local });
+			emit_command(cmd_name, std::vector<B1_CMP_ARG>({ dev_name, range[0].first, count_local }));
+			emit_command(L"LF", count_local);
 
-			if(res.size() > 1)
+			if(range[1].second == B1_CMP_EXP_TYPE::B1_CMP_ET_LOCAL)
 			{
-				for(auto l = res.crbegin(); l != res.crend() - 1; l++)
-				{
-					if(is_gen_local(l->value))
-					{
-						emit_command(L"LF", l->value);
-					}
-				}
+				emit_command(L"LF", range[1].first[0].value);
+			}
+
+			if(is_gen_local(range[0].first[1].value))
+			{
+				emit_command(L"LF", range[0].first[1].value);
 			}
 		}
 		else
 		{
-			if(exp_type == B1_CMP_EXP_TYPE::B1_CMP_ET_LOGICAL)
+			// build RPN
+			err = b1_rpn_build(b1_curr_prog_line_offset, INPUT_STOP_TOKEN, &b1_curr_prog_line_offset);
+			if(err != B1_RES_OK)
+			{
+				return static_cast<B1C_T_ERROR>(err);
+			}
+
+			// no RPN: empty expression was specified to b1_rpn_build function
+			if(b1_rpn[0].flags == 0)
 			{
 				return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
 			}
 
-			emit_command(cmd_name, std::vector<std::wstring>({ dev_name, res[0].value }));
-
-			if(exp_type == B1_CMP_EXP_TYPE::B1_CMP_ET_LOCAL)
+			// compile the expression
+			range.push_back(std::make_pair(B1_CMP_ARG(), B1_CMP_EXP_TYPE::B1_CMP_ET_UNKNOWN));
+			err = process_expression(range[0].second, range[0].first, is_input);
+			if(err != B1_RES_OK)
 			{
-				emit_command(L"LF", res[0].value);
+				return static_cast<B1C_T_ERROR>(err);
+			}
+
+			if(is_input)
+			{
+				if(range[0].second != B1_CMP_EXP_TYPE::B1_CMP_ET_VAR)
+				{
+					return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+				}
+
+				if(is_const_var(range[0].first[0].value))
+				{
+					return static_cast<B1C_T_ERROR>(B1_RES_ETYPMISM);
+				}
+
+				emit_command(cmd_name, std::vector<B1_CMP_ARG>({ dev_name, range[0].first }));
+
+				if(range[0].first.size() > 1)
+				{
+					for(auto l = range[0].first.crbegin(); l != range[0].first.crend() - 1; l++)
+					{
+						if(is_gen_local(l->value))
+						{
+							emit_command(L"LF", l->value);
+						}
+					}
+				}
+			}
+			else
+			{
+				if(range[0].second == B1_CMP_EXP_TYPE::B1_CMP_ET_LOGICAL)
+				{
+					return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+				}
+
+				emit_command(cmd_name, std::vector<std::wstring>({ dev_name, range[0].first[0].value }));
+
+				if(range[0].second == B1_CMP_EXP_TYPE::B1_CMP_ET_LOCAL)
+				{
+					emit_command(L"LF", range[0].first[0].value);
+				}
 			}
 		}
 
@@ -4178,19 +4333,9 @@ bool B1FileCompiler::is_udef_used(const B1_CMP_CMD &cmd)
 		return is_udef_used(cmd.args[1]);
 	}
 
-	if(cmd.cmd == L"GET")
+	if(cmd.cmd == L"GET" || cmd.cmd == L"PUT" || cmd.cmd == L"TRR")
 	{
-		return is_udef_used(cmd.args[1]);
-	}
-
-	if(cmd.cmd == L"PUT")
-	{
-		return is_udef_used(cmd.args[1]);
-	}
-
-	if(cmd.cmd == L"TRR")
-	{
-		return is_udef_used(cmd.args[1]);
+		return (cmd.args.size() == 2) ? is_udef_used(cmd.args[1]) : (is_udef_used(cmd.args[1]) || is_udef_used(cmd.args[2]));
 	}
 
 	if(cmd.args.size() == 2)
@@ -4313,19 +4458,9 @@ bool B1FileCompiler::is_volatile_used(const B1_CMP_CMD &cmd)
 		return is_volatile_used(cmd.args[1]);
 	}
 
-	if(cmd.cmd == L"GET")
+	if(cmd.cmd == L"GET" || cmd.cmd == L"PUT" || cmd.cmd == L"TRR")
 	{
-		return is_volatile_used(cmd.args[1]);
-	}
-
-	if(cmd.cmd == L"PUT")
-	{
-		return is_volatile_used(cmd.args[1]);
-	}
-
-	if(cmd.cmd == L"TRR")
-	{
-		return is_volatile_used(cmd.args[1]);
+		return (cmd.args.size() == 2) ? is_volatile_used(cmd.args[1]) : (is_volatile_used(cmd.args[1]) || is_volatile_used(cmd.args[2]));
 	}
 
 	if(cmd.args.size() == 2)
@@ -5336,7 +5471,7 @@ std::wstring B1FileCompiler::set_to_init_value(B1_CMP_CMD &cmd, const std::map<s
 		return L"";
 	}
 
-	if(cmd.cmd == L"IN" || cmd.cmd == L"READ" || cmd.cmd == L"GET" || cmd.cmd == L"TRR")
+	if(cmd.cmd == L"IN" || cmd.cmd == L"READ")
 	{
 		set_to_init_value_arg(cmd.args[1], true, vars, init, changed);
 		if(cmd.args[1].size() == 1)
@@ -5346,9 +5481,26 @@ std::wstring B1FileCompiler::set_to_init_value(B1_CMP_CMD &cmd, const std::map<s
 		return L"";
 	}
 
-	if(cmd.cmd == L"OUT" || cmd.cmd == L"SET" || cmd.cmd == L"PUT")
+	if(cmd.cmd == L"OUT" || cmd.cmd == L"SET")
 	{
 		set_to_init_value_arg(cmd.args[1], false, vars, init, changed);
+		return L"";
+	}
+
+	if(cmd.cmd == L"GET" || cmd.cmd == L"PUT" || cmd.cmd == L"TRR")
+	{
+		bool is_dst = (cmd.cmd != L"PUT");
+		set_to_init_value_arg(cmd.args[1], is_dst, vars, init, changed);
+		if(cmd.args.size() != 2)
+		{
+			set_to_init_value_arg(cmd.args[2], false, vars, init, changed);
+		}
+
+		if(is_dst && cmd.args[1].size() == 1)
+		{
+			return cmd.args[1][0].value;
+		}
+
 		return L"";
 	}
 
@@ -6044,10 +6196,43 @@ B1C_T_ERROR B1FileCompiler::put_types()
 		}
 		else
 		{
+			// GET, PUT and TRR statements is a special case because of possible array range usage
+			if(cmd.cmd == L"GET" || cmd.cmd == L"PUT" || cmd.cmd == L"TRR")
+			{
+				bool read = (cmd.cmd == L"PUT");
+
+				err = get_type(cmd.args[1], read, iif_locals);
+				if(err != B1_RES_OK)
+				{
+					return static_cast<B1C_T_ERROR>(err);
+				}
+
+				// forbid GET and TRR statements with string argument
+				if(!read && cmd.args[1][0].type == B1Types::B1T_STRING)
+				{
+					return static_cast<B1C_T_ERROR>(B1_RES_ETYPMISM);
+				}
+
+				if(cmd.args.size() != 2)
+				{
+					err = get_type(cmd.args[2], true, iif_locals);
+					if(err != B1_RES_OK)
+					{
+						return static_cast<B1C_T_ERROR>(err);
+					}
+				}
+
+				continue;
+			}
+
+			bool read = true;
+			if(cmd.cmd == L"IN" || cmd.cmd == L"READ")
+			{
+				read = false;
+			}
+
 			for(auto a = cmd.args.begin(); a != cmd.args.end(); a++)
 			{
-				bool read = true;
-
 				if(cmd.cmd == L"GA" && a < cmd.args.begin() + 2)
 				{
 					continue;
@@ -6080,34 +6265,11 @@ B1C_T_ERROR B1FileCompiler::put_types()
 				{
 					continue;
 				}
-				if(cmd.cmd == L"GET" && a == cmd.args.begin())
-				{
-					continue;
-				}
-				if(cmd.cmd == L"PUT" && a == cmd.args.begin())
-				{
-					continue;
-				}
-				if(cmd.cmd == L"TRR" && a == cmd.args.begin())
-				{
-					continue;
-				}
-
-				if(cmd.cmd == L"IN" || cmd.cmd == L"READ" || cmd.cmd == L"GET" || cmd.cmd == L"TRR")
-				{
-					read = false;
-				}
 
 				err = get_type(*a, read, iif_locals);
 				if(err != B1_RES_OK)
 				{
 					return static_cast<B1C_T_ERROR>(err);
-				}
-
-				// forbid GET and TRR statements with string argument
-				if((cmd.cmd == L"GET" || cmd.cmd == L"TRR") && (*a)[0].type == B1Types::B1T_STRING)
-				{
-					return static_cast<B1C_T_ERROR>(B1_RES_ETYPMISM);
 				}
 			}
 		}
@@ -6670,6 +6832,8 @@ B1C_T_ERROR B1FileCompiler::reuse_locals(bool &changed)
 // lf,local or writing something to the local
 B1C_T_ERROR B1FileCompiler::reuse_vars(bool &changed)
 {
+	changed = false;
+
 	for(auto i = begin(); i != end(); i++)
 	{
 		auto &cmd = *i;
@@ -6687,21 +6851,21 @@ B1C_T_ERROR B1FileCompiler::reuse_vars(bool &changed)
 
 		iterator wr = i;
 		iterator rd = end();
-		bool next = true;
+		bool udef_used = false;
 
 		for(auto j = std::next(i); j != end(); j++)
 		{
 			auto &cmd1 = *j;
 
 			if(	B1CUtils::is_label(cmd1) || cmd1.cmd == L"JMP" || cmd1.cmd == L"JT" || cmd1.cmd == L"JF" || cmd1.cmd == L"CALL" ||
-				cmd1.cmd == L"RETVAL" || cmd1.cmd == L"RET" || cmd1.cmd == L"ERR" || cmd1.cmd == L"END" || cmd1.cmd == L"DEF")
+				cmd1.cmd == L"RET" || cmd1.cmd == L"ERR" || cmd1.cmd == L"END" || cmd1.cmd == L"DEF")
 			{
 				break;
 			}
 
 			if(is_udef_used(cmd1))
 			{
-				break;
+				udef_used = true;
 			}
 
 			auto dst1 = B1CUtils::get_dst_var(cmd1, true);
@@ -6729,6 +6893,10 @@ B1C_T_ERROR B1FileCompiler::reuse_vars(bool &changed)
 				{
 					auto var_to_reuse = B1CUtils::get_dst_var(*rd, true);
 					if(var_to_reuse == nullptr || is_volatile_var(var_to_reuse->value))
+					{
+						break;
+					}
+					if(udef_used && !is_gen_local(var_to_reuse->value))
 					{
 						break;
 					}
@@ -6793,8 +6961,14 @@ B1C_T_ERROR B1FileCompiler::reuse_vars(bool &changed)
 			continue;
 		}
 
-		if(cmd.cmd == L"=" && !is_volatile_used(cmd.args[1]) && !is_udef_used(cmd.args[1]))
+		bool arg1_udef = false;
+		bool arg1_volatile = false;
+
+		if(cmd.cmd == L"=" && !(arg1_udef = is_udef_used(cmd.args[1])) && !(arg1_volatile = is_volatile_used(cmd.args[1])))
 		{
+			bool arg0_udef = is_udef_used(cmd.args[0]);
+			bool arg0_volatile = is_volatile_used(cmd.args[0]);
+
 			iterator rd = end(), wr = end();
 
 			for(auto j = std::next(i); j != end(); j++)
@@ -6802,9 +6976,22 @@ B1C_T_ERROR B1FileCompiler::reuse_vars(bool &changed)
 				auto &cmd1 = *j;
 
 				if (B1CUtils::is_label(cmd1) || cmd1.cmd == L"JMP" || cmd1.cmd == L"JT" || cmd1.cmd == L"JF" || cmd1.cmd == L"CALL" ||
-					cmd1.cmd == L"RETVAL" || cmd1.cmd == L"RET" || cmd1.cmd == L"ERR" || cmd1.cmd == L"END" || cmd1.cmd == L"DEF")
+					cmd1.cmd == L"RET" || cmd1.cmd == L"ERR" || cmd1.cmd == L"END" || cmd1.cmd == L"DEF" ||
+					(is_udef_used(cmd1) && !is_gen_local(cmd.args[1][0].value)))
 				{
 					break;
+				}
+
+				if(arg0_udef)
+				{
+					auto dst_var = B1CUtils::get_dst_var(cmd1, false);
+					if(dst_var != nullptr)
+					{
+						if(!is_gen_local(dst_var->value) && !(cmd.args[1].size() == 1 && B1_CMP_ARG(dst_var->value, dst_var->type) == cmd.args[1]))
+						{
+							break;
+						}
+					}
 				}
 
 				if(cmd.args[1].size() == 1 && B1CUtils::is_sub_or_arg(cmd1, cmd.args[1][0].value))
@@ -6815,7 +7002,7 @@ B1C_T_ERROR B1FileCompiler::reuse_vars(bool &changed)
 				bool is_src = B1CUtils::arg_is_src(cmd1, cmd.args[1]);
 				bool is_dst = B1CUtils::arg_is_dst(cmd1, cmd.args[1], false);
 
-				if(cmd1.cmd == L"TRR" && (is_dst || is_src))
+				if(is_dst && cmd1.cmd == L"TRR")
 				{
 					break;
 				}
@@ -6872,7 +7059,7 @@ B1C_T_ERROR B1FileCompiler::reuse_vars(bool &changed)
 					int count = 0;
 					auto ctmp = *rd;
 					B1CUtils::replace_src(ctmp, cmd.args[1], cmd.args[0], &count);
-					if(count == 1 || !(is_volatile_used(cmd.args[0]) || is_udef_used(cmd.args[0])))
+					if(count == 1 || !(arg0_volatile || arg0_udef))
 					{
 						*rd = ctmp;
 						auto next = std::prev(i);
@@ -7456,27 +7643,19 @@ B1C_T_ERROR B1FileCompiler::eval_imm_exps(bool &changed)
 			}
 		}
 		else
-		if(cmd.cmd == L"GET")
+		if(cmd.cmd == L"GET" || cmd.cmd == L"PUT" || cmd.cmd == L"TRR")
 		{
 			if(eval_imm_fn_arg(cmd.args[1]))
 			{
 				changed = true;
 			}
-		}
-		else
-		if(cmd.cmd == L"PUT")
-		{
-			if(eval_imm_fn_arg(cmd.args[1]))
+
+			if(cmd.args.size() != 2)
 			{
-				changed = true;
-			}
-		}
-		else
-		if(cmd.cmd == L"TRR")
-		{
-			if(eval_imm_fn_arg(cmd.args[1]))
-			{
-				changed = true;
+				if(eval_imm_fn_arg(cmd.args[2]))
+				{
+					changed = true;
+				}
 			}
 		}
 	}
@@ -7670,6 +7849,10 @@ B1C_T_ERROR B1FileCompiler::remove_DAT_stmts()
 			continue;
 		}
 
+		_curr_line_cnt = cmd.line_cnt;
+		_curr_line_num = cmd.line_num;
+		_curr_src_line_id = cmd.src_line_id;
+
 		if(cmd.cmd == L"RST" && cmd.args.size() > 1)
 		{
 			auto label = dat_labels.find(cmd.args[1][0].value);
@@ -7677,13 +7860,17 @@ B1C_T_ERROR B1FileCompiler::remove_DAT_stmts()
 			{
 				cmd.args[1][0].value = label->second;
 			}
+			else
+			{
+				return B1C_T_ERROR::B1C_RES_ERSTWODAT;
+			}
 		}
 	}
 
 	return B1C_T_ERROR::B1C_RES_OK;
 }
 
-B1C_T_ERROR B1FileCompiler::remove_unused_vars(B1_CMP_ARG &a, bool &changed)
+B1C_T_ERROR B1FileCompiler::remove_unused_vars(B1_CMP_ARG &a, bool &changed, bool subs_and_args_only /*= false*/)
 {
 	bool optimize = true;
 
@@ -7692,9 +7879,13 @@ B1C_T_ERROR B1FileCompiler::remove_unused_vars(B1_CMP_ARG &a, bool &changed)
 	{
 		auto used = _compiler.get_var_used(aa->value);
 
+		// 0 - variable is not used
+		// 1 - used for reading only
+		// 2 - used for writing only
+		// 3 - used for both read and write operations
 		if(used == 1)
 		{
-			if(is_volatile_var(aa->value))
+			if(is_volatile_var(aa->value) || is_mem_var_name(aa->value) || is_const_var(aa->value))
 			{
 				// volatile fn argument or subscript
 				optimize = false;
@@ -7711,7 +7902,7 @@ B1C_T_ERROR B1FileCompiler::remove_unused_vars(B1_CMP_ARG &a, bool &changed)
 		}
 	}
 
-	if(optimize && _compiler.get_var_used(a[0].value) == 1 && !is_volatile_var(a[0].value) && !is_const_var(a[0].value) && !is_udef_used(a))
+	if(!subs_and_args_only && optimize && _compiler.get_var_used(a[0].value) == 1 && !is_volatile_var(a[0].value) && !is_mem_var_name(a[0].value) && !is_const_var(a[0].value) && !is_udef_used(a))
 	{
 		a[0].value = (a[0].type == B1Types::B1T_STRING) ? L"\"\"" : L"0";
 		a.erase(a.begin() + 1, a.end());
@@ -7775,17 +7966,6 @@ B1C_T_ERROR B1FileCompiler::remove_unused_vars(bool &changed)
 			continue;
 		}
 
-		if(cmd.cmd == L"PUT")
-		{
-			err = remove_unused_vars(cmd.args[1], changed);
-			if(err != B1C_T_ERROR::B1C_RES_OK)
-			{
-				return err;
-			}
-
-			continue;
-		}
-
 		if(cmd.cmd == L"IN")
 		{
 			err = remove_unused_vars(cmd.args[1], changed);
@@ -7808,20 +7988,25 @@ B1C_T_ERROR B1FileCompiler::remove_unused_vars(bool &changed)
 			continue;
 		}
 
-		if(cmd.cmd == L"GET")
+		if(cmd.cmd == L"GET" || cmd.cmd == L"PUT" || cmd.cmd == L"TRR")
 		{
-			err = remove_unused_vars(cmd.args[1], changed);
-			if(err != B1C_T_ERROR::B1C_RES_OK)
+			if(cmd.args.size() != 2)
 			{
-				return err;
+				err = remove_unused_vars(cmd.args[2], changed);
+				if(err != B1C_T_ERROR::B1C_RES_OK)
+				{
+					return err;
+				}
+
+				bool single_value = (cmd.args[2].size() == 1) && (cmd.args[2][0].value == L"1");
+				if(single_value)
+				{
+					cmd.args.pop_back();
+					changed = true;
+				}
 			}
 
-			continue;
-		}
-
-		if(cmd.cmd == L"TRR")
-		{
-			err = remove_unused_vars(cmd.args[1], changed);
+			err = remove_unused_vars(cmd.args[1], changed, (cmd.args.size() != 2));
 			if(err != B1C_T_ERROR::B1C_RES_OK)
 			{
 				return err;
@@ -8061,6 +8246,29 @@ B1C_T_ERROR B1FileCompiler::calc_vars_usage()
 		}
 		else
 		{
+			// PUT, GET and TRR is a special case
+			if(cmd.cmd == L"GET" || cmd.cmd == L"PUT" || cmd.cmd == L"TRR")
+			{
+				bool read = (cmd.cmd == L"PUT");
+
+				err = calc_vars_usage(cmd.args[1], read);
+				if(err != B1C_T_ERROR::B1C_RES_OK)
+				{
+					return err;
+				}
+
+				if(cmd.args.size() != 2)
+				{
+					err = calc_vars_usage(cmd.args[2], true);
+					if(err != B1C_T_ERROR::B1C_RES_OK)
+					{
+						return err;
+					}
+				}
+
+				continue;
+			}
+
 			for(auto a = cmd.args.begin(); a != cmd.args.end(); a++)
 			{
 				bool read = true;
@@ -8097,20 +8305,8 @@ B1C_T_ERROR B1FileCompiler::calc_vars_usage()
 				{
 					continue;
 				}
-				if(cmd.cmd == L"GET" && a == cmd.args.begin())
-				{
-					continue;
-				}
-				if(cmd.cmd == L"PUT" && a == cmd.args.begin())
-				{
-					continue;
-				}
-				if(cmd.cmd == L"TRR" && a == cmd.args.begin())
-				{
-					continue;
-				}
 
-				if(cmd.cmd == L"IN" || cmd.cmd == L"READ" || cmd.cmd == L"GET" || cmd.cmd == L"TRR")
+				if(cmd.cmd == L"IN" || cmd.cmd == L"READ")
 				{
 					read = false;
 				}
@@ -8129,6 +8325,8 @@ B1C_T_ERROR B1FileCompiler::calc_vars_usage()
 
 B1C_T_ERROR B1FileCompiler::optimize_GA_GF(bool &changed)
 {
+	changed = false;
+
 	for(auto i = cbegin(); i != cend(); i++)
 	{
 		auto &cmd = *i;
@@ -8920,12 +9118,24 @@ B1C_T_ERROR B1FileCompiler::put_fn_def_values()
 			continue;
 		}
 
-		if(cmd.cmd == L"PUT")
+		if(cmd.cmd == L"GET" || cmd.cmd == L"PUT" || cmd.cmd == L"TRR")
 		{
-			err = put_fn_def_values(cmd.args[1]);
-			if(err != B1C_T_ERROR::B1C_RES_OK)
+			if(cmd.cmd == L"PUT")
 			{
-				return err;
+				err = put_fn_def_values(cmd.args[1]);
+				if(err != B1C_T_ERROR::B1C_RES_OK)
+				{
+					return err;
+				}
+			}
+
+			if(cmd.args.size() != 2)
+			{
+				err = put_fn_def_values(cmd.args[2]);
+				if(err != B1C_T_ERROR::B1C_RES_OK)
+				{
+					return err;
+				}
 			}
 
 			continue;
@@ -9466,7 +9676,7 @@ B1C_T_ERROR B1FileCompiler::WriteMAs(const std::string &file_name)
 
 		// remove unused variables
 		auto used = _compiler.get_var_used(c.args[0][0].value);
-		if(used == 0 || (used == 1 && !(is_const || is_volatile_var(c.args[0][0].value))))
+		if(used == 0 /*|| (used == 1 && !(is_const || is_volatile_var(c.args[0][0].value)))*/)
 		{
 			continue;
 		}
@@ -9545,7 +9755,7 @@ B1C_T_ERROR B1FileCompiler::Write(const std::string &file_name) const
 		if(!B1CUtils::is_label(c) && (c.cmd == L"GA" || c.cmd == L"GF"))
 		{
 			auto used = _compiler.get_var_used(c.args[0][0].value);
-			if(used == 0 || (used == 1 && !(is_volatile_var(c.args[0][0].value) || is_const_var(c.args[0][0].value))))
+			if(used == 0 || (used == 1 && !(is_volatile_var(c.args[0][0].value) || is_const_var(c.args[0][0].value) || is_mem_var_name(c.args[0][0].value))))
 			{
 				continue;
 			}
@@ -9764,6 +9974,8 @@ B1C_T_ERROR B1Compiler::recalc_vars_usage(bool &changed)
 {
 	int chksum = 0;
 
+	changed = false;
+
 	for(const auto &v: _used_vars)
 	{
 		chksum += v.second;
@@ -9979,7 +10191,6 @@ B1C_T_ERROR B1Compiler::Compile()
 				init = false;
 			}
 
-			changed = false;
 			auto err = recalc_vars_usage(changed);
 			if(err != B1C_T_ERROR::B1C_RES_OK)
 			{

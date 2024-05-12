@@ -64,17 +64,19 @@ public:
 	std::wstring _data;
 	std::wstring _comment;
 	bool _volatile;
+	bool _is_inline;
 
 	bool _parsed;
 	std::wstring _op;
 	std::vector<std::wstring> _args;
 
-	B1_ASM_OP(AOT type, const std::wstring &data, const std::wstring &comment, bool is_volatile)
+	B1_ASM_OP(AOT type, const std::wstring &data, const std::wstring &comment, bool is_volatile, bool is_inline)
 	: _type(type)
 	, _data(data)
 	, _comment(comment)
 	, _volatile(is_volatile)
 	, _parsed(false)
+	, _is_inline(is_inline)
 	{
 	}
 
@@ -88,21 +90,21 @@ private:
 	std::wstring _comment;
 
 public:
-	void add_op(const std::wstring &op, bool is_volatile)
+	void add_op(const std::wstring &op, bool is_volatile, bool is_inline = false)
 	{
-		push_back(B1_ASM_OP(AOT::AOT_OP, op, _comment, is_volatile));
+		push_back(B1_ASM_OP(AOT::AOT_OP, op, _comment, is_volatile, is_inline));
 		_comment.clear();
 	}
 
-	void add_lbl(const std::wstring &lbl, bool is_volatile)
+	void add_lbl(const std::wstring &lbl, bool is_volatile, bool is_inline = false)
 	{
-		push_back(B1_ASM_OP(AOT::AOT_LABEL, lbl, _comment, is_volatile));
+		push_back(B1_ASM_OP(AOT::AOT_LABEL, lbl, _comment, is_volatile, is_inline));
 		_comment.clear();
 	}
 
-	void add_data(const std::wstring &data, bool is_volatile)
+	void add_data(const std::wstring &data, bool is_volatile, bool is_inline = false)
 	{
-		push_back(B1_ASM_OP(AOT::AOT_DATA, data, _comment, is_volatile));
+		push_back(B1_ASM_OP(AOT::AOT_DATA, data, _comment, is_volatile, is_inline));
 		_comment.clear();
 	}
 
@@ -206,6 +208,8 @@ private:
 
 	std::vector<std::tuple<int32_t, std::string, C1STM8_T_WARNING>> _warnings;
 
+	//     rule id      use counter
+	std::map<int, std::tuple<int>> _opt_rules_usage_data;
 
 	C1STM8_T_ERROR find_first_of(const std::wstring &str, const std::wstring &delimiters, size_t &off) const;
 	std::wstring get_next_value(const std::wstring &str, const std::wstring &delimiters, size_t &next_off) const;
@@ -244,7 +248,7 @@ private:
 	C1STM8_T_ERROR stm8_arrange_types(const B1Types type_from, const B1Types type_to);
 	C1STM8_T_ERROR stm8_load_from_stack(int32_t offset, const B1Types init_type, const B1Types req_type, LVT req_valtype, LVT &rvt, std::wstring &rv);
 	C1STM8_T_ERROR stm8_load(const B1_TYPED_VALUE &tv, const B1Types req_type, LVT req_valtype, LVT *res_valtype = nullptr, std::wstring *res_val = nullptr, bool *volatile_var = nullptr);
-	C1STM8_T_ERROR stm8_arr_alloc_def(const B1_CMP_ARG &arg, const B1_CMP_VAR &var);
+	C1STM8_T_ERROR stm8_arr_alloc_def(const B1_CMP_VAR &var);
 	C1STM8_T_ERROR stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_offset, int32_t &offset);
 	C1STM8_T_ERROR stm8_load(const B1_CMP_ARG &arg, const B1Types req_type, LVT req_valtype, LVT *res_valtype = nullptr, std::wstring *res_val = nullptr, bool *volatile_var = nullptr);
 	C1STM8_T_ERROR stm8_init_array(const B1_CMP_CMD &cmd, const B1_CMP_VAR &var);
@@ -266,6 +270,10 @@ private:
 	C1STM8_T_ERROR write_code_sec(bool code_init);
 	std::wstring correct_SP_offset(const std::wstring &arg, int32_t op_size, bool &no_SP_off, int32_t *offset = nullptr);
 	bool is_arithm_op(const std::wstring &op, int32_t &size);
+	// init = false creates new record and sets its usage count to 0 (if the record does not exist)
+	void update_opt_rule_usage_stat(int32_t rule_id, bool init = false);
+	C1STM8_T_ERROR stm8_load_ptr(const B1_CMP_ARG &first, const B1_CMP_ARG &count);
+
 
 public:
 	C1STM8Compiler() = delete;
@@ -279,6 +287,8 @@ public:
 	C1STM8_T_ERROR WriteCodeInitBegin();
 	C1STM8_T_ERROR WriteCodeInitDAT();
 	C1STM8_T_ERROR WriteCodeInitEnd();
+	C1STM8_T_ERROR ReadOptLogFile(const std::string &file_name);
+	C1STM8_T_ERROR WriteOptLogFile(const std::string &file_name);
 	C1STM8_T_ERROR Optimize1(bool &changed);
 	C1STM8_T_ERROR Optimize2(bool &changed);
 	C1STM8_T_ERROR Save(const std::string &file_name);

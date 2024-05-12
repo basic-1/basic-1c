@@ -1,15 +1,13 @@
 #[[
  STM8 assembler
- Copyright (c) 2021-2023 Nikolay Pletnev
+ Copyright (c) 2021-2024 Nikolay Pletnev
  MIT license
 
  CMakeLists.txt: CMake file for STM8 assembler
 ]]
 
 
-if(UNIX)
- set(CMAKE_CXX_STANDARD 14)
-endif()
+set(CMAKE_CXX_STANDARD 17)
 
 # set project (target) name, B1_TARGET variable should be set before running cmake
 set(B1_PROJECT_NAME $ENV{B1_TARGET})

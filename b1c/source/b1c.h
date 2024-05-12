@@ -1,6 +1,6 @@
 /*
  BASIC1 compiler
- Copyright (c) 2021-2023 Nikolay Pletnev
+ Copyright (c) 2021-2024 Nikolay Pletnev
  MIT license
 
  b1c.h: BASIC1 compiler classes declaration
@@ -106,7 +106,8 @@ private:
 	B1_T_ERROR st_let(const B1_T_CHAR **stop_tokens, B1_CMP_ARG *var_ref = nullptr);
 	B1_T_ERROR st_goto();
 	B1_T_ERROR st_gosub();
-	B1_T_ERROR st_dim_get_size(bool allow_TO_stop_word, std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE> &res, bool first_run);
+	B1_T_ERROR st_dim_get_one_size(bool first_run, bool allow_TO_stop_word, bool TO_stop_word_only, std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE> &res);
+	B1_T_ERROR st_dim_get_size(bool first_run, bool range_only, std::vector<std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE>> &range);
 	B1C_T_ERROR st_dim(bool first_run);
 	B1_T_ERROR st_erase();
 	B1_T_ERROR st_get_type_def(bool allow_addr, B1_TOKENDATA &td, B1_T_INDEX &len, B1Types &type, bool *addr_present = nullptr, std::wstring *address = nullptr);
@@ -128,6 +129,7 @@ private:
 	B1_T_ERROR st_break();
 	B1_T_ERROR st_print();
 	B1_T_ERROR st_input();
+	B1C_T_ERROR st_read_range(std::vector<std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE>> &range);
 	B1C_T_ERROR st_put_get_trr(const std::wstring &cmd_name, bool is_input);
 
 	B1_CMP_CMDS::const_iterator find_LF(B1_CMP_CMDS::const_iterator lacmd, B1_CMP_CMDS::const_iterator intlfcmd, bool &intlf_found);
@@ -164,7 +166,7 @@ private:
 	B1C_T_ERROR eval_imm_exps(bool &changed);
 	B1C_T_ERROR check_MA_stmts();
 	B1C_T_ERROR remove_DAT_stmts();
-	B1C_T_ERROR remove_unused_vars(B1_CMP_ARG &a, bool &changed);
+	B1C_T_ERROR remove_unused_vars(B1_CMP_ARG &a, bool &changed, bool subs_and_args_only = false);
 	B1C_T_ERROR remove_unused_vars(bool &changed);
 	B1C_T_ERROR calc_vars_usage(B1_TYPED_VALUE &v, bool read);
 	B1C_T_ERROR calc_vars_usage(B1_CMP_ARG &a, bool read);

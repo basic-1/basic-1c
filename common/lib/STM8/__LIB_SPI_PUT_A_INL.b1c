@@ -1,0 +1,13 @@
+; sends array data over SPI bus
+; X - address of data to send, Y - the data size (in bytes)
+ASM
+:::__LBL_NEXT
+LD A, (X)
+
+:::__LBL_WAIT_SPI_TXE
+BTJF (SPI_SR), SPI_SR_TXE_POS, ::__LBL_WAIT_SPI_TXE
+LD (SPI_DR), A
+INCW X
+DECW Y
+JRNE ::__LBL_NEXT
+ENDASM

@@ -88,6 +88,7 @@ static const std::string c1stm8_err_msgs[] =
 	"multiple handlers for a single interrupt",
 	"wrong device type",
 	"",
+	"wrong optimization log file format",
 
 	"the last message"
 };

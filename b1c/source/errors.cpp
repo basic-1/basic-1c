@@ -75,6 +75,8 @@ static const std::string b1c_err_msgs[] =
 	"only constant variables can be initialized with DIM statement",
 	"constant variable with address specified",
 	"initializers missing",
+	"",
+	"wrong line number for RESTORE statement",
 
 	"the last message"
 };
