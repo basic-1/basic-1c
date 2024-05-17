@@ -1731,6 +1731,7 @@ A1_T_ERROR CodeStmt::ReadInstArg(std::vector<Token>::const_iterator &start, cons
 			terms.push_back(Token(TokType::TT_OPER, L",", -1));
 			terms.push_back(Token(TokType::TT_EOL, L"", -1));
 			terms.push_back(Token(TokType::TT_EOF, L"", -1));
+			terms.push_back(Token(TokType::TT_OPER, L"(", -1));
 
 			Exp exp;
 
@@ -1813,6 +1814,7 @@ A1_T_ERROR CodeStmt::Write(IhxWriter *writer, const std::map<std::wstring, MemRe
 		else
 		{
 			code <<= (32 - start - 1);
+			code &= ((1 << len) - 1) << (32 - len);
 		}
 
 		bits |= ((uint64_t)code) << (32 - bit_num);
@@ -1825,10 +1827,14 @@ A1_T_ERROR CodeStmt::Write(IhxWriter *writer, const std::map<std::wstring, MemRe
 		}
 	}
 
-	if(bit_num != 0)
+	if(bit_num != 0 || _data.size() == 0)
 	{
 		return A1_T_ERROR::A1_RES_EINTERR;
 	}
+
+#ifdef A1_REVERSE_CODE_BYTES_ORDER
+	std::reverse(_data.begin(), _data.end());
+#endif
 
 	auto err = writer->Write(_data.data(), _data.size());
 	if(err != A1_T_ERROR::A1_RES_OK)

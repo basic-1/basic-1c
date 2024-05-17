@@ -1,11 +1,12 @@
 ; transfers array data over SPI bus (full-duplex mode)
 ; X - data address, Y - data size (in bytes)
 ASM
-:::__LBL_NEXT
-LD A, (X)
 
 :::__LBL_WAIT_SPI_TXE
 BTJF (SPI_SR), SPI_SR_TXE_POS, ::__LBL_WAIT_SPI_TXE
+
+:::__LBL_NEXT
+LD A, (X)
 LD (SPI_DR), A
 
 :::__LBL_WAIT_SPI_RXNE

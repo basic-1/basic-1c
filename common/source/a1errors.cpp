@@ -99,6 +99,7 @@ static const std::string wrn_msgs[] =
 	"more than one .HEAP section",
 	"invalid wide character",
 	"non-ANSI character",
+	"unknown or invalid MCU extensions",
 
 	"the last message"
 };

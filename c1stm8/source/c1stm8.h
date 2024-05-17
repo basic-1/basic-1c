@@ -66,9 +66,9 @@ public:
 	bool _volatile;
 	bool _is_inline;
 
-	bool _parsed;
-	std::wstring _op;
-	std::vector<std::wstring> _args;
+	mutable bool _parsed;
+	mutable std::wstring _op;
+	mutable std::vector<std::wstring> _args;
 
 	B1_ASM_OP(AOT type, const std::wstring &data, const std::wstring &comment, bool is_volatile, bool is_inline)
 	: _type(type)
@@ -80,7 +80,7 @@ public:
 	{
 	}
 
-	bool Parse();
+	bool Parse() const;
 };
 
 
@@ -210,6 +210,7 @@ private:
 
 	//     rule id      use counter
 	std::map<int, std::tuple<int>> _opt_rules_usage_data;
+	std::map<std::wstring, B1_ASM_OPS::const_iterator> _opt_labels;
 
 	C1STM8_T_ERROR find_first_of(const std::wstring &str, const std::wstring &delimiters, size_t &off) const;
 	std::wstring get_next_value(const std::wstring &str, const std::wstring &delimiters, size_t &next_off) const;
@@ -273,6 +274,7 @@ private:
 	// init = false creates new record and sets its usage count to 0 (if the record does not exist)
 	void update_opt_rule_usage_stat(int32_t rule_id, bool init = false);
 	C1STM8_T_ERROR stm8_load_ptr(const B1_CMP_ARG &first, const B1_CMP_ARG &count);
+	bool is_reg_used_after(B1_ASM_OPS::const_iterator i, const std::wstring &reg_name, bool branch = false) const;
 
 
 public:
@@ -291,6 +293,7 @@ public:
 	C1STM8_T_ERROR WriteOptLogFile(const std::string &file_name);
 	C1STM8_T_ERROR Optimize1(bool &changed);
 	C1STM8_T_ERROR Optimize2(bool &changed);
+	C1STM8_T_ERROR Optimize3(bool &changed);
 	C1STM8_T_ERROR Save(const std::string &file_name);
 
 	C1STM8_T_ERROR GetUndefinedSymbols(std::set<std::wstring> &symbols);

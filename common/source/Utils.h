@@ -150,6 +150,8 @@ public:
 protected:
 	std::string _target_name;
 	std::string _MCU_name;
+	bool _embedded;
+	bool _compressed;
 
 	std::vector<std::string> _lib_dirs;
 
@@ -200,6 +202,9 @@ public:
 	, _print_warning_desc(true)
 	, _print_error_desc(true)
 
+	, _embedded(false)
+	, _compressed(true)
+
 	, _mem_model_small(true)
 	, _ret_address_size(ret_addr_size)
 	, _fix_addresses(false)
@@ -234,6 +239,12 @@ public:
 
 	void SetMemModelSmall() { _mem_model_small = true;  }
 	void SetMemModelLarge() { _mem_model_small = false; }
+
+	void SetEmbedded(bool embedded = true) { _embedded = embedded; }
+	bool GetEmbedded() const { return _embedded; }
+
+	void SetCompressed(bool compressed = true) { _compressed = compressed; }
+	bool GetCompressed() const { return _compressed; }
 
 	bool GetMemModelSmall() const { return _mem_model_small; }
 	bool GetMemModelLarge() const { return !_mem_model_small; }

@@ -957,6 +957,7 @@ protected:
 		return A1_T_ERROR::A1_RES_OK;
 	}
 
+
 public:
 	CodeStmtSTM8()
 	: CodeStmt()

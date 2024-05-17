@@ -684,7 +684,7 @@ protected:
 	std::vector<std::pair<std::reference_wrapper<const ArgType>, Exp>> _refs;
 	const Inst *_inst;
 
-	A1_T_ERROR GetRefValue(const std::pair<std::reference_wrapper<const ArgType>, Exp> &ref, const std::map<std::wstring, MemRef> &memrefs, uint32_t &value, int &size);
+	virtual A1_T_ERROR GetRefValue(const std::pair<std::reference_wrapper<const ArgType>, Exp> &ref, const std::map<std::wstring, MemRef> &memrefs, uint32_t &value, int &size);
 	A1_T_ERROR ReadInstArg(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, std::wstring &argsign, const A1Settings &settings);
 
 	// the function should return expression and signature for the specified expression, e.g.
