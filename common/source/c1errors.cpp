@@ -1,18 +1,18 @@
 /*
- STM8 intermediate code compiler
- Copyright (c) 2021-2023 Nikolay Pletnev
+ Intermediate code compiler
+ Copyright (c) 2021-2024 Nikolay Pletnev
  MIT license
 
- errors.cpp: error messages and error reporting functions
+ c1errors.cpp: error messages and error reporting functions
 */
 
 
 #include <string>
 
-#include "errors.h"
+#include "c1errors.h"
 
 
-static const std::string c1stm8_err_msgs[] =
+static const std::string c1_err_msgs[] =
 {
 	"invalid token",
 	"program line too long",
@@ -93,26 +93,27 @@ static const std::string c1stm8_err_msgs[] =
 	"the last message"
 };
 
-static const std::string c1stm8_wrn_msgs[] =
+static const std::string c1_wrn_msgs[] =
 {
 	"possible wrong heap size",
 	"possible wrong stack size",
 	"possible stack overflow",
 	"",
 	"unknown MCU name",
+	"unknown MCU extensions",
 
 	"the last message"
 };
 
 
-void c1stm8_print_error(C1STM8_T_ERROR err_code, int line_cnt, const std::string &file_name, bool print_err_desc)
+void c1_print_error(C1_T_ERROR err_code, int line_cnt, const std::string &file_name, bool print_err_desc)
 {
 	if(!file_name.empty())
 	{
 		fprintf(stderr, "%s: ", file_name.c_str());
 	}
 
-	int err_ind = static_cast<std::underlying_type_t<C1STM8_T_ERROR>>(err_code);
+	int err_ind = static_cast<std::underlying_type_t<C1_T_ERROR>>(err_code);
 
 	fprintf(stderr, "error: %d", err_ind);
 	
@@ -122,24 +123,24 @@ void c1stm8_print_error(C1STM8_T_ERROR err_code, int line_cnt, const std::string
 	}
 
 	int err_fst = static_cast<int>(B1_RES_FIRSTERRCODE);
-	int err_lst = static_cast<std::underlying_type_t<C1STM8_T_ERROR>>(C1STM8_T_ERROR::C1STM8_RES_LASTERRCODE);
+	int err_lst = static_cast<std::underlying_type_t<C1_T_ERROR>>(C1_T_ERROR::C1_RES_LASTERRCODE);
 
 	if(print_err_desc && err_ind >= err_fst && err_ind < err_lst)
 	{
-		fprintf(stderr, " (%s)", c1stm8_err_msgs[err_ind - err_fst].c_str());
+		fprintf(stderr, " (%s)", c1_err_msgs[err_ind - err_fst].c_str());
 	}
 
 	fputs("\n", stderr);
 }
 
-void c1stm8_print_warning(C1STM8_T_WARNING wrn_code, int line_cnt, const std::string &file_name, bool print_wrn_desc)
+void c1_print_warning(C1_T_WARNING wrn_code, int line_cnt, const std::string &file_name, bool print_wrn_desc)
 {
 	if(!file_name.empty())
 	{
 		fprintf(stderr, "%s: ", file_name.c_str());
 	}
 
-	int wrn_ind = static_cast<std::underlying_type_t<C1STM8_T_WARNING>>(wrn_code);
+	int wrn_ind = static_cast<std::underlying_type_t<C1_T_WARNING>>(wrn_code);
 
 	fprintf(stderr, "warning: %d", wrn_ind);
 
@@ -148,12 +149,12 @@ void c1stm8_print_warning(C1STM8_T_WARNING wrn_code, int line_cnt, const std::st
 		fprintf(stderr, " at line %d", line_cnt);
 	}
 
-	int wrn_fst = static_cast<std::underlying_type_t<C1STM8_T_WARNING>>(C1STM8_T_WARNING::C1STM8_WRN_FIRSTWRNCODE);
-	int wrn_lst = static_cast<std::underlying_type_t<C1STM8_T_WARNING>>(C1STM8_T_WARNING::C1STM8_WRN_LASTWRNCODE);
+	int wrn_fst = static_cast<std::underlying_type_t<C1_T_WARNING>>(C1_T_WARNING::C1_WRN_FIRSTWRNCODE);
+	int wrn_lst = static_cast<std::underlying_type_t<C1_T_WARNING>>(C1_T_WARNING::C1_WRN_LASTWRNCODE);
 
 	if(print_wrn_desc && wrn_ind >= wrn_fst && wrn_ind < wrn_lst)
 	{
-		fprintf(stderr, " (%s)", c1stm8_wrn_msgs[wrn_ind - wrn_fst].c_str());
+		fprintf(stderr, " (%s)", c1_wrn_msgs[wrn_ind - wrn_fst].c_str());
 	}
 
 	fputs("\n", stderr);

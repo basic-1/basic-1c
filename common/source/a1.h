@@ -22,6 +22,9 @@
 #define A1_MAX_INST_ARGS_NUM 3
 
 
+class Inst;
+
+
 class A1Settings : public Settings
 {
 private:
@@ -54,7 +57,56 @@ public:
 	{
 		return (_instructions_to_replace.find(std::make_pair(line_num, file_name)) != _instructions_to_replace.end());
 	}
+
+	virtual A1_T_ERROR ProcessNumPostfix(const std::wstring &postfix, int32_t &n)
+	{
+		if(!postfix.empty())
+		{
+			if(postfix.size() > 2)
+			{
+				return A1_T_ERROR::A1_RES_ESYNTAX;
+			}
+
+			if(postfix[0] == L'l' || postfix[0] == L'L')
+			{
+				n = (uint16_t)n;
+			}
+			else
+			if(postfix[0] == L'h' || postfix[0] == L'H')
+			{
+				n = (uint16_t)(n >> 16);
+			}
+			else
+			{
+				return A1_T_ERROR::A1_RES_ESYNTAX;
+			}
+
+			if(postfix.size() > 1)
+			{
+				if(postfix[1] == L'l' || postfix[1] == L'L')
+				{
+					n = (uint8_t)n;
+				}
+				else
+				if(postfix[1] == L'h' || postfix[1] == L'H')
+				{
+					n = (uint8_t)(n >> 8);
+				}
+				else
+				{
+					return A1_T_ERROR::A1_RES_ESYNTAX;
+				}
+			}
+		}
+
+		return A1_T_ERROR::A1_RES_OK;
+	}
+
+	virtual A1_T_ERROR GetInstructions(const std::wstring &inst_name, const std::wstring &inst_sign, std::vector<const Inst *> &insts, int line_num, const std::string &file_name) const = 0;
 };
+
+
+extern A1Settings &_global_settings;
 
 
 class IhxWriter
@@ -329,7 +381,7 @@ public:
 	{
 	}
 
-	virtual A1_T_ERROR Read(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, const std::map<std::wstring, MemRef> &memrefs, const std::string &file_name, const A1Settings &settings) = 0;
+	virtual A1_T_ERROR Read(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, const std::map<std::wstring, MemRef> &memrefs, const std::string &file_name) = 0;
 
 	virtual A1_T_ERROR Write(IhxWriter *writer, const std::map<std::wstring, MemRef> &memrefs) = 0;
 
@@ -403,7 +455,7 @@ public:
 
 	const std::wstring &GetTypeMod() const;
 
-	int32_t GetAddress() const;
+	A1_T_ERROR GetAddress(int32_t &address) const;
 
 	void SetAddress(int32_t address);
 
@@ -482,7 +534,7 @@ protected:
 	std::vector<EVal> _vals;
 
 public:
-	static A1_T_ERROR BuildExp(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, Exp &exp, const std::vector<Token> &terms = std::vector<Token>(), const A1Settings *settings = nullptr);
+	static A1_T_ERROR BuildExp(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, Exp &exp, const std::vector<Token> &terms = std::vector<Token>());
 	static A1_T_ERROR CalcSimpleExp(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, int32_t &res, const std::vector<Token> &terms = std::vector<Token>());
 
 	void Clear()
@@ -527,13 +579,15 @@ public:
 	int _size;
 	int32_t _minval;
 	int32_t _maxval;
+	int32_t _multof;
 
 	ArgType() = delete;
 
-	ArgType(int size, int32_t minval, int32_t maxval)
+	ArgType(int size, int32_t minval, int32_t maxval, int32_t multipleof = 1)
 	: _size(size)
 	, _minval(minval)
 	, _maxval(maxval)
+	, _multof(multipleof)
 	{
 	}
 
@@ -563,9 +617,9 @@ public:
 		return std::addressof(*this) != std::addressof(at);
 	}
 
-	bool IsValidValue(int32_t value) const
+	virtual bool IsValidValue(int32_t value) const
 	{
-		return (value >= _minval) && (value <= _maxval);
+		return (*this == AT_NONE) || ((value >= _minval) && (value <= _maxval) && (value % _multof) == 0);
 	}
 
 	static const ArgType AT_NONE;
@@ -575,28 +629,41 @@ public:
 	static const ArgType AT_1BYTE_OFF; // -128..+127 (offset for JRx, CALLR instructions)
 	static const ArgType AT_1BYTE_VAL; // -128..255
 	static const ArgType AT_2BYTE_VAL; // -32768..65535
+	static const ArgType AT_SPEC_TYPE; // special arg. type processed by Inst::CheckArgs
 };
 
 
 class Inst
 {
 private:
-	uint32_t get_hex_value(const std::wstring &str, int *len = nullptr);
-	uint32_t get_bit_arg(const std::wstring &bit_arg, int &start_pos, int &len);
+	uint32_t get_hex_value(const std::wstring &str, std::wstring *postfix = nullptr, int *len = nullptr);
+	uint32_t get_bit_arg(const std::wstring &bit_arg, int &start_pos, int &len, std::wstring &postfix);
 
-
+	void Init(const wchar_t *code, int speed, const ArgType &arg1type, const ArgType &arg2type, const ArgType &arg3type);
 public:
 	// instruction code size
 	int _size;
+	// instruction speed (in ticks)
+	int _speed;
 	// arguments count
 	int _argnum;
 	// argument types
 	std::vector<std::reference_wrapper<const ArgType>> _argtypes;
-	//const ArgType &_argtypes[A1_MAX_INST_ARGS_NUM];
-	// code:               is_arg code      start len
-	std::vector<std::tuple<bool,  uint32_t, int,  int>> _code;
+	// code:               inst_end is_arg code      start len  postfix
+	std::vector<std::tuple<bool,    bool,  uint32_t, int,  int, std::wstring>> _code;
 
 	Inst(const wchar_t *code, const ArgType &arg1type = ArgType::AT_NONE, const ArgType &arg2type = ArgType::AT_NONE, const ArgType &arg3type = ArgType::AT_NONE);
+	Inst(const wchar_t *code, int speed, const ArgType &arg1type = ArgType::AT_NONE, const ArgType &arg2type = ArgType::AT_NONE, const ArgType &arg3type = ArgType::AT_NONE);
+
+	virtual bool CheckArgs(int32_t a1, int32_t a2, int32_t a3) const
+	{
+		return _argtypes[0].get().IsValidValue(a1) && _argtypes[1].get().IsValidValue(a2) && _argtypes[2].get().IsValidValue(a3);
+	}
+
+	virtual A1_T_ERROR GetSpecArg(int arg_num, std::pair<std::reference_wrapper<const ArgType>, Exp> &ref, int32_t &val) const
+	{
+		return A1_T_ERROR::A1_RES_EINVINST;
+	}
 };
 
 
@@ -621,7 +688,7 @@ public:
 	{
 	}
 
-	A1_T_ERROR Read(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, const std::map<std::wstring, MemRef> &memrefs, const std::string &file_name, const A1Settings &settings) override;
+	A1_T_ERROR Read(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, const std::map<std::wstring, MemRef> &memrefs, const std::string &file_name) override;
 	A1_T_ERROR Write(IhxWriter *writer, const std::map<std::wstring, MemRef> &memrefs) override
 	{
 		// do nothing
@@ -673,7 +740,7 @@ public:
 	{
 	}
 
-	A1_T_ERROR Read(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, const std::map<std::wstring, MemRef> &memrefs, const std::string &file_name, const A1Settings &settings) override;
+	A1_T_ERROR Read(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, const std::map<std::wstring, MemRef> &memrefs, const std::string &file_name) override;
 	A1_T_ERROR Write(IhxWriter *writer, const std::map<std::wstring, MemRef> &memrefs) override;
 };
 
@@ -685,7 +752,7 @@ protected:
 	const Inst *_inst;
 
 	virtual A1_T_ERROR GetRefValue(const std::pair<std::reference_wrapper<const ArgType>, Exp> &ref, const std::map<std::wstring, MemRef> &memrefs, uint32_t &value, int &size);
-	A1_T_ERROR ReadInstArg(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, std::wstring &argsign, const A1Settings &settings);
+	A1_T_ERROR ReadInstArg(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, std::wstring &argsign);
 
 	// the function should return expression and signature for the specified expression, e.g.
 	// input: exp = 10 + 5, output: exp = 10 + 5, sign = "V"
@@ -703,6 +770,7 @@ public:
 	{
 	}
 
+	A1_T_ERROR Read(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, const std::map<std::wstring, MemRef> &memrefs, const std::string &file_name) override;
 	A1_T_ERROR Write(IhxWriter *writer, const std::map<std::wstring, MemRef> &memrefs) override;
 };
 
@@ -739,8 +807,6 @@ protected:
 	int32_t _const_size;
 	int32_t _code_size;
 
-	A1Settings &_settings;
-
 	static const std::vector<std::reference_wrapper<const Token>> ALL_DIRS;
 
 	// the method should return true if the section type and its modifier string are correct
@@ -769,13 +835,12 @@ protected:
 
 
 public:
-	Sections(A1Settings &settings)
+	Sections()
 	: _curr_line_num(0)
 	, _data_size(0)
 	, _init_size(0)
 	, _const_size(0)
 	, _code_size(0)
-	, _settings(settings)
 	{
 	}
 
@@ -784,7 +849,7 @@ public:
 	}
 
 	A1_T_ERROR ReadSourceFiles(const std::vector<std::string> &src_files);
-	virtual A1_T_ERROR ReadSections();
+	A1_T_ERROR ReadSections();
 	A1_T_ERROR Write(const std::string &file_name);
 
 	int32_t GetCurrLineNum() const
@@ -809,12 +874,12 @@ public:
 
 	int32_t GetStackSize() const
 	{
-		return _settings.GetStackSize();
+		return _global_settings.GetStackSize();
 	}
 
 	int32_t GetHeapSize() const
 	{
-		return _settings.GetHeapSize();
+		return _global_settings.GetHeapSize();
 	}
 
 	int32_t GetConstSize() const

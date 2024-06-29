@@ -18,27 +18,22 @@ project(${B1_PROJECT_NAME} LANGUAGES C CXX)
 
 set(B1_CORE_SRC_DIR ../../b1core/source)
 set(B1_EXT_SRC_DIR ../../b1core/source/ext)
-set(B1C_COMMON_DIR ../../common/source)
+set(B1_COMMON_SRC_DIR ../../common/source)
 
 add_definitions(-DB1_PROJECT_NAME="${B1_PROJECT_NAME}")
 
 include_directories(${B1_CORE_SRC_DIR})
-include_directories(${B1C_COMMON_DIR})
+include_directories(${B1_COMMON_SRC_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 add_executable(${B1_PROJECT_NAME} b1c.cpp
 	errors.cpp
-	${B1C_COMMON_DIR}/b1cmp.cpp
-	${B1C_COMMON_DIR}/Utils.cpp
-	${B1C_COMMON_DIR}/moresym.cpp
+	${B1_COMMON_SRC_DIR}/b1cmp.cpp
+	${B1_COMMON_SRC_DIR}/Utils.cpp
+	${B1_COMMON_SRC_DIR}/moresym.cpp
 	${B1_CORE_SRC_DIR}/b1.c
 	${B1_CORE_SRC_DIR}/b1types.c
 	${B1_CORE_SRC_DIR}/b1id.c
 	${B1_CORE_SRC_DIR}/b1tok.c
 	${B1_CORE_SRC_DIR}/b1rpn.c
 	${B1_EXT_SRC_DIR}/exprg.cpp)
-
-# link with math. libary
-if(UNIX)
- target_link_libraries(${B1_PROJECT_NAME} m)
-endif()

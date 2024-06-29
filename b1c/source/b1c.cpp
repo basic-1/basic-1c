@@ -10529,6 +10529,17 @@ int main(int argc, char **argv)
 			continue;
 		}
 
+		// assembler option, just pass it further
+		if ((argv[i][0] == '-' || argv[i][0] == '/') &&
+			(argv[i][1] == 'N' || argv[i][1] == 'n') &&
+			(argv[i][2] == 'C' || argv[i][2] == 'c') &&
+			(argv[i][3] == 'I' || argv[i][3] == 'i') &&
+			argv[i][4] == 0)
+		{
+			args = args + " -nci";
+			continue;
+		}
+
 		// disable optimizations
 		if ((argv[i][0] == '-' || argv[i][0] == '/') &&
 			(argv[i][1] == 'N' || argv[i][1] == 'n') &&

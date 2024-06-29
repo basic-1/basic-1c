@@ -13,6 +13,9 @@
 #include <vector>
 #include <list>
 #include <map>
+#include <iterator>
+
+#include "Utils.h"
 
 
 class B1_CMP_CMD;

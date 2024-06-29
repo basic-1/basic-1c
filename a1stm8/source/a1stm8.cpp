@@ -30,10 +30,6 @@
 static const char *version = B1_CMP_VERSION;
 
 
-// default values: 2 kB of RAM, 16 kB of FLASH
-A1Settings _global_settings = { 0x0, 0x0800, 0x8000, 0x4000, 0x0, 0x0, STM8_RET_ADDR_SIZE_MM_SMALL };
-
-
 static void b1_print_version(FILE *fstr)
 {
 	std::fputs("STM8 assembler\n", fstr);
@@ -73,9 +69,9 @@ static std::wstring get_size_kB(int64_t size)
 }
 
 
-static std::multimap<std::wstring, Inst> _instructions;
+static std::multimap<std::wstring, std::unique_ptr<Inst>> _instructions;
 
-#define ADD_INST(SIGN, OPCODE, ...) _instructions.emplace(SIGN, Inst((OPCODE), ##__VA_ARGS__))
+#define ADD_INST(SIGN, OPCODE, ...) _instructions.emplace(SIGN, new Inst((OPCODE), ##__VA_ARGS__))
 
 static void load_all_instructions()
 {
@@ -840,9 +836,9 @@ static void load_all_instructions()
 	ADD_INST(L"XORA,([V],Y)",	L"91D8 {1}", ArgType::AT_1BYTE_ADDR);
 }
 
-static std::multimap<std::wstring, Inst> _instructions_ex;
+static std::multimap<std::wstring, std::unique_ptr<Inst>> _instructions_ex;
 
-#define ADD_INST_EX(SIGN, OPCODE, ...) _instructions_ex.emplace(SIGN, Inst((OPCODE), ##__VA_ARGS__))
+#define ADD_INST_EX(SIGN, OPCODE, ...) _instructions_ex.emplace(SIGN, new Inst((OPCODE), ##__VA_ARGS__))
 
 // CALLR -> CALL (if necessary), JRX -> JP (if necessary)
 static void load_extra_instructions_small()
@@ -924,6 +920,70 @@ static void load_extra_instructions_large()
 }
 
 
+class A1STM8Settings: public A1Settings
+{
+public:
+	A1STM8Settings(	int32_t RAM_start,
+					int32_t RAM_size,
+					int32_t ROM_start,
+					int32_t ROM_size,
+					int32_t stack_size,
+					int32_t heap_size,
+					int ret_addr_size)
+	: A1Settings(	RAM_start,
+					RAM_size,
+					ROM_start,
+					ROM_size,
+					stack_size,
+					heap_size,
+					ret_addr_size)
+	{
+	}
+
+	A1_T_ERROR GetInstructions(const std::wstring &inst_name, const std::wstring &inst_sign, std::vector<const Inst *> &insts, int line_num, const std::string &file_name) const override
+	{
+		bool use_ex_opcodes = false;
+
+		// replace JP -> JPF, CALL and CALLR -> CALLF, RET -> RETF
+		if(GetFixAddresses() && GetMemModelLarge())
+		{
+			if(inst_name == L"JP" || inst_name == L"CALL" || inst_name == L"CALLR" || inst_name == L"RET")
+			{
+				use_ex_opcodes = true;
+			}
+		}
+
+		// replace instructions with relative addressing if their addresses are out of range
+		if(!use_ex_opcodes && (GetFixAddresses() && IsInstToReplace(line_num, file_name)))
+		{
+			use_ex_opcodes = true;
+		}
+
+		const auto &ginsts = use_ex_opcodes ? _instructions_ex : _instructions;
+		
+		auto inst_num = ginsts.count(inst_sign);
+		
+		if(inst_num == 0)
+		{
+			return A1_T_ERROR::A1_RES_EINVINST;
+		}
+
+		auto mi = ginsts.equal_range(inst_sign);
+		for(auto inst = mi.first; inst != mi.second; inst++)
+		{
+			insts.push_back(inst->second.get());
+		}
+
+		return A1_T_ERROR::A1_RES_OK;
+	}
+};
+
+
+// default values: 2 kB of RAM, 16 kB of FLASH
+A1STM8Settings global_settings = { 0x0, 0x0800, 0x8000, 0x4000, 0x0, 0x0, STM8_RET_ADDR_SIZE_MM_SMALL };
+A1Settings &_global_settings = global_settings;
+
+
 class CodeStmtSTM8: public CodeStmt
 {
 protected:
@@ -962,171 +1022,6 @@ public:
 	CodeStmtSTM8()
 	: CodeStmt()
 	{
-	}
-
-	A1_T_ERROR Read(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, const std::map<std::wstring, MemRef> &memrefs, const std::string &file_name, const A1Settings &settings) override
-	{
-		if(start == end)
-		{
-			return A1_T_ERROR::A1_RES_ESYNTAX;
-		}
-
-		if(start->GetType() != TokType::TT_STRING)
-		{
-			return A1_T_ERROR::A1_RES_ESYNTAX;
-		}
-
-		_refs.clear();
-
-		if(IsDataStmt(*start))
-		{
-			return ConstStmt::Read(start, end, memrefs, file_name, settings);
-		}
-
-		const auto op_name = start->GetToken();
-		auto line_num = start->GetLineNum();
-
-		// read instruction
-		auto signature = op_name;
-
-		for(int arg_num = 0; arg_num < A1_MAX_INST_ARGS_NUM; arg_num++)
-		{
-			start++;
-
-			if(start != end && start->GetType() != TokType::TT_EOL && start->GetType() != TokType::TT_EOF)
-			{
-				auto err = ReadInstArg(start, end, signature, settings);
-				if(err != A1_T_ERROR::A1_RES_OK)
-				{
-					return err;
-				}
-
-				if(start != end && start->GetType() != TokType::TT_EOL && start->GetType() != TokType::TT_EOF)
-				{
-					if(start->GetType() == TokType::TT_OPER && start->GetToken() == L",")
-					{
-						signature += L",";
-						continue;
-					}
-					else
-					{
-						return A1_T_ERROR::A1_RES_ESYNTAX;
-					}
-				}
-			}
-
-			break;
-		}
-
-		if(start != end && start->GetType() != TokType::TT_EOL && start->GetType() != TokType::TT_EOF)
-		{
-			return A1_T_ERROR::A1_RES_ESYNTAX;
-		}
-
-		bool use_ex_opcodes = false;
-
-		// replace JP -> JPF, CALL and CALLR -> CALLF, RET -> RETF
-		if(settings.GetFixAddresses() && settings.GetMemModelLarge())
-		{
-			if(op_name == L"JP" || op_name == L"CALL" || op_name == L"CALLR" || op_name == L"RET")
-			{
-				use_ex_opcodes = true;
-			}
-		}
-
-		// replace instructions with relative addressing if their addresses are out of range
-		if(!use_ex_opcodes && (settings.GetFixAddresses() && settings.IsInstToReplace(line_num, file_name)))
-		{
-			use_ex_opcodes = true;
-		}
-
-		const auto &ginsts = use_ex_opcodes ? _instructions_ex : _instructions;
-		
-		auto inst_num = ginsts.count(signature);
-		
-		if(inst_num == 0)
-		{
-			return A1_T_ERROR::A1_RES_EINVINST;
-		}
-
-		auto insts = ginsts.find(signature);
-		_inst = &insts->second;
-
-		// the code below processes STM8 short/long addresses (selects proper instruction)
-		if(inst_num > 1)
-		{
-			// more than one instruction found (two at most now)
-			// try to evaluate arguments
-			bool eval = true;
-			std::vector<int32_t> vals;
-			for(auto &r: _refs)
-			{
-				int32_t val = -1;
-				auto err = r.second.Eval(val, memrefs);
-				if(err != A1_T_ERROR::A1_RES_OK)
-				{
-					eval = false;
-					break;
-				}
-				vals.push_back(val);
-			}
-
-			bool page0addresses = false;
-
-			if(eval)
-			{
-				if(vals.size() == 1 && vals[0] >= 0 && vals[0] <= 255)
-				{
-					page0addresses = true;
-				}
-				else
-				if(vals.size() == 2 && vals[0] >= 0 && vals[0] <= 255 && vals[1] >= 0 && vals[1] <= 255)
-				{
-					page0addresses = true;
-				}
-			}
-
-			if(page0addresses)
-			{
-				if(_refs.size() == 1 && _inst->_argtypes[0].get() != ArgType::AT_1BYTE_ADDR)
-				{
-					insts++;
-					_inst = &insts->second;
-				}
-				else
-				if(_refs.size() == 2 && (_inst->_argtypes[0].get() != ArgType::AT_1BYTE_ADDR || _inst->_argtypes[1].get() != ArgType::AT_1BYTE_ADDR))
-				{
-					insts++;
-					_inst = &insts->second;
-				}
-			}
-			else
-			{
-				// all non-resolved references should be in code sections soo they cannot be short addresses
-				if(_refs.size() == 1 && _inst->_argtypes[0].get() == ArgType::AT_1BYTE_ADDR)
-				{
-					insts++;
-					_inst = &insts->second;
-				}
-				else
-				if(_refs.size() == 2 && (_inst->_argtypes[0].get() == ArgType::AT_1BYTE_ADDR || _inst->_argtypes[1].get() == ArgType::AT_1BYTE_ADDR))
-				{
-					insts++;
-					_inst = &insts->second;
-				}
-			}
-		}
-
-		_size = _inst->_size;
-		for(auto i = 0; i < _inst->_argnum; i++)
-		{
-			_refs[i].first = _inst->_argtypes[i];
-		}
-
-		_is_inst = true;
-		_line_num = line_num;
-
-		return A1_T_ERROR::A1_RES_OK;
 	}
 };
 
@@ -1207,7 +1102,7 @@ protected:
 		for(int32_t i = 0; i < _token_files.size(); i++)
 		{
 			int32_t size = 0;
-			auto err = ReadSections(i, SectType::ST_DATA, STM8_PAGE0_SECTION_TYPE_MOD, _settings.GetRAMStart() + _data_size, size, _settings.GetRAMSize() - _data_size - _settings.GetHeapSize());
+			auto err = ReadSections(i, SectType::ST_DATA, STM8_PAGE0_SECTION_TYPE_MOD, _global_settings.GetRAMStart() + _data_size, size, _global_settings.GetRAMSize() - _data_size - _global_settings.GetHeapSize());
 			if(err != A1_T_ERROR::A1_RES_OK)
 			{
 				return err;
@@ -1220,7 +1115,7 @@ protected:
 				return A1_T_ERROR::A1_RES_EWSECSIZE;
 			}
 
-			if(_data_size + _settings.GetHeapSize() + _settings.GetStackSize() > _settings.GetRAMSize())
+			if(_data_size + _global_settings.GetHeapSize() + _global_settings.GetStackSize() > _global_settings.GetRAMSize())
 			{
 				_warnings.push_back(std::make_tuple(-1, _src_files[i], A1_T_WARNING::A1_WRN_EWNORAM));
 			}
@@ -1232,7 +1127,7 @@ protected:
 
 public:
 	STM8Sections()
-	: Sections(_global_settings)
+	: Sections()
 	{
 	}
 };

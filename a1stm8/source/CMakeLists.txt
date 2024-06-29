@@ -31,8 +31,3 @@ add_executable(${B1_PROJECT_NAME} a1stm8.cpp
 	${B1_COMMON_SRC_DIR}/Utils.cpp
 	${B1_COMMON_SRC_DIR}/moresym.cpp
         )
-
-# link with math. libary
-if(UNIX)
- target_link_libraries(${B1_PROJECT_NAME} m)
-endif()

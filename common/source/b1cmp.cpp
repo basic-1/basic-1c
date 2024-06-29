@@ -16,11 +16,9 @@ extern "C"
 
 #include <limits.h>
 #include <cwctype>
-#include <iterator>
 
 #include "moresym.h"
 #include "b1cmp.h"
-#include "Utils.h"
 
 
 // "!" stands for bitwise NOT
@@ -1990,9 +1988,15 @@ bool B1CUtils::get_asm_type(const B1Types type, std::wstring *asmtype /*= nullpt
 	{
 		if(type == B1Types::B1T_STRING)
 		{
+#ifdef B1_POINTER_SIZE_32_BIT
+			// string is represented as 4-byte pointer
+			s = 4;
+			at = L"DD";
+#else
 			// string is represented as 2-byte pointer
 			s = 2;
 			at = L"DW";
+#endif
 			r = 1;
 		}
 		else
@@ -2030,15 +2034,20 @@ bool B1CUtils::get_asm_type(const B1Types type, std::wstring *asmtype /*= nullpt
 	}
 	else
 	{
-		// array header:
+		// array header (for 16-bit pointers):
 		// DW ; 2-byte array address
 		// DW ; 1st dimension lbound
 		// DW ; 1st dimension size
 		// ...
 		// DW ; Nth dimension lbound
 		// DW ; Nth dimension size
+#ifdef B1_POINTER_SIZE_32_BIT
+		s = (1 + dimnum * 2) * 4;
+		at = L"DD";
+#else
 		s = (1 + dimnum * 2) * 2;
 		at = L"DW";
+#endif
 		r = 1 + dimnum * 2;
 	}
 

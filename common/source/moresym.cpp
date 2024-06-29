@@ -1,6 +1,6 @@
 /*
  BASIC1 compiler
- Copyright (c) 2021-2023 Nikolay Pletnev
+ Copyright (c) 2021-2024 Nikolay Pletnev
  MIT license
 
  moresym.cpp: common symbols and constants
@@ -45,7 +45,7 @@ std::map<std::wstring, std::pair<int32_t, B1Types>> _B1C_consts =
 };
 
 
-// assemply-time constant names (their values are computed at assembly time)
+// assembly-time constant names (their values are computed at assembly time)
 std::map<std::wstring, B1Types> _B1AT_consts =
 {
 	std::make_pair(L"__RET_ADDR_SIZE", B1Types::B1T_BYTE),

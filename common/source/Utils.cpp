@@ -1,6 +1,6 @@
 /*
  BASIC1 compiler
- Copyright (c) 2021-2023 Nikolay Pletnev
+ Copyright (c) 2021-2024 Nikolay Pletnev
  MIT license
 
  Utils.cpp: BASIC1 compiler utility classes
@@ -546,7 +546,11 @@ B1_T_ERROR Settings::Read(const std::string &file_name)
 		if(err == B1_RES_EEOF)
 		{
 			err = B1_RES_OK;
-			break;
+
+			if(line.empty())
+			{
+				break;
+			}
 		}
 
 		if(err != B1_RES_OK)

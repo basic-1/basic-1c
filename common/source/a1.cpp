@@ -710,9 +710,16 @@ const std::wstring &Section::GetTypeMod() const
 	return _type_mod;
 }
 
-int32_t Section::GetAddress() const
+A1_T_ERROR Section::GetAddress(int32_t &address) const
 {
-	return _address;
+	if(_address == -1)
+	{
+		return A1_T_ERROR::A1_RES_EWADDR;
+	}
+
+	address = _address;
+
+	return A1_T_ERROR::A1_RES_OK;
 }
 
 void Section::SetAddress(int32_t address)
@@ -831,43 +838,10 @@ A1_T_ERROR EVal::Resolve(const std::map<std::wstring, MemRef> &symbols /*= std::
 		n = ~n;
 	}
 
-	if(!_postfix.empty())
+	auto err = _global_settings.ProcessNumPostfix(_postfix, n);
+	if(err != A1_T_ERROR::A1_RES_OK)
 	{
-		if(_postfix.size() > 2)
-		{
-			return A1_T_ERROR::A1_RES_ESYNTAX;
-		}
-
-		if(_postfix[0] == L'l' || _postfix[0] == L'L')
-		{
-			n = (uint16_t)n;
-		}
-		else
-		if(_postfix[0] == L'h' || _postfix[0] == L'H')
-		{
-			n = (uint16_t)(n >> 16);
-		}
-		else
-		{
-			return A1_T_ERROR::A1_RES_ESYNTAX;
-		}
-
-		if(_postfix.size() > 1)
-		{
-			if(_postfix[1] == L'l' || _postfix[1] == L'L')
-			{
-				n = (uint8_t)n;
-			}
-			else
-			if(_postfix[1] == L'h' || _postfix[1] == L'H')
-			{
-				n = (uint8_t)(n >> 8);
-			}
-			else
-			{
-				return A1_T_ERROR::A1_RES_ESYNTAX;
-			}
-		}
+		return err;
 	}
 		
 	_val = n;
@@ -877,14 +851,14 @@ A1_T_ERROR EVal::Resolve(const std::map<std::wstring, MemRef> &symbols /*= std::
 }
 
 
-A1_T_ERROR Exp::BuildExp(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, Exp &exp, const std::vector<Token> &terms /*= std::vector<Token>()*/, const A1Settings *settings /*= nullptr*/)
+A1_T_ERROR Exp::BuildExp(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, Exp &exp, const std::vector<Token> &terms /*= std::vector<Token>()*/)
 {
 	bool is_val = true;
 	EVal::USGN usgn = EVal::USGN::US_NONE;
 
 	for(; start != end; start++)
 	{
-		if(std::find(terms.begin(), terms.end(), *start) != terms.end())
+		if(std::find(terms.cbegin(), terms.cend(), *start) != terms.cend())
 		{
 			break;
 		}
@@ -935,7 +909,7 @@ A1_T_ERROR Exp::BuildExp(std::vector<Token>::const_iterator &start, const std::v
 					auto tok = start->GetToken();
 					std::wstring value;
 
-					if(settings != nullptr && settings->GetValue(tok, value))
+					if(_global_settings.GetValue(tok, value))
 					{
 						auto err = Utils::str2int32(value, n);
 						if(err != B1_RES_OK)
@@ -1215,17 +1189,25 @@ const ArgType ArgType::AT_3BYTE_ADDR(3, 0, 0xFFFFFF); // 0..FFFFFF
 const ArgType ArgType::AT_1BYTE_OFF(1, -128, 127); // -128..+127 (offset for JRx, CALLR instructions)
 const ArgType ArgType::AT_1BYTE_VAL(1, -128, 255); // -128..255
 const ArgType ArgType::AT_2BYTE_VAL(2, -32768, 65535); // -32768..65535
+const ArgType ArgType::AT_SPEC_TYPE(0, 0, 0); // special arg. type processed by Inst::CheckArgs
 
 
-uint32_t Inst::get_hex_value(const std::wstring &str, int *len /*= nullptr*/)
+uint32_t Inst::get_hex_value(const std::wstring &str, std::wstring *postfix /*= nullptr*/, int* len /*= nullptr*/)
 {
 	uint32_t val = 0;
 	int bits = 0;
 	wchar_t c;
 
-	for(auto ci = str.cbegin(); ci != str.cend(); ci++)
+	auto ci = str.cbegin();
+
+	for(; ci != str.cend(); ci++)
 	{
 		c = *ci;
+
+		if(c == L'.' && postfix != nullptr)
+		{
+			break;
+		}
 
 		val *= 16;
 		bits += 4;
@@ -1248,6 +1230,15 @@ uint32_t Inst::get_hex_value(const std::wstring &str, int *len /*= nullptr*/)
 		}
 	}
 
+	if(postfix != nullptr)
+	{
+		if(ci != str.cend())
+		{
+			ci++;
+		}
+		*postfix = std::wstring(ci, str.cend());
+	}
+
 	if(len != nullptr)
 	{
 		if(bits & 4)
@@ -1261,7 +1252,7 @@ uint32_t Inst::get_hex_value(const std::wstring &str, int *len /*= nullptr*/)
 	return val;
 }
 
-uint32_t Inst::get_bit_arg(const std::wstring &bit_arg, int &start_pos, int &len)
+uint32_t Inst::get_bit_arg(const std::wstring &bit_arg, int &start_pos, int &len, std::wstring &postfix)
 {
 	uint32_t val = 0;
 
@@ -1278,12 +1269,12 @@ uint32_t Inst::get_bit_arg(const std::wstring &bit_arg, int &start_pos, int &len
 		{
 			// full value
 			start_pos = -1;
-			val = get_hex_value(bit_arg, &len);
+			val = get_hex_value(bit_arg, &postfix, &len);
 		}
 		else
 		{
 			// <value>:<length>
-			val = get_hex_value(bit_arg.substr(0, len_pos));
+			val = get_hex_value(bit_arg.substr(0, len_pos), &postfix);
 			len = get_hex_value(bit_arg.substr(len_pos + 1));
 			if(len > 16)
 			{
@@ -1295,7 +1286,7 @@ uint32_t Inst::get_bit_arg(const std::wstring &bit_arg, int &start_pos, int &len
 	else
 	{
 		// <value>:<start>:<length>
-		val = get_hex_value(bit_arg.substr(0, start_pos_pos));
+		val = get_hex_value(bit_arg.substr(0, start_pos_pos), &postfix);
 		start_pos = get_hex_value(bit_arg.substr(start_pos_pos + 1, len_pos - start_pos_pos - 1));
 		len = get_hex_value(bit_arg.substr(len_pos + 1));
 		if(len > 16)
@@ -1307,11 +1298,10 @@ uint32_t Inst::get_bit_arg(const std::wstring &bit_arg, int &start_pos, int &len
 	return val;
 }
 
-Inst::Inst(const wchar_t *code, const ArgType &arg1type /*= ArgType::AT_NONE*/, const ArgType &arg2type /*= ArgType::AT_NONE*/, const ArgType &arg3type /*= ArgType::AT_NONE*/)
-: _size(0)
-, _argnum(0)
-, _argtypes({ arg1type, arg2type, arg3type })
+void Inst::Init(const wchar_t *code, int speed, const ArgType &arg1type, const ArgType &arg2type, const ArgType &arg3type)
 {
+	_speed = speed;
+
 	for(_argnum = 0; _argnum < A1_MAX_INST_ARGS_NUM; _argnum++)
 	{
 		if(_argtypes[_argnum].get() == ArgType::AT_NONE)
@@ -1320,43 +1310,58 @@ Inst::Inst(const wchar_t *code, const ArgType &arg1type /*= ArgType::AT_NONE*/, 
 		}
 	}
 
-	std::vector<std::wstring> code_parts;
-	Utils::str_split(code, L" ", code_parts);
+	std::vector<std::wstring> insts;
+	Utils::str_split(code, L"|", insts);
 
 	uint32_t val;
 	int start, len;
 	bool is_arg;
+	std::wstring postfix;
+	std::vector<std::wstring> code_parts;
 
-	for(const auto &cp: code_parts)
+	for(const auto &inst: insts)
 	{
-		if(cp.front() == L'{')
+		code_parts.clear();
+		Utils::str_split(inst, L" ", code_parts);
+
+		for(const auto &cp: code_parts)
 		{
-			if(cp.back() != L'}')
+			if(cp.empty())
 			{
-				throw std::invalid_argument("fatal: incorrect instruction definition (arg)");
+				continue;
 			}
 
-			val = get_bit_arg(cp.substr(1, cp.length() - 2), start, len);
-			if(val == 0 || val > _argnum)
+			if(cp.front() == L'{')
 			{
-				throw std::invalid_argument("fatal: incorrect instruction definition (argnum)");
+				if(cp.back() != L'}')
+				{
+					throw std::invalid_argument("fatal: incorrect instruction definition (arg)");
+				}
+
+				val = get_bit_arg(cp.substr(1, cp.length() - 2), start, len, postfix);
+				if(val == 0 || val > _argnum)
+				{
+					throw std::invalid_argument("fatal: incorrect instruction definition (argnum)");
+				}
+
+				if(start == -1)
+				{
+					len = _argtypes[val - 1].get()._size * 8;
+				}
+
+				is_arg = true;
+			}
+			else
+			{
+				val = get_bit_arg(cp, start, len, postfix);
+				is_arg = false;
 			}
 
-			if(start == -1)
-			{
-				len = _argtypes[val - 1].get()._size * 8;
-			}
-
-			is_arg = true;
+			_code.emplace_back(false, is_arg, val, start, len, postfix);
+			_size += len;
 		}
-		else
-		{
-			val = get_bit_arg(cp, start, len);
-			is_arg = false;
-		}
 
-		_code.emplace_back(is_arg, val, start, len);
-		_size += len;
+		std::get<0>(_code.back()) = true;
 	}
 
 	if(_size % 8)
@@ -1370,6 +1375,24 @@ Inst::Inst(const wchar_t *code, const ArgType &arg1type /*= ArgType::AT_NONE*/, 
 	{
 		throw std::invalid_argument("fatal: incorrect instruction definition (zero size)");
 	}
+}
+
+Inst::Inst(const wchar_t *code, const ArgType &arg1type /*= ArgType::AT_NONE*/, const ArgType &arg2type /*= ArgType::AT_NONE*/, const ArgType &arg3type /*= ArgType::AT_NONE*/)
+: _size(0)
+, _speed(0)
+, _argnum(0)
+, _argtypes({ arg1type, arg2type, arg3type })
+{
+	Init(code, 0, arg1type, arg2type, arg2type);
+}
+
+Inst::Inst(const wchar_t *code, int speed, const ArgType &arg1type /*= ArgType::AT_NONE*/, const ArgType &arg2type /*= ArgType::AT_NONE*/, const ArgType &arg3type /*= ArgType::AT_NONE*/)
+: _size(0)
+, _speed(0)
+, _argnum(0)
+, _argtypes({ arg1type, arg2type, arg3type })
+{
+	Init(code, speed, arg1type, arg2type, arg2type);
 }
 
 
@@ -1406,7 +1429,7 @@ bool DataStmt::IsDataStmt(const Token &token, int *data_size /*= nullptr*/)
 	return false;
 }
 
-A1_T_ERROR DataStmt::Read(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, const std::map<std::wstring, MemRef> &memrefs, const std::string &file_name, const A1Settings &settings)
+A1_T_ERROR DataStmt::Read(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, const std::map<std::wstring, MemRef> &memrefs, const std::string &file_name)
 {
 	if(start == end)
 	{
@@ -1438,7 +1461,7 @@ A1_T_ERROR DataStmt::Read(std::vector<Token>::const_iterator &start, const std::
 		int32_t rep = -1;
 		Exp exp;
 
-		auto err = Exp::BuildExp(start, end, exp, { Token(TokType::TT_OPER, L")", -1) }, &settings);
+		auto err = Exp::BuildExp(start, end, exp, { Token(TokType::TT_OPER, L")", -1) });
 		if(err != A1_T_ERROR::A1_RES_OK)
 		{
 			return err;
@@ -1474,9 +1497,9 @@ A1_T_ERROR DataStmt::Read(std::vector<Token>::const_iterator &start, const std::
 }
 
 
-A1_T_ERROR ConstStmt::Read(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, const std::map<std::wstring, MemRef> &memrefs, const std::string &file_name, const A1Settings &settings)
+A1_T_ERROR ConstStmt::Read(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, const std::map<std::wstring, MemRef> &memrefs, const std::string &file_name)
 {
-	auto err = DataStmt::Read(start, end, memrefs, file_name, settings);
+	auto err = DataStmt::Read(start, end, memrefs, file_name);
 	if(err != A1_T_ERROR::A1_RES_OK)
 	{
 		return err;
@@ -1551,7 +1574,7 @@ A1_T_ERROR ConstStmt::Read(std::vector<Token>::const_iterator &start, const std:
 			int32_t num = 0;
 			Exp exp;
 
-			auto err = Exp::BuildExp(start, end, exp, terms, &settings);
+			auto err = Exp::BuildExp(start, end, exp, terms);
 			if(err != A1_T_ERROR::A1_RES_OK)
 			{
 				return err;
@@ -1651,7 +1674,26 @@ A1_T_ERROR ConstStmt::Write(IhxWriter *writer, const std::map<std::wstring, MemR
 		_warnings.push_back(A1_T_WARNING::A1_WRN_WDATATRUNC);
 	}
 
+#ifdef A1_REVERSE_CONST_BYTES_ORDER
+	A1_T_ERROR err = A1_T_ERROR::A1_RES_OK;
+
+	if(_size1 == 1)
+	{
+		err = writer->Write(_data.data(), _size);
+	}
+	else
+	{
+		auto size = _data.size() / _size1;
+		for(auto i = 0; i < size; i++)
+		{
+			std::reverse(std::next(_data.begin(), i * _size1), std::next(_data.begin(), (i + 1) * _size1));
+		}
+		err = writer->Write(_data.data(), _size);
+	}
+#else
 	auto err = writer->Write(_data.data(), _size);
+#endif
+
 	if(err != A1_T_ERROR::A1_RES_OK)
 	{
 		return err;
@@ -1690,7 +1732,7 @@ A1_T_ERROR CodeStmt::GetRefValue(const std::pair<std::reference_wrapper<const Ar
 	return A1_T_ERROR::A1_RES_OK;
 }
 
-A1_T_ERROR CodeStmt::ReadInstArg(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, std::wstring &argsign, const A1Settings &settings)
+A1_T_ERROR CodeStmt::ReadInstArg(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, std::wstring &argsign)
 {
 	std::wstring tok;
 	std::vector<std::wstring> brackets;
@@ -1735,7 +1777,7 @@ A1_T_ERROR CodeStmt::ReadInstArg(std::vector<Token>::const_iterator &start, cons
 
 			Exp exp;
 
-			auto err = Exp::BuildExp(start, end, exp, terms, &settings);
+			auto err = Exp::BuildExp(start, end, exp, terms);
 			if(err != A1_T_ERROR::A1_RES_OK)
 			{
 				return err;
@@ -1770,6 +1812,152 @@ A1_T_ERROR CodeStmt::ReadInstArg(std::vector<Token>::const_iterator &start, cons
 	return A1_T_ERROR::A1_RES_OK;
 }
 
+A1_T_ERROR CodeStmt::Read(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, const std::map<std::wstring, MemRef> &memrefs, const std::string &file_name)
+{
+	if(start == end)
+	{
+		return A1_T_ERROR::A1_RES_ESYNTAX;
+	}
+
+	if(start->GetType() != TokType::TT_STRING)
+	{
+		return A1_T_ERROR::A1_RES_ESYNTAX;
+	}
+
+	_refs.clear();
+
+	if(IsDataStmt(*start))
+	{
+		return ConstStmt::Read(start, end, memrefs, file_name);
+	}
+
+	const auto op_name = start->GetToken();
+	auto line_num = start->GetLineNum();
+
+	// read instruction
+	auto signature = op_name;
+
+	for(int arg_num = 0; arg_num < A1_MAX_INST_ARGS_NUM; arg_num++)
+	{
+		start++;
+
+		if(start != end && start->GetType() != TokType::TT_EOL && start->GetType() != TokType::TT_EOF)
+		{
+			auto err = ReadInstArg(start, end, signature);
+			if(err != A1_T_ERROR::A1_RES_OK)
+			{
+				return err;
+			}
+
+			if(start != end && start->GetType() != TokType::TT_EOL && start->GetType() != TokType::TT_EOF)
+			{
+				if(start->GetType() == TokType::TT_OPER && start->GetToken() == L",")
+				{
+					signature += L",";
+					continue;
+				}
+				else
+				{
+					return A1_T_ERROR::A1_RES_ESYNTAX;
+				}
+			}
+		}
+
+		break;
+	}
+
+	if(start != end && start->GetType() != TokType::TT_EOL && start->GetType() != TokType::TT_EOF)
+	{
+		return A1_T_ERROR::A1_RES_ESYNTAX;
+	}
+
+	std::vector<const Inst *> insts;
+	auto err = _global_settings.GetInstructions(op_name, signature, insts, line_num, file_name);
+	if(err != A1_T_ERROR::A1_RES_OK)
+	{
+		return err;
+	}
+
+	// sort the instructions by speed and size in ascending order
+	for(auto i = 0; i < insts.size(); i++)
+	{
+		auto imin = i;
+		auto min = insts[i]->_speed * 256 + insts[i]->_size;
+		auto min_nxt = 0;
+		for(auto j = i + 1; j < insts.size(); j++)
+		{
+			min_nxt = insts[j]->_speed * 256 + insts[j]->_size;
+			if(min_nxt < min)
+			{
+				imin = j;
+				min = min_nxt;
+			}
+		}
+		if(imin != i)
+		{
+			std::swap(insts[i], insts[imin]);
+		}
+	}
+
+	_inst = nullptr;
+
+	int32_t args[3] = { -1, -1, -1 };
+
+	for(auto i: insts)
+	{
+		bool inst_found = true;
+
+		_inst = i;
+		_size = i->_size;
+
+		for(auto a = 0; a < i->_argnum; a++)
+		{
+			int32_t val = -1;
+
+			if(i->_argtypes[a].get() == ArgType::AT_SPEC_TYPE)
+			{
+				auto err = i->GetSpecArg(a, _refs[a], val);
+				if (err != A1_T_ERROR::A1_RES_OK)
+				{
+					return err;
+				}
+			}
+			else
+			{
+				_refs[a].first = i->_argtypes[a];
+
+				auto err = _refs[a].second.Eval(val, memrefs);
+				if(err != A1_T_ERROR::A1_RES_OK || !_refs[a].first.get().IsValidValue(val))
+				{
+					inst_found = false;
+				}
+			}
+
+			args[a] = val;
+		}
+
+		if(!inst_found)
+		{
+			continue;
+		}
+
+		if(!_inst->CheckArgs(args[0], args[1], args[2]))
+		{
+			inst_found = false;
+		}
+
+		if(inst_found)
+		{
+			break;
+		}
+	}
+
+	_is_inst = true;
+	_line_num = line_num;
+
+	return A1_T_ERROR::A1_RES_OK;
+}
+
 A1_T_ERROR CodeStmt::Write(IhxWriter *writer, const std::map<std::wstring, MemRef> &memrefs)
 {
 	if(!_is_inst)
@@ -1784,16 +1972,30 @@ A1_T_ERROR CodeStmt::Write(IhxWriter *writer, const std::map<std::wstring, MemRe
 	uint32_t code;
 	int start;
 	int len;
+	std::wstring postfix;
+
+	std::set<int32_t> processed_args;
+
+#ifdef A1_REVERSE_CODE_BYTES_ORDER
+	bool inst_end;
+	size_t istart = 0;
+#endif
 
 	for(auto &cp: _inst->_code)
 	{
-		is_arg = std::get<0>(cp);
-		code = std::get<1>(cp);
-		start = std::get<2>(cp);
-		len = std::get<3>(cp);
+#ifdef A1_REVERSE_CODE_BYTES_ORDER
+		inst_end = std::get<0>(cp);
+#endif
+		is_arg = std::get<1>(cp);
+		code = std::get<2>(cp);
+		start = std::get<3>(cp);
+		len = std::get<4>(cp);
+		postfix = std::get<5>(cp);
 
 		if(is_arg)
 		{
+			processed_args.insert(code - 1);
+
 			int size = 0;
 			auto err = GetRefValue(_refs[code - 1], memrefs, code, size);
 			if(err != A1_T_ERROR::A1_RES_OK)
@@ -1805,6 +2007,17 @@ A1_T_ERROR CodeStmt::Write(IhxWriter *writer, const std::map<std::wstring, MemRe
 			{
 				len = size * 8;
 			}
+		}
+
+		if(!postfix.empty())
+		{
+			int32_t icode = code;
+			auto err = _global_settings.ProcessNumPostfix(postfix, icode);
+			if(err != A1_T_ERROR::A1_RES_OK)
+			{
+				return err;
+			}
+			code = icode;
 		}
 
 		if(start < 0)
@@ -1825,16 +2038,37 @@ A1_T_ERROR CodeStmt::Write(IhxWriter *writer, const std::map<std::wstring, MemRe
 			_data.push_back((uint8_t)(bits >> 56));
 			bits <<= 8;
 		}
+
+#ifdef A1_REVERSE_CODE_BYTES_ORDER
+		if(inst_end)
+		{
+			std::reverse(std::next(_data.begin(), istart), _data.end());
+			istart = _data.size();
+		}
+#endif
+	}
+
+	// check the rest of the args
+	if(processed_args.size() != _inst->_argnum)
+	{
+		for(int32_t a = 0; a < _inst->_argnum; a++)
+		{
+			if(processed_args.find(a) == processed_args.cend())
+			{
+				int size = 0;
+				auto err = GetRefValue(_refs[a], memrefs, code, size);
+				if(err != A1_T_ERROR::A1_RES_OK)
+				{
+					return err;
+				}
+			}
+		}
 	}
 
 	if(bit_num != 0 || _data.size() == 0)
 	{
 		return A1_T_ERROR::A1_RES_EINTERR;
 	}
-
-#ifdef A1_REVERSE_CODE_BYTES_ORDER
-	std::reverse(_data.begin(), _data.end());
-#endif
 
 	auto err = writer->Write(_data.data(), _data.size());
 	if(err != A1_T_ERROR::A1_RES_OK)
@@ -1867,7 +2101,13 @@ A1_T_ERROR Sections::ReadStmt(std::vector<Token>::const_iterator &start, const s
 			return err;
 		}
 
-		mr.SetAddress(back().GetAddress() + ssize);
+		int32_t addr = 0;
+		err = back().GetAddress(addr);
+		if(err != A1_T_ERROR::A1_RES_OK)
+		{
+			return err;
+		}
+		mr.SetAddress(addr + ssize);
 
 		auto refn = mr.GetName();
 
@@ -1891,7 +2131,7 @@ A1_T_ERROR Sections::ReadStmt(std::vector<Token>::const_iterator &start, const s
 			return A1_T_ERROR::A1_RES_EWSECNAME;
 		}
 
-		auto err = stmt->Read(start, end, _memrefs, _curr_file_name, _settings);
+		auto err = stmt->Read(start, end, _memrefs, _curr_file_name);
 		if(err != A1_T_ERROR::A1_RES_OK)
 		{
 			return err;
@@ -1904,7 +2144,13 @@ A1_T_ERROR Sections::ReadStmt(std::vector<Token>::const_iterator &start, const s
 			return err;
 		}
 
-		stmt->SetAddress(back().GetAddress() + ssize);
+		int32_t addr = 0;
+		err = back().GetAddress(addr);
+		if(err != A1_T_ERROR::A1_RES_OK)
+		{
+			return err;
+		}
+		stmt->SetAddress(addr + ssize);
 
 		back().push_back(stmt.release());
 	}
@@ -1983,7 +2229,7 @@ A1_T_ERROR Sections::CheckIFDir(std::vector<Token>::const_iterator &start, const
 	terms.push_back(Token(TokType::TT_OPER, L">=", -1));
 	terms.push_back(Token(TokType::TT_OPER, L"<=", -1));
 
-	auto err = Exp::BuildExp(start, end, exp_l, terms, &_settings);
+	auto err = Exp::BuildExp(start, end, exp_l, terms);
 	if(err != A1_T_ERROR::A1_RES_OK)
 	{
 		return err;
@@ -2009,7 +2255,7 @@ A1_T_ERROR Sections::CheckIFDir(std::vector<Token>::const_iterator &start, const
 	terms.clear();
 	terms.push_back(Token(TokType::TT_EOL, L"", -1));
 		
-	err = Exp::BuildExp(start, end, exp_r, terms, &_settings);
+	err = Exp::BuildExp(start, end, exp_r, terms);
 	if(err != A1_T_ERROR::A1_RES_OK)
 	{
 		return err;
@@ -2127,7 +2373,7 @@ A1_T_ERROR Sections::ReadUntil(std::vector<Token>::const_iterator &start, const 
 					Exp exp;
 					int32_t res = 0;
 
-					auto err = Exp::BuildExp(start, end, exp, { Token(TokType::TT_EOL, L"", -1) }, &_settings);
+					auto err = Exp::BuildExp(start, end, exp, { Token(TokType::TT_EOL, L"", -1) });
 					if(err != A1_T_ERROR::A1_RES_OK)
 					{
 						return err;
@@ -2608,13 +2854,13 @@ A1_T_ERROR Sections::ReadHeapSections()
 			return err;
 		}
 
-		if(hs > _settings.GetRAMSize())
+		if(hs > _global_settings.GetRAMSize())
 		{
 			_curr_file_name = at(first_sec_num).GetFileName();
 			return A1_T_ERROR::A1_RES_EWSECSIZE;
 		}
 
-		_settings.SetHeapSize(hs);
+		_global_settings.SetHeapSize(hs);
 	}
 	else
 	if(size() > first_sec_num + 1)
@@ -2634,14 +2880,14 @@ A1_T_ERROR Sections::ReadHeapSections()
 			hs = hs1 > hs ? hs1 : hs;
 
 			_warnings.push_back(std::make_tuple(at(i).GetSectLineNum(), at(i).GetFileName(), A1_T_WARNING::A1_WRN_WMANYHPSECT));
-			if(hs > _settings.GetRAMSize())
+			if(hs > _global_settings.GetRAMSize())
 			{
 				_curr_file_name = at(i).GetFileName();
 				return A1_T_ERROR::A1_RES_EWSECSIZE;
 			}
 		}
 
-		_settings.SetHeapSize(hs);
+		_global_settings.SetHeapSize(hs);
 	}
 
 	return A1_T_ERROR::A1_RES_OK;
@@ -2671,13 +2917,13 @@ A1_T_ERROR Sections::ReadStackSections()
 			return err;
 		}
 
-		if(_settings.GetHeapSize() + ss > _settings.GetRAMSize())
+		if(_global_settings.GetHeapSize() + ss > _global_settings.GetRAMSize())
 		{
 			_curr_file_name = at(first_sec_num).GetFileName();
 			return A1_T_ERROR::A1_RES_EWSECSIZE;
 		}
 
-		_settings.SetStackSize(ss);
+		_global_settings.SetStackSize(ss);
 	}
 	else
 	if(size() > first_sec_num + 1)
@@ -2696,29 +2942,29 @@ A1_T_ERROR Sections::ReadStackSections()
 			ss = ss1 > ss ? ss1 : ss;
 
 			_warnings.push_back(std::make_tuple(at(i).GetSectLineNum(), at(i).GetFileName(), A1_T_WARNING::A1_WRN_WMANYSTKSECT));
-			if(_settings.GetHeapSize() + ss > _settings.GetRAMSize())
+			if(_global_settings.GetHeapSize() + ss > _global_settings.GetRAMSize())
 			{
 				_curr_file_name = at(i).GetFileName();
 				return A1_T_ERROR::A1_RES_EWSECSIZE;
 			}
 		}
 
-		_settings.SetStackSize(ss);
+		_global_settings.SetStackSize(ss);
 	}
 
 	// add special symbols
 	MemRef mr;
 
 	mr.SetName(L"__RET_ADDR_SIZE");
-	mr.SetAddress(_settings.GetRetAddressSize());
+	mr.SetAddress(_global_settings.GetRetAddressSize());
 	_memrefs[L"__RET_ADDR_SIZE"] = mr;
 
 	// add .STACK section symbols
 	mr.SetName(L"__STACK_START");
-	mr.SetAddress(_settings.GetRAMStart() + (_settings.GetRAMSize() - _settings.GetStackSize()));
+	mr.SetAddress(_global_settings.GetRAMStart() + (_global_settings.GetRAMSize() - _global_settings.GetStackSize()));
 	_memrefs[L"__STACK_START"] = mr;
 	mr.SetName(L"__STACK_SIZE");
-	mr.SetAddress(_settings.GetStackSize());
+	mr.SetAddress(_global_settings.GetStackSize());
 	_memrefs[L"__STACK_SIZE"] = mr;
 
 	return A1_T_ERROR::A1_RES_OK;
@@ -2730,20 +2976,20 @@ A1_T_ERROR Sections::ReadDataSections()
 	for(int32_t i = 0; i < _token_files.size(); i++)
 	{
 		int32_t size = 0;
-		auto err = ReadSections(i, SectType::ST_DATA, L"", _settings.GetRAMStart() + _data_size, size, _settings.GetRAMSize() - _data_size - _settings.GetHeapSize());
+		auto err = ReadSections(i, SectType::ST_DATA, L"", _global_settings.GetRAMStart() + _data_size, size, _global_settings.GetRAMSize() - _data_size - _global_settings.GetHeapSize());
 		if(err != A1_T_ERROR::A1_RES_OK)
 		{
 			return err;
 		}
 		_data_size += size;
 
-		if(_data_size + _settings.GetHeapSize() > _settings.GetRAMSize())
+		if(_data_size + _global_settings.GetHeapSize() > _global_settings.GetRAMSize())
 		{
 			_curr_file_name = _src_files[i];
 			return A1_T_ERROR::A1_RES_EWSECSIZE;
 		}
 
-		if(_data_size + _settings.GetHeapSize() + _settings.GetStackSize() > _settings.GetRAMSize())
+		if(_data_size + _global_settings.GetHeapSize() + _global_settings.GetStackSize() > _global_settings.GetRAMSize())
 		{
 			_warnings.push_back(std::make_tuple(-1, _src_files[i], A1_T_WARNING::A1_WRN_EWNORAM));
 		}
@@ -2752,21 +2998,21 @@ A1_T_ERROR Sections::ReadDataSections()
 	MemRef mr;
 	// add .HEAP section symbols
 	mr.SetName(L"__HEAP_START");
-	mr.SetAddress(_settings.GetRAMStart() + _data_size);
+	mr.SetAddress(_global_settings.GetRAMStart() + _data_size);
 	_memrefs[L"__HEAP_START"] = mr;
 	mr.SetName(L"__HEAP_SIZE");
-	mr.SetAddress(_settings.GetHeapSize());
+	mr.SetAddress(_global_settings.GetHeapSize());
 	_memrefs[L"__HEAP_SIZE"] = mr;
 
 	// add .DATA sections symbols
 	mr.SetName(L"__DATA_START");
-	mr.SetAddress(_settings.GetRAMStart());
+	mr.SetAddress(_global_settings.GetRAMStart());
 	_memrefs[L"__DATA_START"] = mr;
 	mr.SetName(L"__DATA_SIZE");
 	mr.SetAddress(_data_size);
 	_memrefs[L"__DATA_SIZE"] = mr;
 	mr.SetName(L"__DATA_TOTAL_SIZE");
-	mr.SetAddress(_settings.GetRAMSize());
+	mr.SetAddress(_global_settings.GetRAMSize());
 	_memrefs[L"__DATA_TOTAL_SIZE"] = mr;
 
 	return A1_T_ERROR::A1_RES_OK;
@@ -2780,14 +3026,14 @@ A1_T_ERROR Sections::ReadCodeInitSections()
 	for(int32_t i = 0; i < _token_files.size(); i++)
 	{
 		int32_t size = 0;
-		auto err = ReadSections(i, SectType::ST_INIT, L"", _settings.GetROMStart() + _init_size, size, _settings.GetROMSize());
+		auto err = ReadSections(i, SectType::ST_INIT, L"", _global_settings.GetROMStart() + _init_size, size, _global_settings.GetROMSize());
 		if(err != A1_T_ERROR::A1_RES_OK)
 		{
 			return err;
 		}
 		_init_size += size;
 
-		if(_init_size > _settings.GetROMSize())
+		if(_init_size > _global_settings.GetROMSize())
 		{
 			_curr_file_name = _src_files[i];
 			return A1_T_ERROR::A1_RES_EWSECSIZE;
@@ -2805,7 +3051,7 @@ A1_T_ERROR Sections::ReadCodeInitSections()
 	// add .CODE INIT sections symbols
 	MemRef mr;
 	mr.SetName(L"__INIT_START");
-	mr.SetAddress(_settings.GetROMStart());
+	mr.SetAddress(_global_settings.GetROMStart());
 	_memrefs[L"__INIT_START"] = mr;
 	mr.SetName(L"__INIT_SIZE");
 	mr.SetAddress(_init_size);
@@ -2820,14 +3066,28 @@ A1_T_ERROR Sections::ReadConstSections()
 	for(int32_t i = 0; i < _token_files.size(); i++)
 	{
 		int32_t size = 0;
-		auto err = ReadSections(i, SectType::ST_CONST, L"", _settings.GetROMStart() + _init_size + _const_size, size, _settings.GetROMSize() - _init_size);
+
+		int32_t total_size;
+#ifdef A1_CONST_AFTER_CODE
+		total_size = _init_size + _code_size + _const_size;
+#else
+		total_size = _init_size + _const_size;
+#endif
+
+		auto err = ReadSections(i, SectType::ST_CONST, L"",  _global_settings.GetROMStart() + total_size, size, _global_settings.GetROMSize() - total_size);
 		if(err != A1_T_ERROR::A1_RES_OK)
 		{
 			return err;
 		}
 		_const_size += size;
 
-		if(_const_size + _init_size > _settings.GetROMSize())
+#ifdef A1_CONST_AFTER_CODE
+		total_size = _init_size + _code_size + _const_size;
+#else
+		total_size = _init_size + _const_size;
+#endif
+
+		if(total_size > _global_settings.GetROMSize())
 		{
 			_curr_file_name = _src_files[i];
 			return A1_T_ERROR::A1_RES_EWSECSIZE;
@@ -2837,7 +3097,11 @@ A1_T_ERROR Sections::ReadConstSections()
 	// add .CONST sections symbols
 	MemRef mr;
 	mr.SetName(L"__CONST_START");
-	mr.SetAddress(_settings.GetROMStart() + _init_size);
+#ifdef A1_CONST_AFTER_CODE
+	mr.SetAddress(_global_settings.GetROMStart() + _init_size + _code_size);
+#else
+	mr.SetAddress(_global_settings.GetROMStart() + _init_size);
+#endif
 	_memrefs[L"__CONST_START"] = mr;
 	mr.SetName(L"__CONST_SIZE");
 	mr.SetAddress(_const_size);
@@ -2852,14 +3116,28 @@ A1_T_ERROR Sections::ReadCodeSections()
 	for(int32_t i = 0; i < _token_files.size(); i++)
 	{
 		int32_t size = 0;
-		auto err = ReadSections(i, SectType::ST_CODE, L"", _settings.GetROMStart() + _init_size + _const_size + _code_size, size, _settings.GetROMSize() - _init_size - _const_size);
+
+		int32_t total_size;
+#ifdef A1_CONST_AFTER_CODE
+		total_size = _init_size + _code_size;
+#else
+		total_size = _init_size + _const_size + _code_size;
+#endif
+
+		auto err = ReadSections(i, SectType::ST_CODE, L"", _global_settings.GetROMStart() + total_size, size, _global_settings.GetROMSize() - total_size);
 		if(err != A1_T_ERROR::A1_RES_OK)
 		{
 			return err;
 		}
 		_code_size += size;
 
-		if(_code_size + _init_size + _const_size > _settings.GetROMSize())
+#ifdef A1_CONST_AFTER_CODE
+		total_size = _init_size + _code_size;
+#else
+		total_size = _init_size + _const_size + _code_size;
+#endif
+
+		if(total_size > _global_settings.GetROMSize())
 		{
 			_curr_file_name = _src_files[i];
 			return A1_T_ERROR::A1_RES_EWSECSIZE;
@@ -2869,13 +3147,17 @@ A1_T_ERROR Sections::ReadCodeSections()
 	// add .CODE sections symbols
 	MemRef mr;
 	mr.SetName(L"__CODE_START");
-	mr.SetAddress(_settings.GetROMStart() + _init_size + _const_size);
+#ifdef A1_CONST_AFTER_CODE
+	mr.SetAddress(_global_settings.GetROMStart() + _init_size);
+#else
+	mr.SetAddress(_global_settings.GetROMStart() + _init_size + _const_size);
+#endif
 	_memrefs[L"__CODE_START"] = mr;
 	mr.SetName(L"__CODE_SIZE");
 	mr.SetAddress(_code_size);
 	_memrefs[L"__CODE_SIZE"] = mr;
 	mr.SetName(L"__CODE_TOTAL_SIZE");
-	mr.SetAddress(_settings.GetROMSize());
+	mr.SetAddress(_global_settings.GetROMSize());
 	_memrefs[L"__CODE_TOTAL_SIZE"] = mr;
 
 	return A1_T_ERROR::A1_RES_OK;
@@ -2913,12 +3195,14 @@ A1_T_ERROR Sections::ReadSections()
 		return err;
 	}
 
+#ifndef A1_CONST_AFTER_CODE
 	// read .CONST sections
 	err = ReadConstSections();
-	if(err != A1_T_ERROR::A1_RES_OK)
+	if (err != A1_T_ERROR::A1_RES_OK)
 	{
 		return err;
 	}
+#endif
 
 	// read .CODE sections
 	err = ReadCodeSections();
@@ -2926,6 +3210,15 @@ A1_T_ERROR Sections::ReadSections()
 	{
 		return err;
 	}
+
+#ifdef A1_CONST_AFTER_CODE
+	// read .CONST sections
+	err = ReadConstSections();
+	if(err != A1_T_ERROR::A1_RES_OK)
+	{
+		return err;
+	}
+#endif
 
 	return A1_T_ERROR::A1_RES_OK;
 }
@@ -2949,7 +3242,7 @@ A1_T_ERROR Sections::Write(const std::string &file_name)
 		return err;
 	}
 
-	err = writer.SetAddress(_settings.GetROMStart());
+	err = writer.SetAddress(_global_settings.GetROMStart());
 	if(err != A1_T_ERROR::A1_RES_OK)
 	{
 		writer.Close();
@@ -2984,12 +3277,12 @@ A1_T_ERROR Sections::Write(const std::string &file_name)
 
 				if(err != A1_T_ERROR::A1_RES_OK)
 				{
-					if(_settings.GetFixAddresses() && err == A1_T_ERROR::A1_RES_ERELOUTRANGE)
+					if(_global_settings.GetFixAddresses() && err == A1_T_ERROR::A1_RES_ERELOUTRANGE)
 					{
 						rel_out_range = true;
 						ror_line_num = i->GetLineNum();
 						ror_file_name = _curr_file_name;
-						_settings.AddInstToReplace(ror_line_num, _curr_file_name);
+						_global_settings.AddInstToReplace(ror_line_num, _curr_file_name);
 					}
 					else
 					{
