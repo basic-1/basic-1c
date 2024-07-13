@@ -191,13 +191,7 @@ protected:
 
 
 public:
-	Settings(	int32_t RAM_start,
-				int32_t RAM_size,
-				int32_t ROM_start,
-				int32_t ROM_size,
-				int32_t stack_size,
-				int32_t heap_size,
-				int ret_addr_size)
+	Settings()
 	: _print_warnings(true)
 	, _print_warning_desc(true)
 	, _print_error_desc(true)
@@ -206,17 +200,34 @@ public:
 	, _compressed(true)
 
 	, _mem_model_small(true)
-	, _ret_address_size(ret_addr_size)
+	, _ret_address_size(-1)
 	, _fix_addresses(false)
 	, _fix_ret_stk_ptr(false)
 
-	, _RAM_start(RAM_start)
-	, _RAM_size(RAM_size)
-	, _ROM_start(ROM_start)
-	, _ROM_size(ROM_size)
-	, _stack_size(stack_size)
-	, _heap_size(heap_size)
+	, _RAM_start(-1)
+	, _RAM_size(-1)
+	, _ROM_start(-1)
+	, _ROM_size(-1)
+	, _stack_size(-1)
+	, _heap_size(-1)
 	{
+	}
+
+	void Init(	int32_t RAM_start,
+			int32_t RAM_size,
+			int32_t ROM_start,
+			int32_t ROM_size,
+			int32_t stack_size,
+			int32_t heap_size,
+			int ret_addr_size)
+	{
+		if(_RAM_start == -1) _RAM_start = RAM_start;
+		if(_RAM_size == -1) _RAM_size = RAM_size;
+		if(_ROM_start == -1) _ROM_start = ROM_start;
+		if(_ROM_size == -1) _ROM_size = ROM_size;
+		if(_stack_size == -1) _stack_size = stack_size;
+		if(_heap_size == -1) _heap_size = heap_size;
+		_ret_address_size = ret_addr_size;
 	}
 
 	int32_t GetRAMStart() const { return _RAM_start; }
@@ -265,6 +276,8 @@ public:
 	bool GetValue(const std::wstring &key, std::wstring &value) const;
 
 	void SetTargetName(const std::string &target_name) { _target_name = target_name;  }
+	std::string GetTargetName() const { return _target_name; }
+
 	void SetMCUName(const std::string &MCU_name) { _MCU_name = MCU_name; }
 	void SetLibDir(const std::string &lib_dir);
 	std::string GetLibFileName(const std::string &file_name, const std::string &ext) const;

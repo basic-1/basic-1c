@@ -3,12 +3,15 @@
  Copyright (c) 2020-2024 Nikolay Pletnev
  MIT license
 
- feat.h: interpreter features (for b1core)
+ b1feat.h: interpreter features (for b1core)
 */
 
 
 #ifndef _B1_FEATURES_
 #define _B1_FEATURES_
+
+
+#define B1C_TARGET_STM8
 
 
 // ERASE statement

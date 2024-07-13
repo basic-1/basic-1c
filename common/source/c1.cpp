@@ -1250,7 +1250,7 @@ void C1Compiler::update_vars_stats(const std::wstring &name, VST storage_type, B
 	{
 		auto vst = std::get<0>(vs->second);
 		if(	(storage_type != VST::VST_UNKNOWN && vst == VST::VST_UNKNOWN) ||
-			((storage_type != VST::VST_STAT_ARRAY || storage_type != VST::VST_CONST_ARRAY) && vst == VST::VST_ARRAY))
+			(!(storage_type == VST::VST_STAT_ARRAY || storage_type == VST::VST_CONST_ARRAY) && vst == VST::VST_ARRAY))
 		{
 			std::get<0>(vs->second) = storage_type;
 		}
@@ -2158,9 +2158,9 @@ C1_T_ERROR C1Compiler::process_imm_str_values()
 	return C1_T_ERROR::C1_RES_OK;
 }
 
-void C1Compiler::create_asm_op(B1_ASM_OPS &sec, AOT type, const std::wstring &lbl, bool is_volatile, bool is_inline)
+B1_ASM_OPS::const_iterator C1Compiler::create_asm_op(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, AOT type, const std::wstring &lbl, bool is_volatile, bool is_inline)
 {
-	sec.emplace_back(new B1_ASM_OP(type, lbl, _comment, is_volatile, is_inline));
+	return sec.emplace(where, new B1_ASM_OP(type, lbl, _comment, is_volatile, is_inline));
 }
 
 std::wstring C1Compiler::ROM_string_representation(int32_t str_len, const std::wstring &str) const
@@ -2168,22 +2168,32 @@ std::wstring C1Compiler::ROM_string_representation(int32_t str_len, const std::w
 	return L"DB " + Utils::str_tohex32(str_len) + L", " + str;
 }
 
-void C1Compiler::add_lbl(B1_ASM_OPS &sec, const std::wstring &lbl, bool is_volatile, bool is_inline /*= false*/)
+B1_ASM_OPS::const_iterator C1Compiler::add_lbl(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, const std::wstring &lbl, bool is_volatile, bool is_inline /*= false*/)
 {
-	create_asm_op(sec, AOT::AOT_LABEL, lbl, is_volatile, is_inline);
+	auto it = create_asm_op(sec, where, AOT::AOT_LABEL, lbl, is_volatile, is_inline);
 	_comment.clear();
+	return it;
 }
 
-void C1Compiler::add_data(B1_ASM_OPS &sec, const std::wstring &data, bool is_volatile, bool is_inline /*= false*/)
+B1_ASM_OPS::const_iterator C1Compiler::add_data(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, const std::wstring &data, bool is_volatile, bool is_inline /*= false*/)
 {
-	create_asm_op(sec, AOT::AOT_DATA, data, is_volatile, is_inline);
+	auto it = create_asm_op(sec, where, AOT::AOT_DATA, data, is_volatile, is_inline);
 	_comment.clear();
+	return it;
 }
 
 void C1Compiler::add_op(B1_ASM_OPS &sec, const std::wstring &op, bool is_volatile, bool is_inline /*= false*/)
 {
-	create_asm_op(sec, AOT::AOT_OP, op, is_volatile, is_inline);
+	create_asm_op(sec, sec.cend(), AOT::AOT_OP, op, is_volatile, is_inline);
 	_comment.clear();
+}
+
+C1_T_ERROR C1Compiler::add_data_def(const std::wstring &name, const std::wstring &asmtype, int32_t rep, bool is_volatile)
+{
+	add_lbl(_data_sec, _data_sec.cend(), name, is_volatile);
+	add_data(_data_sec, _data_sec.cend(), asmtype + (rep == 1 ? std::wstring() : L" (" + std::to_wstring(rep) + L")"), is_volatile);
+	_all_symbols.insert(name);
+	return C1_T_ERROR::C1_RES_OK;
 }
 
 C1_T_ERROR C1Compiler::write_data_sec()
@@ -2258,10 +2268,11 @@ C1_T_ERROR C1Compiler::write_data_sec()
 			}
 		}
 
-		add_lbl(_data_sec, v->first, v->second.is_volatile);
-		add_data(_data_sec, type + (rep == 1 ? std::wstring() : L" (" + std::to_wstring(rep) + L")"), v->second.is_volatile);
-
-		_all_symbols.insert(v->first);
+		auto err = add_data_def(v->first, type, rep, v->second.is_volatile);
+		if(err != C1_T_ERROR::C1_RES_OK)
+		{
+			return err;
+		}
 
 		v->second.size = size;
 		v->second.address = _data_size;
@@ -2296,16 +2307,16 @@ C1_T_ERROR C1Compiler::write_data_sec()
 #endif
 			var.address = _data_size;
 			_vars[label] = var;
-			update_vars_stats(label, VST::VST_SIMPLE, var.type);
 			// no use of non-user variables in _vars_order
 			//_vars_order.push_back(label);
 
-			add_lbl(_data_sec, label, false);
-			add_data(_data_sec, asmtype, false);
+			auto err = add_data_def(label, asmtype, 1, false);
+			if(err != C1_T_ERROR::C1_RES_OK)
+			{
+				return err;
+			}
 
-			_all_symbols.insert(label);
-
-			_data_size += 2;
+			_data_size += var.size;
 		}
 	}
 
@@ -2359,12 +2370,12 @@ C1_T_ERROR C1Compiler::write_const_sec()
 				{
 					if(const_var_data)
 					{
-						add_lbl(_const_sec, name_space, false);
+						add_lbl(_const_sec, _const_sec.cend(), name_space, false);
 						_all_symbols.insert(name_space);
 					}
 					else
 					{
-						add_lbl(_const_sec, name_space + L"__DAT_START", false);
+						add_lbl(_const_sec, _const_sec.cend(), name_space + L"__DAT_START", false);
 						_all_symbols.insert(name_space + L"__DAT_START");
 					}
 					dat_start = false;
@@ -2380,7 +2391,7 @@ C1_T_ERROR C1Compiler::write_const_sec()
 						if(dat_label.empty())
 						{
 							dat_label = L"__DAT_" + std::to_wstring(_dat_rst_labels.size());
-							add_lbl(_const_sec, dat_label, false);
+							add_lbl(_const_sec, _const_sec.cend(), dat_label, false);
 							_all_symbols.insert(dat_label);
 						}
 						_dat_rst_labels[prev->cmd] = dat_label;
@@ -2410,7 +2421,7 @@ C1_T_ERROR C1Compiler::write_const_sec()
 							return err;
 						}
 
-						add_data(_const_sec, str_var_asm_type + L" " + std::get<0>(_str_labels[a[0].value]), false);
+						add_data(_const_sec, _const_sec.cend(), str_var_asm_type + L" " + std::get<0>(_str_labels[a[0].value]), false);
 						_const_size += str_var_size;
 					}
 					else
@@ -2424,7 +2435,7 @@ C1_T_ERROR C1Compiler::write_const_sec()
 							return C1_T_ERROR::C1_RES_EINVTYPNAME;
 						}
 
-						add_data(_const_sec, asmtype + L" " + a[0].value, false);
+						add_data(_const_sec, _const_sec.cend(), asmtype + L" " + a[0].value, false);
 						_const_size += size;
 					}
 
@@ -2454,7 +2465,7 @@ C1_T_ERROR C1Compiler::write_const_sec()
 								return err;
 							}
 
-							add_data(_const_sec, str_var_asm_type + L" " + std::get<0>(_str_labels[L"\"\""]), false);
+							add_data(_const_sec, _const_sec.cend(), str_var_asm_type + L" " + std::get<0>(_str_labels[L"\"\""]), false);
 							_const_size += str_var_size;
 						}
 						else
@@ -2467,7 +2478,7 @@ C1_T_ERROR C1Compiler::write_const_sec()
 								return C1_T_ERROR::C1_RES_EINVTYPNAME;
 							}
 
-							add_data(_const_sec, asmtype + L" 0", false);
+							add_data(_const_sec, _const_sec.cend(), asmtype + L" 0", false);
 							_const_size += size;
 						}
 					}
@@ -2501,11 +2512,11 @@ C1_T_ERROR C1Compiler::write_const_sec()
 				return static_cast<C1_T_ERROR>(B1_RES_ESTRLONG);
 			}
 
-			add_lbl(_const_sec, std::get<0>(sl.second), false);
+			add_lbl(_const_sec, _const_sec.cend(), std::get<0>(sl.second), false);
 			std::get<1>(sl.second) = true;
 			_all_symbols.insert(std::get<0>(sl.second));
 
-			add_data(_const_sec, ROM_string_representation(sdata.length(), sl.first), false);
+			add_data(_const_sec, _const_sec.cend(), ROM_string_representation(sdata.length(), sl.first), false);
 			_const_size += sdata.length();
 		}
 	}
@@ -2737,13 +2748,12 @@ C1_T_ERROR C1Compiler::Save(const std::string &file_name, bool overwrite_existin
 	int32_t ss = _global_settings.GetStackSize();
 	int32_t hs = _global_settings.GetHeapSize();
 
-	// use all available RAM memory for heap
 	if(hs == 0)
 	{
-		hs = _global_settings.GetRAMSize() - _data_size - ss;
+		// use all available RAM memory for heap
+		std::fwprintf(ofs, L".HEAP\n\n");
 	}
-
-	// emit warning or error if heap size is <= 0
+	else
 	if(hs > 0)
 	{
 		std::fwprintf(ofs, L".HEAP\n");
@@ -2751,6 +2761,7 @@ C1_T_ERROR C1Compiler::Save(const std::string &file_name, bool overwrite_existin
 	}
 	else
 	{
+		// emit warning or error if heap size is < 0
 		_warnings.push_back(std::make_tuple(-1, "", C1_T_WARNING::C1_WRN_WWRNGHEAPSIZE));
 	}
 

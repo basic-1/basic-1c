@@ -15,14 +15,8 @@
 class STM8Settings: public Settings
 {
 public:
-	STM8Settings(	int32_t RAM_start,
-					int32_t RAM_size,
-					int32_t ROM_start,
-					int32_t ROM_size,
-					int32_t stack_size,
-					int32_t heap_size,
-					int ret_addr_size)
-	: Settings(RAM_start, RAM_size, ROM_start, ROM_size, stack_size, heap_size, ret_addr_size)
+	STM8Settings()
+	: Settings()
 	{
 	}
 };
@@ -84,7 +78,7 @@ protected:
 
 	C1_T_ERROR process_asm_cmd(const std::wstring &line) override;
 
-	void create_asm_op(B1_ASM_OPS &sec, AOT type, const std::wstring &lbl, bool is_volatile, bool is_inline) override;
+	B1_ASM_OPS::const_iterator create_asm_op(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, AOT type, const std::wstring &lbl, bool is_volatile, bool is_inline) override;
 
 	C1_T_ERROR stm8_calc_array_size(const B1_CMP_VAR &var, int32_t size1);
 	C1_T_ERROR stm8_st_gf(const B1_CMP_VAR &var, bool is_ma);

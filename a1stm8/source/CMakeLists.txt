@@ -27,6 +27,7 @@ include_directories(${B1_COMMON_SRC_DIR})
 
 add_executable(${B1_PROJECT_NAME} a1stm8.cpp
 	${B1_COMMON_SRC_DIR}/a1.cpp
+	${B1_COMMON_SRC_DIR}/trgsel.cpp
 	${B1_COMMON_SRC_DIR}/a1errors.cpp
 	${B1_COMMON_SRC_DIR}/Utils.cpp
 	${B1_COMMON_SRC_DIR}/moresym.cpp

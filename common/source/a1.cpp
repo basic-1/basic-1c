@@ -2610,6 +2610,16 @@ A1_T_ERROR Sections::ReadSection(std::vector<Token>::const_iterator &start, cons
 	return A1_T_ERROR::A1_RES_OK;
 }
 
+A1_T_ERROR Sections::AlignSectionBegin(Section *psec)
+{
+	return A1_T_ERROR::A1_RES_OK;
+}
+
+A1_T_ERROR Sections::AlignSectionEnd(Section *psec)
+{
+	return A1_T_ERROR::A1_RES_OK;
+}
+
 A1_T_ERROR Sections::ReadSections(int32_t file_num, SectType sec_type, const std::wstring &type_mod, int32_t sec_base, int32_t &over_size, int32_t max_size)
 {
 	Section *psec = nullptr;
@@ -2737,8 +2747,20 @@ A1_T_ERROR Sections::ReadSections(int32_t file_num, SectType sec_type, const std
 			continue;
 		}
 
+		err = AlignSectionBegin(psec);
+		if(err != A1_T_ERROR::A1_RES_OK)
+		{
+			return err;
+		}
+
 		// read the section
 		err = ReadSection(ti, tok_file.cend(), false);
+		if(err != A1_T_ERROR::A1_RES_OK)
+		{
+			return err;
+		}
+
+		err = AlignSectionEnd(psec);
 		if(err != A1_T_ERROR::A1_RES_OK)
 		{
 			return err;
@@ -2844,6 +2866,12 @@ A1_T_ERROR Sections::ReadHeapSections()
 		}
 	}
 
+	if(size() == first_sec_num)
+	{
+		// no heap
+		_global_settings.SetHeapSize(0);
+	}
+	else
 	if(size() == first_sec_num + 1)
 	{
 		int32_t hs = 0;
@@ -2860,6 +2888,11 @@ A1_T_ERROR Sections::ReadHeapSections()
 			return A1_T_ERROR::A1_RES_EWSECSIZE;
 		}
 
+		if(hs == 0)
+		{
+			// .HEAP section without data definition: use the rest of RAM
+			hs = -1;
+		}
 		_global_settings.SetHeapSize(hs);
 	}
 	else
@@ -2887,6 +2920,11 @@ A1_T_ERROR Sections::ReadHeapSections()
 			}
 		}
 
+		if (hs == 0)
+		{
+			// .HEAP section without data definition: use the rest of RAM
+			hs = -1;
+		}
 		_global_settings.SetHeapSize(hs);
 	}
 
@@ -2997,11 +3035,31 @@ A1_T_ERROR Sections::ReadDataSections()
 
 	MemRef mr;
 	// add .HEAP section symbols
+	auto heap_size = _global_settings.GetHeapSize();
+	auto heap_start = _global_settings.GetRAMStart();
+	if(heap_size == 0)
+	{
+		// no heap
+		heap_start = 0;
+	}
+	else
+	if(heap_size < 0)
+	{
+		// use all free RAM for heap
+		heap_start += _data_size;
+		heap_size = _global_settings.GetRAMSize() - _data_size - _global_settings.GetStackSize();
+		_global_settings.SetHeapSize(heap_size);
+	}
+	else
+	{
+		// use heap size specified with .HEAP directive
+		heap_start += _data_size;
+	}
 	mr.SetName(L"__HEAP_START");
-	mr.SetAddress(_global_settings.GetRAMStart() + _data_size);
+	mr.SetAddress(heap_start);
 	_memrefs[L"__HEAP_START"] = mr;
 	mr.SetName(L"__HEAP_SIZE");
-	mr.SetAddress(_global_settings.GetHeapSize());
+	mr.SetAddress(heap_size);
 	_memrefs[L"__HEAP_SIZE"] = mr;
 
 	// add .DATA sections symbols

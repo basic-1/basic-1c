@@ -222,8 +222,8 @@ public:
 
 class B1_CMP_FNS
 {
-private:
-	static const B1_CMP_FN _fns[];
+public:
+	static std::vector<B1_CMP_FN> _fns;
 
 
 public:

@@ -204,14 +204,15 @@ protected:
 	C1_T_ERROR process_imm_str_value(const B1_CMP_ARG &arg);
 	C1_T_ERROR process_imm_str_values();
 
-	virtual void create_asm_op(B1_ASM_OPS &sec, AOT type, const std::wstring &lbl, bool is_volatile, bool is_inline);
+	virtual B1_ASM_OPS::const_iterator create_asm_op(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, AOT type, const std::wstring &lbl, bool is_volatile, bool is_inline);
 
 	virtual std::wstring ROM_string_representation(int32_t str_len, const std::wstring &str) const;
 
-	void add_lbl(B1_ASM_OPS &sec, const std::wstring &lbl, bool is_volatile, bool is_inline = false);
-	void add_data(B1_ASM_OPS &sec, const std::wstring &data, bool is_volatile, bool is_inline = false);
+	B1_ASM_OPS::const_iterator add_lbl(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, const std::wstring &lbl, bool is_volatile, bool is_inline = false);
+	B1_ASM_OPS::const_iterator add_data(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, const std::wstring &data, bool is_volatile, bool is_inline = false);
 	void add_op(B1_ASM_OPS &sec, const std::wstring &op, bool is_volatile, bool is_inline = false);
 
+	virtual C1_T_ERROR add_data_def(const std::wstring &name, const std::wstring &asmtype, int32_t rep, bool is_volatile);
 	virtual C1_T_ERROR write_data_sec();
 	virtual C1_T_ERROR write_const_sec();
 	virtual C1_T_ERROR write_code_sec(bool code_init) = 0;

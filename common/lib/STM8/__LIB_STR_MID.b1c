@@ -21,7 +21,7 @@ PUSH 0
 ADDW X, (1, SP)
 ADDW SP, 2
 POP A ; init. string length
-PUSHW X ; data to copy address
+PUSHW X ; src address (init. string data address + start - 1)
 ; if(start == 0 || start > init_len) return ""
 CLRW X
 TNZ (__RET_ADDR_SIZE + 6, SP) ; start

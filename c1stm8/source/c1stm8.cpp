@@ -8,11 +8,12 @@
 
 
 #include <clocale>
+#include <cstring>
+#include <algorithm>
 
+#include "../../common/source/trgsel.h"
 #include "../../common/source/version.h"
-#include "../../common/source/stm8.h"
 #include "../../common/source/gitrev.h"
-#include "../../common/source/moresym.h"
 
 #include "c1stm8.h"
 
@@ -20,8 +21,7 @@
 static const char *version = B1_CMP_VERSION;
 
 
-// default values: 2 kB of RAM, 16 kB of FLASH, 256 bytes of stack
-STM8Settings global_settings = { 0x0, 0x0800, 0x8000, 0x4000, 0x100, 0x0, STM8_RET_ADDR_SIZE_MM_SMALL };
+STM8Settings global_settings;
 Settings &_global_settings = global_settings;
 
 
@@ -264,10 +264,11 @@ C1_T_ERROR C1STM8Compiler::process_asm_cmd(const std::wstring &line)
 	return C1_T_ERROR::C1_RES_OK;
 }
 
-void C1STM8Compiler::create_asm_op(B1_ASM_OPS &sec, AOT type, const std::wstring &lbl, bool is_volatile, bool is_inline)
+B1_ASM_OPS::const_iterator C1STM8Compiler::create_asm_op(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, AOT type, const std::wstring &lbl, bool is_volatile, bool is_inline)
 {
-	sec.emplace_back(new B1_ASM_OP_STM8(type, lbl, _comment, is_volatile, is_inline));
+	return sec.emplace(where, new B1_ASM_OP_STM8(type, lbl, _comment, is_volatile, is_inline));
 }
+
 
 C1_T_ERROR C1STM8Compiler::stm8_calc_array_size(const B1_CMP_VAR &var, int32_t size1)
 {
@@ -419,7 +420,7 @@ C1_T_ERROR C1STM8Compiler::stm8_st_gf(const B1_CMP_VAR &var, bool is_ma)
 
 		if(!is_ma)
 		{
-			add_lbl(*_curr_code_sec, label, var.is_volatile);
+			add_lbl(*_curr_code_sec, _curr_code_sec->cend(), label, var.is_volatile);
 			_all_symbols.insert(label);
 		}
 	}
@@ -469,7 +470,7 @@ C1_T_ERROR C1STM8Compiler::stm8_arrange_types(const B1Types type_from, const B1T
 					add_op(*_curr_code_sec, L"JRPL " + label, false); //2A SIGNED_BYTE_OFFSET
 					_req_symbols.insert(label);
 					add_op(*_curr_code_sec, L"DECW Y", false); //90 5A
-					add_lbl(*_curr_code_sec, label, false);
+					add_lbl(*_curr_code_sec, _curr_code_sec->cend(), label, false);
 					_all_symbols.insert(label);
 				}
 			}
@@ -611,7 +612,7 @@ C1_T_ERROR C1STM8Compiler::stm8_load_from_stack(int32_t offset, const B1Types in
 						add_op(*_curr_code_sec, L"JRPL " + label, false); //2A SIGNED_BYTE_OFFSET
 						_req_symbols.insert(label);
 						add_op(*_curr_code_sec, L"DECW Y", false); //90 5A
-						add_lbl(*_curr_code_sec, label, false);
+						add_lbl(*_curr_code_sec, _curr_code_sec->cend(), label, false);
 						_all_symbols.insert(label);
 					}
 				}
@@ -1044,7 +1045,7 @@ C1_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types req
 								add_op(*_curr_code_sec, L"JRPL " + label, is_volatile); //2A SIGNED_BYTE_OFFSET
 								_req_symbols.insert(label);
 								add_op(*_curr_code_sec, L"DECW Y", is_volatile); //90 5A
-								add_lbl(*_curr_code_sec, label, is_volatile);
+								add_lbl(*_curr_code_sec, _curr_code_sec->cend(), label, is_volatile);
 								_all_symbols.insert(label);
 							}
 						}
@@ -1241,7 +1242,7 @@ C1_T_ERROR C1STM8Compiler::stm8_arr_alloc_def(const B1_CMP_VAR &var)
 		_req_symbols.insert(L"__LIB_ERR_HANDLER");
 	}
 
-	add_lbl(*_curr_code_sec, label, var.is_volatile);
+	add_lbl(*_curr_code_sec, _curr_code_sec->cend(), label, var.is_volatile);
 	_all_symbols.insert(label);
 
 	_allocated_arrays.insert(var.name);
@@ -1678,7 +1679,7 @@ C1_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types req_ty
 							add_op(*_curr_code_sec, L"JRPL " + label, is_volatile); //2A SIGNED_BYTE_OFFSET
 							_req_symbols.insert(label);
 							add_op(*_curr_code_sec, L"DECW Y", is_volatile); //90 5A
-							add_lbl(*_curr_code_sec, label, is_volatile);
+							add_lbl(*_curr_code_sec, _curr_code_sec->cend(), label, is_volatile);
 							_all_symbols.insert(label);
 						}
 					}
@@ -2192,7 +2193,7 @@ C1_T_ERROR C1STM8Compiler::stm8_st_ga(const B1_CMP_CMD &cmd, const B1_CMP_VAR &v
 	_init_files.push_back(L"__LIB_ERR_LAST_ERR");
 	add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_ERR_HANDLER", var.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
 	_req_symbols.insert(L"__LIB_ERR_HANDLER");
-	add_lbl(*_curr_code_sec, label, var.is_volatile);
+	add_lbl(*_curr_code_sec, _curr_code_sec->cend(), label, var.is_volatile);
 	_all_symbols.insert(label);
 
 	auto err = stm8_init_array(cmd, var);
@@ -2917,7 +2918,7 @@ C1_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 				add_op(*_curr_code_sec, L"JRNC " + label, false); //24 SIGNED_BYTE_OFFSET
 				_req_symbols.insert(label);
 				add_op(*_curr_code_sec, L"INCW Y", false); //90 5C
-				add_lbl(*_curr_code_sec, label, false);
+				add_lbl(*_curr_code_sec, _curr_code_sec->cend(), label, false);
 				_all_symbols.insert(label);
 				add_op(*_curr_code_sec, L"ADDW Y, " + val + L".h", false); //72 A9 WORD_VALUE
 			}
@@ -2941,7 +2942,7 @@ C1_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 				add_op(*_curr_code_sec, L"JRNC " + label, is_volatile); //24 SIGNED_BYTE_OFFSET
 				_req_symbols.insert(label);
 				add_op(*_curr_code_sec, L"INCW Y", is_volatile); //90 5C
-				add_lbl(*_curr_code_sec, label, is_volatile);
+				add_lbl(*_curr_code_sec, _curr_code_sec->cend(), label, is_volatile);
 				_all_symbols.insert(label);
 				add_op(*_curr_code_sec, L"ADDW Y, (" + val + L")", is_volatile); //72 B9 WORD_VALUE
 			}
@@ -2965,7 +2966,7 @@ C1_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 				add_op(*_curr_code_sec, L"JRNC " + label, false); //24 SIGNED_BYTE_OFFSET
 				_req_symbols.insert(label);
 				add_op(*_curr_code_sec, L"INCW Y", false); //90 5C
-				add_lbl(*_curr_code_sec, label, false);
+				add_lbl(*_curr_code_sec, _curr_code_sec->cend(), label, false);
 				_all_symbols.insert(label);
 				add_op(*_curr_code_sec, L"ADDW Y, (" + val + L", SP)", false); //72 F9 WORD_VALUE
 			}
@@ -2988,7 +2989,7 @@ C1_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 				add_op(*_curr_code_sec, L"JRNC " + label, false); //24 SIGNED_BYTE_OFFSET
 				_req_symbols.insert(label);
 				add_op(*_curr_code_sec, L"INCW Y", false); //90 5C
-				add_lbl(*_curr_code_sec, label, false);
+				add_lbl(*_curr_code_sec, _curr_code_sec->cend(), label, false);
 				_all_symbols.insert(label);
 				add_op(*_curr_code_sec, L"ADDW Y, (0x1, SP)", false); //72 F9 WORD_VALUE
 			}
@@ -3527,7 +3528,7 @@ C1_T_ERROR C1STM8Compiler::stm8_shift_op(const B1_CMP_CMD &cmd)
 				}
 
 				const auto loop_label = emit_label(true);
-				add_lbl(*_curr_code_sec, loop_label, false);
+				add_lbl(*_curr_code_sec, _curr_code_sec->cend(), loop_label, false);
 				_all_symbols.insert(loop_label);
 
 				stm8_add_shift_op(cmd.cmd, arg1[0].type);
@@ -3597,7 +3598,7 @@ C1_T_ERROR C1STM8Compiler::stm8_shift_op(const B1_CMP_CMD &cmd)
 				_req_symbols.insert(loop_end_label);
 			}
 
-			add_lbl(*_curr_code_sec, loop_label, false);
+			add_lbl(*_curr_code_sec, _curr_code_sec->cend(), loop_label, false);
 			_all_symbols.insert(loop_label);
 
 			stm8_add_shift_op(cmd.cmd, arg1[0].type);
@@ -3613,7 +3614,7 @@ C1_T_ERROR C1STM8Compiler::stm8_shift_op(const B1_CMP_CMD &cmd)
 
 			add_op(*_curr_code_sec, L"JRNE " + loop_label, false); //26 SIGNED_BYTE_OFFSET
 			_req_symbols.insert(loop_label);
-			add_lbl(*_curr_code_sec, loop_end_label, false);
+			add_lbl(*_curr_code_sec, _curr_code_sec->cend(), loop_end_label, false);
 			_all_symbols.insert(loop_end_label);
 		}
 	}
@@ -3817,7 +3818,7 @@ C1_T_ERROR C1STM8Compiler::stm8_num_cmp_op(const B1_CMP_CMD &cmd)
 				clr_stk = true;
 			}
 
-			add_lbl(*_curr_code_sec, label, is_volatile);
+			add_lbl(*_curr_code_sec, _curr_code_sec->cend(), label, is_volatile);
 			_all_symbols.insert(label);
 
 			if(clr_stk)
@@ -4341,8 +4342,8 @@ C1_T_ERROR C1STM8Compiler::write_data_sec()
 			data = &_data_sec;
 		}
 
-		add_lbl(*data, v->first, v->second.is_volatile);
-		add_data(*data, type + (rep == 1 ? std::wstring() : L" (" + std::to_wstring(rep) + L")"), v->second.is_volatile);
+		add_lbl(*data, data->cend(), v->first, v->second.is_volatile);
+		add_data(*data, data->cend(), type + (rep == 1 ? std::wstring() : L" (" + std::to_wstring(rep) + L")"), v->second.is_volatile);
 
 		_all_symbols.insert(v->first);
 
@@ -4382,8 +4383,8 @@ C1_T_ERROR C1STM8Compiler::write_data_sec()
 				data = &_data_sec;
 			}
 
-			add_lbl(*data, label, false);
-			add_data(*data, L"DW", false);
+			add_lbl(*data, data->cend(), label, false);
+			add_data(*data, data->cend(), L"DW", false);
 
 			_all_symbols.insert(label);
 
@@ -4453,7 +4454,7 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 				_comment = Utils::str_trim(_src_lines[cmd.src_line_id]);
 			}
 
-			add_lbl(*_curr_code_sec, cmd.cmd, false);
+			add_lbl(*_curr_code_sec, _curr_code_sec->cend(), cmd.cmd, false);
 			// labels are processed in load_next_command() function
 			//_all_symbols.insert(cmd.cmd);
 
@@ -4533,7 +4534,7 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 				{
 					if(trimmed.front() == L':')
 					{
-						add_lbl(*_curr_code_sec, trimmed.substr(1), true, true);
+						add_lbl(*_curr_code_sec, _curr_code_sec->cend(), trimmed.substr(1), true, true);
 					}
 					else
 					if(trimmed.front() == L';')
@@ -4546,7 +4547,7 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 						auto first2 = trimmed.substr(0, 2);
 						if(first2 == L"DB" || first2 == L"DW" || first2 == L"DD")
 						{
-							add_data(*_curr_code_sec, trimmed, true, true);
+							add_data(*_curr_code_sec, _curr_code_sec->cend(), trimmed, true, true);
 						}
 						else
 						{
@@ -5797,7 +5798,7 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 
 			const auto int_lbl_name = L"__" + cmd.args[0][0].value;
 
-			add_lbl(*_curr_code_sec, int_lbl_name, false);
+			add_lbl(*_curr_code_sec, _curr_code_sec->cend(), int_lbl_name, false);
 			_all_symbols.insert(int_lbl_name);
 			
 			_irq_handlers[int_ind] = int_lbl_name;
@@ -6300,14 +6301,14 @@ C1_T_ERROR C1STM8Compiler::WriteCodeInitBegin()
 	if(_req_symbols.find(L"__UNHANDLED") != _req_symbols.end())
 	{
 		// unhandled interrupt handler (empty loop)
-		add_lbl(_code_init_sec, L"__UNHANDLED", false);
+		add_lbl(_code_init_sec, _code_init_sec.cend(), L"__UNHANDLED", false);
 		_all_symbols.insert(L"__UNHANDLED");
 		add_op(_code_init_sec, L"JRA __UNHANDLED", false); //20 SIGNED_BYTE_OFFSET
 		_req_symbols.insert(L"__UNHANDLED");
 	}
 
 	// init code begin
-	add_lbl(_code_init_sec, L"__START", false);
+	add_lbl(_code_init_sec, _code_init_sec.cend(), L"__START", false);
 	_all_symbols.insert(L"__START");
 
 	return C1_T_ERROR::C1_RES_OK;
@@ -8203,7 +8204,6 @@ int main(int argc, char** argv)
 	std::string MCU_name;
 	int32_t stack_size = -1;
 	int32_t heap_size = -1;
-	const std::string target_name = "STM8";
 	bool opt_nocheck = false;
 	std::string opt_log_file_name;
 	std::string args;
@@ -8315,12 +8315,10 @@ int main(int argc, char** argv)
 			if(argv[i][2] == 'S' || argv[i][2] == 's')
 			{
 				_global_settings.SetMemModelSmall();
-				_global_settings.SetRetAddressSize(STM8_RET_ADDR_SIZE_MM_SMALL);
 			}
 			else
 			{
 				_global_settings.SetMemModelLarge();
-				_global_settings.SetRetAddressSize(STM8_RET_ADDR_SIZE_MM_LARGE);
 			}
 
 			args = args + " " + argv[i];
@@ -8594,7 +8592,7 @@ int main(int argc, char** argv)
 			else
 			{
 				i++;
-				if(Utils::str_toupper(argv[i]) != "STM8")
+				if(Utils::str_toupper(Utils::str_trim(argv[i])) != "STM8")
 				{
 					args_error = true;
 					args_error_txt = "invalid target";
@@ -8616,6 +8614,17 @@ int main(int argc, char** argv)
 		break;
 	}
 
+
+	_global_settings.SetTargetName("STM8");
+	_global_settings.SetMCUName(MCU_name);
+	_global_settings.SetLibDir(lib_dir);
+
+	// load target-specific stuff
+	if(!select_target(global_settings))
+	{
+		args_error = true;
+		args_error_txt = "invalid target";
+	}
 
 	if((args_error || i == argc) && !(print_version))
 	{
@@ -8664,11 +8673,6 @@ int main(int argc, char** argv)
 		return 0;
 	}
 
-
-	// read settings
-	_global_settings.SetTargetName(target_name);
-	_global_settings.SetMCUName(MCU_name);
-	_global_settings.SetLibDir(lib_dir);
 
 	// list of source files
 	std::vector<std::string> src_files;

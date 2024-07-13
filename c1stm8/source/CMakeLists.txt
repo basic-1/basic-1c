@@ -30,6 +30,7 @@ add_executable(${B1_PROJECT_NAME} c1stm8.cpp
 	${B1_COMMON_SRC_DIR}/c1.cpp
 	${B1_COMMON_SRC_DIR}/c1errors.cpp
 	${B1_COMMON_SRC_DIR}/b1cmp.cpp
+	${B1_COMMON_SRC_DIR}/trgsel.cpp
 	${B1_COMMON_SRC_DIR}/Utils.cpp
 	${B1_COMMON_SRC_DIR}/moresym.cpp
 	${B1_CORE_SRC_DIR}/b1.c

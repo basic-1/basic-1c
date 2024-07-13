@@ -31,20 +31,8 @@ private:
 	std::set<std::pair<int32_t, std::string>> _instructions_to_replace;
 
 public:
-	A1Settings(	int32_t RAM_start,
-				int32_t RAM_size,
-				int32_t ROM_start,
-				int32_t ROM_size,
-				int32_t stack_size,
-				int32_t heap_size,
-				int ret_addr_size)
-	: Settings(	RAM_start,
-				RAM_size,
-				ROM_start,
-				ROM_size,
-				stack_size,
-				heap_size,
-				ret_addr_size)
+	A1Settings()
+	: Settings()
 	{
 	}
 
@@ -684,6 +672,14 @@ public:
 	{
 	}
 
+	DataStmt(int32_t size1, int32_t size)
+	: GenStmt()
+	, _size1(size1)
+	, _size_specified(false)
+	{
+		_size = size;
+	}
+
 	virtual ~DataStmt()
 	{
 	}
@@ -717,6 +713,11 @@ public:
 	{
 	}
 
+	StackStmt(int32_t size1, int32_t size)
+	: DataStmt(size1, size)
+	{
+	}
+
 	virtual ~StackStmt()
 	{
 	}
@@ -734,6 +735,13 @@ public:
 	: DataStmt()
 	, _truncated(false)
 	{
+	}
+
+	ConstStmt(int32_t size1, int32_t size)
+	: DataStmt(size1, size)
+	, _truncated(false)
+	{
+		_data.assign(size, 0);
 	}
 
 	virtual ~ConstStmt()
@@ -824,6 +832,8 @@ protected:
 	A1_T_ERROR ReadSingleIFDir(bool is_else, std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, bool &skip);
 	A1_T_ERROR ReadIFDir(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, bool skip);
 	A1_T_ERROR ReadSection(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, bool skip);
+	virtual A1_T_ERROR AlignSectionBegin(Section *psec);
+	virtual A1_T_ERROR AlignSectionEnd(Section *psec);
 	A1_T_ERROR ReadSections(int32_t file_num, SectType sec_type, const std::wstring &type_mod, int32_t sec_base, int32_t &over_size, int32_t max_size);
 
 	virtual A1_T_ERROR ReadHeapSections();

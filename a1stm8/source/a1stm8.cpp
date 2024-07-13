@@ -7,24 +7,18 @@
 */
 
 
-#include <cstdint>
 #include <cstdio>
 #include <clocale>
 #include <cstring>
 #include <cwctype>
-#include <string>
-#include <vector>
-#include <map>
 #include <memory>
 #include <fstream>
-#include <set>
 
+#include "../../common/source/trgsel.h"
 #include "../../common/source/a1.h"
 #include "../../common/source/a1errors.h"
 #include "../../common/source/version.h"
-#include "../../common/source/stm8.h"
 #include "../../common/source/gitrev.h"
-#include "../../common/source/Utils.h"
 
 
 static const char *version = B1_CMP_VERSION;
@@ -923,20 +917,8 @@ static void load_extra_instructions_large()
 class A1STM8Settings: public A1Settings
 {
 public:
-	A1STM8Settings(	int32_t RAM_start,
-					int32_t RAM_size,
-					int32_t ROM_start,
-					int32_t ROM_size,
-					int32_t stack_size,
-					int32_t heap_size,
-					int ret_addr_size)
-	: A1Settings(	RAM_start,
-					RAM_size,
-					ROM_start,
-					ROM_size,
-					stack_size,
-					heap_size,
-					ret_addr_size)
+	A1STM8Settings()
+	: A1Settings()
 	{
 	}
 
@@ -979,8 +961,7 @@ public:
 };
 
 
-// default values: 2 kB of RAM, 16 kB of FLASH
-A1STM8Settings global_settings = { 0x0, 0x0800, 0x8000, 0x4000, 0x0, 0x0, STM8_RET_ADDR_SIZE_MM_SMALL };
+A1STM8Settings global_settings;
 A1Settings &_global_settings = global_settings;
 
 
@@ -1141,7 +1122,6 @@ int main(int argc, char **argv)
 	bool print_version = false;
 	std::string lib_dir;
 	std::string MCU_name;
-	const std::string target_name = "STM8";
 	bool print_mem_use = false;
 	std::vector<std::string> files;
 	bool args_error = false;
@@ -1380,7 +1360,7 @@ int main(int argc, char **argv)
 				else
 				{
 					i++;
-					if(Utils::str_toupper(argv[i]) != "STM8")
+					if(Utils::str_toupper(Utils::str_trim(argv[i])) != "STM8")
 					{
 						args_error = true;
 						args_error_txt = "invalid target";
@@ -1401,6 +1381,17 @@ int main(int argc, char **argv)
 		}
 
 		files.push_back(argv[i]);
+	}
+
+	_global_settings.SetTargetName("STM8");
+	_global_settings.SetMCUName(MCU_name);
+	_global_settings.SetLibDir(lib_dir);
+
+	// load target-specific stuff
+	if(!select_target(global_settings))
+	{
+		args_error = true;
+		args_error_txt = "invalid target";
 	}
 
 	if(args_error || files.empty() && !(print_version))
@@ -1444,11 +1435,6 @@ int main(int argc, char **argv)
 		return 0;
 	}
 
-
-	// read settings
-	_global_settings.SetTargetName(target_name);
-	_global_settings.SetMCUName(MCU_name);
-	_global_settings.SetLibDir(lib_dir);
 
 	// read settings file if specified
 	if(!MCU_name.empty())

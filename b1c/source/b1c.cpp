@@ -20,10 +20,7 @@
 
 #include "../../common/source/version.h"
 #include "../../common/source/gitrev.h"
-#include "../../common/source/Utils.h"
-#include "../../common/source/moresym.h"
-#include "../../common/source/stm8.h"
-
+#include "../../common/source/trgsel.h"
 
 #include "b1c.h"
 
@@ -45,8 +42,8 @@ static const B1_T_CHAR *CONST_VAL_SEPARATORS[3] = { _COMMA, _CLBRACKET, NULL };
 static const B1_T_CHAR *CONST_STOP_TOKEN[2] = { _CLBRACKET, NULL };
 
 
-// default values: 2 kB of RAM, 16 kB of FLASH, 256 bytes of stack
-Settings _global_settings = { 0x0, 0x0800, 0x8000, 0x4000, 0x100, 0x0, STM8_RET_ADDR_SIZE_MM_SMALL };
+Settings global_settings;
+Settings &_global_settings = global_settings;
 
 
 B1C_T_ERROR B1FileCompiler::put_var_name(const std::wstring &name, const B1Types type, int dims, bool is_global, bool is_volatile, bool is_mem_var, bool is_static, bool is_const, const std::vector<std::wstring> &const_init)
@@ -10485,12 +10482,10 @@ int main(int argc, char **argv)
 			if(argv[i][2] == 'S' || argv[i][2] == 's')
 			{
 				_global_settings.SetMemModelSmall();
-				_global_settings.SetRetAddressSize(STM8_RET_ADDR_SIZE_MM_SMALL);
 			}
 			else
 			{
 				_global_settings.SetMemModelLarge();
-				_global_settings.SetRetAddressSize(STM8_RET_ADDR_SIZE_MM_LARGE);
 			}
 
 			args = args + " " + argv[i];
@@ -10724,9 +10719,9 @@ int main(int argc, char **argv)
 			else
 			{
 				i++;
-				target_name = Utils::str_toupper(argv[i]);
+				target_name = Utils::str_toupper(Utils::str_trim(argv[i]));
 				// now the only supported target is STM8
-				if(target_name != "STM8")
+				if(target_name.empty())
 				{
 					args_error = true;
 					args_error_txt = "invalid target";
@@ -10747,6 +10742,18 @@ int main(int argc, char **argv)
 		}
 
 		break;
+	}
+
+
+	_global_settings.SetTargetName(target_name);
+	_global_settings.SetMCUName(MCU_name);
+	_global_settings.SetLibDir(lib_dir);
+
+	// load target-specific stuff
+	if(!select_target(global_settings))
+	{
+		args_error = true;
+		args_error_txt = "invalid target";
 	}
 
 	if((args_error || i == argc) && !(print_version || list_devs || list_cmds))
@@ -10797,12 +10804,6 @@ int main(int argc, char **argv)
 		b1c_print_version(stdout);
 		return 0;
 	}
-
-
-	// read settings
-	_global_settings.SetTargetName(target_name);
-	_global_settings.SetMCUName(MCU_name);
-	_global_settings.SetLibDir(lib_dir);
 
 
 	// list of source files

@@ -186,7 +186,7 @@ There are two types of functions in BASIC1: built-in functions and user-defined 
 - `RSET$(<string>, <numeric>)` - returns the string specifed with the first argument right justified to a length provided with the second argument  
 - `LCASE$(<string>)` - converts all string letters to lower case  
 - `RCASE$(<string>)` - converts all string letters to upper case  
-- `SET$(<string>, <numeric>)` - returns a string consisting of several repeatitions of the same character, the first argument is a character to repeat (the first character of the string is used) and the second argument is number of character repeatitions.  
+- `SET$([<string>], <numeric>)` - returns a string consisting of several repeatitions of the same character, the first argument is a character to repeat (the first character of the string is used) and the second argument is number of character repeatitions. The first argument is optional: if it is omitted the function will return string consisting of spaces.  
 - `CBYTE(<string> | <numeric>)` - converts numeric value or textual representation of a numeric value to `BYTE` integer value  
 - `CINT(<string> | <numeric>)` - converts numeric value or textual representation of a numeric value to `INT` integer value  
 - `CWRD(<string> | <numeric>)` - converts numeric value or textual representation of a numeric value to `WORD` integer value  

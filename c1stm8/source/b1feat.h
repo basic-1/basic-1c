@@ -11,6 +11,10 @@
 #define _B1_FEATURES_
 
 
+#define B1C_TARGET_STM8
+#define B1C_DEF_STD_FNS
+
+
 // ERASE statement
 //#define B1_FEATURE_STMT_ERASE
 
