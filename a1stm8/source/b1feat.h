@@ -11,7 +11,7 @@
 #define _B1_FEATURES_
 
 
-#define B1C_TARGET_STM8
+#define B1_TARGET_STM8
 
 
 // ERASE statement

@@ -1,0 +1,25 @@
+IMP,__LIB_ST7565_SPI_DC_HI
+
+; draw 8x8 bitmaps
+; A - bitmaps count, X - bitmap data address
+:__LIB_ST7565_SPI_DRAW_BMP_8X8
+ASM
+PUSHW X
+PUSH A
+PUSH 0
+ENDASM
+
+; select data mode
+CALL,__LIB_ST7565_SPI_DC_HI
+
+ASM
+POPW X
+LD A, 8
+MUL X, A
+EXGW X, Y
+POPW X
+ENDASM
+
+INL,__LIB_SPI_PUT_A_INL
+
+RET

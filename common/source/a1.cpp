@@ -839,9 +839,9 @@ A1_T_ERROR EVal::Resolve(const std::map<std::wstring, MemRef> &symbols /*= std::
 	}
 
 	auto err = _global_settings.ProcessNumPostfix(_postfix, n);
-	if(err != A1_T_ERROR::A1_RES_OK)
+	if(err != B1_RES_OK)
 	{
-		return err;
+		return static_cast<A1_T_ERROR>(err);
 	}
 		
 	_val = n;
@@ -1377,8 +1377,9 @@ void Inst::Init(const wchar_t *code, int speed, const ArgType &arg1type, const A
 	}
 }
 
-Inst::Inst(const wchar_t *code, const ArgType &arg1type /*= ArgType::AT_NONE*/, const ArgType &arg2type /*= ArgType::AT_NONE*/, const ArgType &arg3type /*= ArgType::AT_NONE*/)
-: _size(0)
+Inst::Inst(int inst_id, const wchar_t *code, const ArgType &arg1type /*= ArgType::AT_NONE*/, const ArgType &arg2type /*= ArgType::AT_NONE*/, const ArgType &arg3type /*= ArgType::AT_NONE*/)
+: _inst_id(inst_id)
+, _size(0)
 , _speed(0)
 , _argnum(0)
 , _argtypes({ arg1type, arg2type, arg3type })
@@ -1386,8 +1387,9 @@ Inst::Inst(const wchar_t *code, const ArgType &arg1type /*= ArgType::AT_NONE*/, 
 	Init(code, 0, arg1type, arg2type, arg2type);
 }
 
-Inst::Inst(const wchar_t *code, int speed, const ArgType &arg1type /*= ArgType::AT_NONE*/, const ArgType &arg2type /*= ArgType::AT_NONE*/, const ArgType &arg3type /*= ArgType::AT_NONE*/)
-: _size(0)
+Inst::Inst(int inst_id, const wchar_t *code, int speed, const ArgType &arg1type /*= ArgType::AT_NONE*/, const ArgType &arg2type /*= ArgType::AT_NONE*/, const ArgType &arg3type /*= ArgType::AT_NONE*/)
+: _inst_id(inst_id)
+, _size(0)
 , _speed(0)
 , _argnum(0)
 , _argtypes({ arg1type, arg2type, arg3type })
@@ -1871,85 +1873,134 @@ A1_T_ERROR CodeStmt::Read(std::vector<Token>::const_iterator &start, const std::
 		return A1_T_ERROR::A1_RES_ESYNTAX;
 	}
 
-	std::vector<const Inst *> insts;
-	auto err = _global_settings.GetInstructions(op_name, signature, insts, line_num, file_name);
-	if(err != A1_T_ERROR::A1_RES_OK)
+	while(true)
 	{
-		return err;
-	}
-
-	// sort the instructions by speed and size in ascending order
-	for(auto i = 0; i < insts.size(); i++)
-	{
-		auto imin = i;
-		auto min = insts[i]->_speed * 256 + insts[i]->_size;
-		auto min_nxt = 0;
-		for(auto j = i + 1; j < insts.size(); j++)
+		std::vector<const Inst *> insts;
+		auto err = _global_settings.GetInstructions(op_name, signature, insts, line_num, file_name);
+		if(err != A1_T_ERROR::A1_RES_OK)
 		{
-			min_nxt = insts[j]->_speed * 256 + insts[j]->_size;
-			if(min_nxt < min)
-			{
-				imin = j;
-				min = min_nxt;
-			}
+			return err;
 		}
-		if(imin != i)
+
+		// sort the instructions by speed and size in ascending order
+		for(auto i = 0; i < insts.size(); i++)
 		{
-			std::swap(insts[i], insts[imin]);
-		}
-	}
-
-	_inst = nullptr;
-
-	int32_t args[3] = { -1, -1, -1 };
-
-	for(auto i: insts)
-	{
-		bool inst_found = true;
-
-		_inst = i;
-		_size = i->_size;
-
-		for(auto a = 0; a < i->_argnum; a++)
-		{
-			int32_t val = -1;
-
-			if(i->_argtypes[a].get() == ArgType::AT_SPEC_TYPE)
+			auto imin = i;
+			auto min = insts[i]->_speed * 256 + insts[i]->_size;
+			auto min_nxt = 0;
+			for(auto j = i + 1; j < insts.size(); j++)
 			{
-				auto err = i->GetSpecArg(a, _refs[a], val);
-				if (err != A1_T_ERROR::A1_RES_OK)
+				min_nxt = insts[j]->_speed * 256 + insts[j]->_size;
+				if(min_nxt < min)
 				{
-					return err;
+					imin = j;
+					min = min_nxt;
 				}
 			}
-			else
+			if(imin != i)
 			{
+				std::swap(insts[i], insts[imin]);
+			}
+		}
+
+		_inst = nullptr;
+		auto valid_inst = _inst;
+		auto vi_refs = _refs;
+
+		// inst_found is set to true if all arguments are evaluated (symbols are resolved) and their values passed the validity check
+		bool inst_found = false;
+		int32_t args[A1_MAX_INST_ARGS_NUM] = { 0 };
+
+		for(auto i: insts)
+		{
+			// validity check passed for all arguments that could be evaluated on this stage
+			bool valid_passed = true;
+
+			inst_found = true;
+			_inst = i;
+			_size = i->_size;
+
+			for(auto a = 0; a < i->_argnum; a++)
+			{
+				int32_t val = -1;
+
 				_refs[a].first = i->_argtypes[a];
 
-				auto err = _refs[a].second.Eval(val, memrefs);
-				if(err != A1_T_ERROR::A1_RES_OK || !_refs[a].first.get().IsValidValue(val))
+				if(_refs[a].first.get().IsRelOffset())
 				{
 					inst_found = false;
+					continue;
 				}
+
+				if(_refs[a].first.get() == ArgType::AT_SPEC_TYPE)
+				{
+					auto err = i->GetSpecArg(a, _refs[a], val);
+					if(err != A1_T_ERROR::A1_RES_OK)
+					{
+						return err;
+					}
+				}
+				else
+				{
+					auto err = _refs[a].second.Eval(val, memrefs);
+					if(err == A1_T_ERROR::A1_RES_OK)
+					{
+						if(!_refs[a].first.get().IsValidValue(val))
+						{
+							inst_found = false;
+							valid_passed = false;
+						}
+					}
+					else
+					{
+						inst_found = false;
+					}
+				}
+
+				args[a] = val;
 			}
 
-			args[a] = val;
-		}
+			if(valid_passed)
+			{
+				valid_inst = _inst;
+				vi_refs = _refs;
+			}
 
-		if(!inst_found)
-		{
-			continue;
-		}
+			if(!inst_found)
+			{
+				continue;
+			}
 
-		if(!_inst->CheckArgs(args[0], args[1], args[2]))
-		{
-			inst_found = false;
+			if(!_inst->CheckArgs(args[0], args[1], args[2]))
+			{
+				inst_found = false;
+				valid_inst = nullptr;
+			}
+
+			if(inst_found)
+			{
+				break;
+			}
 		}
 
 		if(inst_found)
 		{
 			break;
 		}
+		else
+		if(valid_inst != nullptr)
+		{
+			_inst = valid_inst;
+			_refs = vi_refs;
+			break;
+		}
+
+		auto inst_id = _inst->GetId();
+		if(inst_id < 0)
+		{
+			break;
+		}
+		_global_settings.AddInstToReplace(line_num, file_name, inst_id);
 	}
 
 	_is_inst = true;
@@ -2013,9 +2064,9 @@ A1_T_ERROR CodeStmt::Write(IhxWriter *writer, const std::map<std::wstring, MemRe
 		{
 			int32_t icode = code;
 			auto err = _global_settings.ProcessNumPostfix(postfix, icode);
-			if(err != A1_T_ERROR::A1_RES_OK)
+			if(err != B1_RES_OK)
 			{
-				return err;
+				return static_cast<A1_T_ERROR>(err);
 			}
 			code = icode;
 		}
@@ -3340,7 +3391,7 @@ A1_T_ERROR Sections::Write(const std::string &file_name)
 						rel_out_range = true;
 						ror_line_num = i->GetLineNum();
 						ror_file_name = _curr_file_name;
-						_global_settings.AddInstToReplace(ror_line_num, _curr_file_name);
+						_global_settings.AddInstToReplace(ror_line_num, _curr_file_name, i->GetId());
 					}
 					else
 					{

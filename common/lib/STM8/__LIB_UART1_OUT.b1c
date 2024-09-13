@@ -12,9 +12,8 @@ JRMI ::__LBL_ROM_STR
 INCW X ; skip usage counter
 
 :::__LBL_ROM_STR
+; get characters (bytes) count
 LD A, (X)
-; here A - bytes count
-TNZ A
 JREQ ::__LBL_EXIT
 
 :::__LBL_NEXT

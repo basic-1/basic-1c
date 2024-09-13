@@ -398,10 +398,10 @@ Here `<loop_var_name>` is a loop control numeric variable name, `<init_value>` a
 `GET [#<device_name>,] <var_name1>[, <var_name2>, ... <var_nameN>]` - syntax for scalar variables.  
 `GET [#<device_name>,] <arr_var_name1>(<lbound1> TO <ubound1>)[, <arr_var_name2>(<lbound2> TO <ubound2>, ... <arr_var_nameN>(<lboundN> TO <uboundN>]` - syntax for subscripted variables (arrays).  
   
-Here `<var_name1>` ... `<var_nameN>` are names of variables to write data into and `<device_name>` is an optional device name to read data from. If the device name is not specified the current input device is used. The device must support binary input mode. Allowed data types for input variables are: `BYTE`, `INT`, `WORD` and `LONG`. A special form of `GET` statement allows reading sequence of bytes and store it in a `BYTE` array: to use it specify one-dimensional `BYTE` array name with lower and upper bounds separated with `TO` keyword and enclosed in parentheses.  
+Here `<var_name1>` ... `<var_nameN>` are names of variables to write data into and `<device_name>` is an optional device name to read data from. If the device name is not specified the default input device is used. The device must support binary input mode. Allowed data types for input variables are: `BYTE`, `INT`, `WORD` and `LONG`. A special form of `GET` statement allows reading sequence of bytes and store it in a `BYTE` array: to use it specify one-dimensional `BYTE` array name with lower and upper bounds separated with `TO` keyword and enclosed in parentheses.  
   
 **Examples:**  
-`GET A` 'read a numeric from the current device and write it into `A` variable  
+`GET A` 'read a numeric from the default input device and write it into `A` variable  
 `GET #SPI, DAT(I)` 'read a numeric from `SPI` device and write it into `DAT(I)` element of subscripted variable  
 `GET #SPI, DAT1(0 TO 10)` 'read 11 bytes from `SPI` device and store them in `DAT1` array from index 0 to 10 (`DAT1` array data size must be `BYTE`)  
 `GET #SPI, DAT1(I, I + 5)` ' read 6 bytes from `#SPI` device and store them in `BYTE` array starting from index `I`  
@@ -420,12 +420,12 @@ Here `<var_name1>` ... `<var_nameN>` are names of variables to write data into a
   
 ### `INPUT` statement  
   
-`INPUT` statement reads user input data from input device and stores it in variables. Default input/output device is UART.  
+`INPUT` statement reads user input data from input device and stores it in variables. Default input device is UART (can be changed with `OPTION INPUTDEVICE` option).  
   
 **Usage:**  
-`INPUT [<prompt>,] <var_name1>[, <var_name2>, ... <var_nameN>]`  
+`INPUT [#<device_name>,] [<prompt>,] <var_name1>[, <var_name2>, ... <var_nameN>]`  
   
-Here `<prompt>` is an optional string sent to the same input/output device before reading data. Default prompt string is "? ". After displaying the prompt the statement reads values from input device and stores them into specified variables one by one. Input values must be separated with commas and the last value must be followed by carriage return character. If the statement fails (e.g. due to wrong data format or wrong values number) the input process repeats from very beginning.  
+Here `<prompt>` is an optional string sent to the same device before reading data. Default prompt string is "? ". After displaying the prompt the statement reads values from input device and stores them into specified variables one by one. Input values must be separated with commas and the last value must be followed by carriage return character. If the statement fails (e.g. due to wrong data format or wrong values number) the input process repeats from very beginning. `<device_name>` is name of an input device for the statement to read data from (to override default input device usage).  
   
 **Examples:**  
 `INPUT A, B, C` 'input three numeric values  
@@ -452,18 +452,24 @@ The expression's result data type must be compatible with the variable data type
   
 ### `OPTION` statement  
   
-`OPTION` is a statement specifying a compiler option that applies to entire program or to the current source file. All `OPTION` statements must precede any significant statement of a program (`REM` is the only statement which can be used prior to `OPTION`). Options supported by BASIC1 compiler are: `OPTION BASE`, `OPTION EXPLICIT` and `OPTION NOCHECK`.  
+`OPTION` is a statement specifying a compiler option that applies to entire program or to the current source file. All `OPTION` statements must precede any significant statement of a program (`REM` is the only statement which can be used prior to `OPTION`). Options supported by BASIC1 compiler are: `OPTION BASE`, `OPTION EXPLICIT`, `OPTION NOCHECK`, `OPTION INPUTDEVICE` and `OPTION OUTPUTDEVICE`. `OPTION INPUTDEVICE` and `OPTION OUTPUTDEVICE` affect the current source file only. Other options are applied to entire program.  
   
 **Usage:**  
 `OPTION BASE 0 | 1`  
 `OPTION EXPLICIT [ON | OFF]`  
 `OPTION NOCHECK [ON | OFF]`  
+`OPTION INPUTDEVICE #<device_name>`  
+`OPTION OUTPUTDEVICE #<device_name>`  
   
 `OPTION BASE` statement can be used to change default value of lower boundary of variable subscripts from 0 to 1.  
   
 `OPTION EXPLICIT` statement turns on explicit mode of variables creation. If the mode is enabled, every variable must be created with `DIM` statement prior to usage. Omitting `ON` and `OFF` keywords is interpreted as enabling the mode.  
   
 `OPTION NOCHECK` option disables generating code that checks subscripted variables for being properly created (memory allocated). The check absence causes compiler to produce more compact code but usage of a non-allocated array can lead to software or hardware failure. The option has sense only when `OPTION EXPLICIT` is enabled too.  
+  
+`OPTION INPUTDEVICE` specifies default device for `GET` and `INPUT` statements.  
+  
+`OPTION OUTPUTDEVICE` specifies default device for `PUT` and `PRINT` statements.  
   
 **Examples:**:  
 `10 OPTION BASE 1`  
@@ -481,12 +487,16 @@ The expression's result data type must be compatible with the variable data type
 `50 ERASE ARR`  
 `60 ARR(0) = -1` 'wrong, memory is already freed with `ERASE`  
   
+`10 OPTION OUTPUTDEVICE #ST7565_SPI`  
+` ... `  
+`100 PRINT "Hello world!"` 'this statement writes the string to #ST7565_SPI device  
+  
 ### `PRINT` statement  
   
-The statement writes textual data to an output device. Default output device is UART.  
+The statement writes textual data to output device. If device name is not specified the default output device is used (default output device for `PRINT` statement is UART, the device can be changed with `OPTION OUTPUTDEVICE` option).  
   
 **Usage:**  
-`PRINT <expression1> [, | ; <expression2> , | ; ... <expressionN>] [, | ;]`  
+`PRINT [#<device_name>,] <expression1> [, | ; <expression2> , | ; ... <expressionN>] [, | ;]`  
   
 `PRINT` statement evaluates expressions specified after the keyword and writes result values to output device one by one. Textual values are written as is and numeric values are first converted to textual representation. Comma expression separator makes the statement write the next value in the next print zone and semicolon separator allows writing values one after another. Finally `PRINT` statement writes end-of-line sequence if the expressions list does not terminate with semicolon. Putting semicolon at the end of the statement leaves cursor on the current line.  Entire print area is assumed to be divided into print zones. `PRINT` statement writes a value starting from the next print zone if the expression is separated from previous one with comma. The statement uses two special values to locate the next print zone: margin and zone width. Margin is the maximum width of output device print area (in characters) and zone width is a width of one print zone. Default values of margin and zone width are specific to output device. An output device should provide a way to change margin and zone width values.  
   
@@ -506,10 +516,10 @@ The statement writes textual data to an output device. Default output device is 
 `PUT [#<device_name>,] <exp1>[, <exp2>, ... <expN>]` - syntax for scalar values.  
 `PUT [#<device_name>,] <arr_var_name1>(<lbound1> TO <ubound1>)[, <arr_var_name2>(<lbound2> TO <ubound2>, ... <arr_var_nameN>(<lboundN> TO <uboundN>]` - syntax for subscripted variables (arrays).  
   
-The statement calculates specified expressions and writes their values to `<device_name>` device one by one. If the device name is not specified the current output device is used. The device must support binary output mode. Valid data types for the results of an expressions are: `BYTE`, `INT`, `WORD`, `LONG` or `STRING`. A special form of `PUT` statement allows transmitting sequence of bytes stored in `BYTE` array: to use it specify one-dimensional `BYTE` array name with lower and upper bounds separated with `TO` keyword and enclosed in parentheses.  
+The statement calculates specified expressions and writes their values to `<device_name>` device one by one. If the device name is not specified the default output device is used. The device must support binary output mode. Valid data types for the results of an expressions are: `BYTE`, `INT`, `WORD`, `LONG` or `STRING`. A special form of `PUT` statement allows transmitting sequence of bytes stored in `BYTE` array: to use it specify one-dimensional `BYTE` array name with lower and upper bounds separated with `TO` keyword and enclosed in parentheses.  
   
 **Examples:**  
-`PUT A` 'writes value of numeric `A` variable to the current output device  
+`PUT A` 'writes value of numeric `A` variable to the default output device  
 `PUT #SPI, DAT(I)` 'writes value of `DAT(I)` element of subscripted variable to `SPI` device  
 `PUT #SPI, "hello"` 'writes five characters of the specified string to `SPI` device (string length or any kind of terminating character is not written)  
 `PUT #SPI, CBYTE(LEN(S$)), S$` 'writes `S$` string length (one byte) followed by the string data  
@@ -530,10 +540,10 @@ The statement is used to write remarks or comments in program text. Compiler ign
 `TRANSFER [#<device_name>,] <var_name1>[, <var_name2>, ... <var_nameN>]` - syntax for scalar variables.  
 `TRANSFER [#<device_name>,] <arr_var_name1>(<lbound1> TO <ubound1>)[, <arr_var_name2>(<lbound2> TO <ubound2>, ... <arr_var_nameN>(<lboundN> TO <uboundN>]` - syntax for subscripted variables (arrays).  
   
-Here `<var_name1>` ... `<var_nameN>` are names of variables to read data from and to write data into when performing data exchange with the device. `<device_name>` is an optional input/output device name. If the device name is not specified the current input device is used. The device must support binary input and output modes. Allowed data types for the variables are: `BYTE`, `INT`, `WORD` and `LONG`. A special form of `TRANSFER` statement allows exchanging data between input/output device and one-dimensional `BYTE` array: to use it specify the array name with lower and upper bounds separated with `TO` keyword and enclosed in parentheses.  
+Here `<var_name1>` ... `<var_nameN>` are names of variables to read data from and to write data into when performing data exchange with the device. `<device_name>` is an optional input/output device name. If the device name is not specified the default device is used (in this case default input device must be the same as default output device). The device must support binary input and output modes. Allowed data types for the variables are: `BYTE`, `INT`, `WORD` and `LONG`. A special form of `TRANSFER` statement allows exchanging data between input/output device and one-dimensional `BYTE` array: to use it specify the array name with lower and upper bounds separated with `TO` keyword and enclosed in parentheses.  
   
 **Examples:**  
-`TRANSFER A` 'writes value of numeric `A` variable to the current output device and read value from the current input device into the same `A` variable  
+`TRANSFER A` 'writes value of numeric `A` variable to the default output device and read value from the default input device into the same `A` variable  
 `TRANSFER #SPI, DAT(I)` 'writes value of `DAT(I)` element of subscripted variable to `SPI` device and then stores a value read from `SPI` into `DAT(I)`  
 `TRANSFER #SPI, DAT(I TO I + 5)` 'sends and receives 6 bytes from `DAT` byte array starting from index `I`  
   

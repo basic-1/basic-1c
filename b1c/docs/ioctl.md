@@ -15,6 +15,7 @@
 - `IOCTL CPU, INTERRUPTS, ON | OFF` - enable or disable interrupts, by default interrups are disabled.  
 - `IOCTL CPU, CLOCKSOURCE, HSI | HSI16 | LSI | HSE16 | HSE8` - select MCU clock source generator, default is `HSI`. `HSI` stands for the maximum possible frequence available with internal RC oscillator, `HSI16` - 16 MHz with internal oscillator, `HSE8` - 8 MHz with 8 MHz external crystal oscillator, `HSE16` - 16 MHz with 16 MHz external crystal oscillator.  
 - `IOCTL CPU, WAIT, INTERRUPT` - wait for interrupt command  
+- `IOCTL CPU, DELAYMS, <numeric_value>` - pauses program execution for the specified amount of time (in milliseconds, acceptable range of the numeric argument is: 0 to 255 ms). The command is based on loops and cannot be used for precise delays generation (it should delay for not less than the specified amount of time).  
   
 ### GPIO  
   
@@ -90,6 +91,7 @@ Here `PX` stands for GPIO port name (e.g. `PA` for port A) and command names sho
 - `IOCTL SPI, TRANSMODE, DUPLEX | HALFDUPLEX | SIMPLEX` - SPI transmission mode (default is `DUPLEX`)  
 - `IOCTL SPI, SSPIN, <pin_name> | NONE` - specify slave select pin, `<pin_name>` format is `<port_name><pin_number>`, e.g.: `PA3`, `PE5`, etc. A special keyword `NONE` specified instead of the pin name disables automatic SS pin management. Default value corresponds to default NSS pin of the selected MCU.  
 - `IOCTL SPI, CFGPINS, ON | OFF` - configure GPIO pins when starting communication (enabled by default)  
+- `IOCTL SPI, WAIT, RXNE | TXE | NOTBSY` - wait for the specified event: `RXNE` stands for "RX buffer is not empty" (a byte is read into external MCU buffer and can be extracted with `GET` statement), `TXE` - "TX buffer is empty" (the next byte can be written with `PUT` statement), `NOTBSY` - "SPI transmission is complete" (all data is transferred, SPI device can be released).  
 - `IOCTL SPI, START [, TX | RX]` - selects data transmission direction, enables slave device (in master mode only, if SS pin management is not turned off with `IOCTL SPI, SSPIN, NONE`), starts SPI communication. Transmission direction is valid for simplex and half-duplex modes only, default is `TX`.  
 - `IOCTL SPI, STOP` - stop SPI communication  
 - `IOCTL SPI, ENABLE` - enable SPI  
@@ -116,4 +118,42 @@ SPI simplex transmission example (2 MHz, 3 characters long string)
   
 ![SPI duplex transmission example](./images/spiduplex.png "SPI duplex transmission example")  
 SPI duplex transmission example (8 MHz, 4-byte integer values)  
+  
+![SPI continuous transmission example](./images/spiarr.png "SPI continuous transmission example")  
+SPI continuous transmission example (8 MHz, 100 bytes long array)  
+  
+### ST7565_SPI  
+  
+`ST7565_SPI` commands can be used to setup a driver for monochrome LCD displays based on ST7565 chip (with resolution up to 132x64). The driver chip must be configured to communicate via `SPI` interface (serial interface mode).  
+  
+- `IOCTL ST7565_SPI, RSTPIN, <pin_name> | NONE` - specify MCU pin connected to display driver reset pin, `<pin_name>` format is `<port_name><pin_number>`, e.g.: `PF4`. A special keyword `NONE` specified instead disables automatic hardware reset of the driver chip (default behavior).  
+- `IOCTL ST7565_SPI, DCPIN, <pin_name>` - specify MCU pin connected to display driver data/command mode selection pin (the command is mandatory).  
+- `IOCTL ST7565_SPI, CFGPINS, ON | OFF` - configure GPIO pins automatically (enabled by default). The command affects the next pins: SPI MOSI pin, SPI NSS pin (if not disabled), SPI CLK pin, RST pin (if not disabled) and DC pin.  
+- `IOCTL ST7565_SPI, INIT, <disp_cfg_name> | <var_name>` - select display model (`<disp_cfg_name>` - name of one of the predefined models, `<var_name>` - name of byte array variable that contains display initializaton data).  
+- `IOCTL ST7565_SPI, FONT, <font_name>` -  select font (`8x8` and `8x16` dot matrix fonts are supported).  
+- `IOCTL ST7565_SPI, ZONEWIDTH, <numeric_value>` - set print zone width (default is 8 characters)  
+- `IOCTL ST7565_SPI, START` - initializes SPI, resets LCD driver chip, applies display initialization parameters (set with `INIT` command), etc. After the command execution display is ready to operate.  
+- `IOCTL ST7565_SPI, STOP` - completes current SPI transmission, releases slave SPI device (display driver chip).  
+- `IOCTL ST7565_SPI, ENABLE` - enables SPI bus.  
+- `IOCTL ST7565_SPI, DISABLE` - disables SPI bus.  
+- `IOCTL ST7565_SPI, CONTRAST, <numeric_value>` - set display contrast, acceptable value range is \[1..100\]. The command can be used after `ENABLE` command (when display driver is ready to accept commands).  
+  
+Fonts included with the compiler:  
+`FONT_IBM_8X8_CP437_7BIT_ST7565` - 8x8 ASCII font (128 characters), CP437 code page  
+`FONT_IBM_8X8_CP437_FULL_ST7565` - 8x8 extended ASCII font (256 characters), CP437 code page  
+`FONT_IBM_8X16_CP437_7BIT_ST7565` - 8x16 ASCII font (128 characters), CP437 code page  
+`FONT_IBM_8X16_CP437_FULL_ST7565` - 8x16 extended ASCII font (256 characters), CP437 code page  
+  
+The library was tested with two Chinese displays marked "GM12864-01A" and "GMG12864-06D Ver:2.0", predefined configuration names for them are `DISP_GM12864_01A` and `DISP_GMG12864_06D_V2`.  
+  
+**Example:**  
+`IOCTL ST7565_SPI, ENABLE`  
+`IOCTL ST7565_SPI, RSTPIN, PF4`  
+`IOCTL ST7565_SPI, DCPIN, PB3`  
+`IOCTL ST7565_SPI, CFGPINS`  
+`IOCTL ST7565_SPI, INIT, DISP_GM12864_01A`  
+`IOCTL ST7565_SPI, FONT, FONT_IBM_8X16_CP437_7BIT_ST7565`  
+`IOCTL ST7565_SPI, START`  
+`PRINT #ST7565_SPI, "Hello world!"`  
+  
   

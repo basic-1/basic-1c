@@ -1,0 +1,5 @@
+GA,__VAR_DISP_GMG12864_06D_V2,BYTE(C),0<BYTE>,11<BYTE>
+;V5VR_ratio: V5 (V0 in new datasheets) Voltage Regulator Internal Resistor Ratio Set (0x20..0x27)
+;EV_level: The Electronic Volume (0x81 + 0x0..0x3F)
+;                              hor_res    ver_res    init_len  bias       scan_dir   COM_dir    pwr_ctrl   V5VR_ratio EV_level   value      start_line disp_ON
+DAT,__VAR_DISP_GMG12864_06D_V2,0x80<BYTE>,0x40<BYTE>,0x9<BYTE>,0xA2<BYTE>,0xA0<BYTE>,0xC8<BYTE>,0x2F<BYTE>,0x24<BYTE>,0x81<BYTE>,0x30<BYTE>,0x40<BYTE>,0xAF<BYTE>

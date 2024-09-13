@@ -1988,7 +1988,7 @@ bool B1CUtils::get_asm_type(const B1Types type, std::wstring *asmtype /*= nullpt
 	{
 		if(type == B1Types::B1T_STRING)
 		{
-#ifdef B1_POINTER_SIZE_32_BIT
+#ifdef C1_POINTER_SIZE_32_BIT
 			// string is represented as 4-byte pointer
 			s = 4;
 			at = L"DD";
@@ -2041,7 +2041,7 @@ bool B1CUtils::get_asm_type(const B1Types type, std::wstring *asmtype /*= nullpt
 		// ...
 		// DW ; Nth dimension lbound
 		// DW ; Nth dimension size
-#ifdef B1_POINTER_SIZE_32_BIT
+#ifdef C1_POINTER_SIZE_32_BIT
 		s = (1 + dimnum * 2) * 4;
 		at = L"DD";
 #else

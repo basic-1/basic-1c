@@ -19,6 +19,7 @@
 - `spimsd.bsc` - SPI master in duplex mode example. Works in pair with `spisld.bsc`  
 - `spisld.bsc` - SPI slave in duplex mode example. Works in pair with `spimsd.bsc`  
 - `const.bsc` - constant data usage example (declared with `DIM CONST`)  
+- `st7565.bsc` - "hello world" example for ST7565-based LCD display  
   
 # building the samples from command line  
 `b1c -d -s -m STM8S103F3 samples/blink.bsc`  
@@ -41,4 +42,5 @@ For interrupt handlers specify interrupt name before the source file name separa
 `b1c -d -s -m STM8S105K4 samples/spimsd.bsc`  
 `b1c -d -s -m STM8S103F3 samples/spisld.bsc`  
 `b1c -d -s -m STM8S105K4 samples/const.bsc`  
+`b1c -d -s -m STM8S105K4 samples/st7565.bsc`  
   

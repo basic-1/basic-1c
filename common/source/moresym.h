@@ -23,6 +23,8 @@
 #define B1C_DEV_OPT_BIN L"BIN"
 // binary statements are implemented as inline code (not subroutines)
 #define B1C_DEV_OPT_INL L"INL"
+#define B1C_DEV_OPT_IN L"IN"
+#define B1C_DEV_OPT_OUT L"OUT"
 
 
 // run-time errors

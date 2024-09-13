@@ -28,7 +28,8 @@ class Inst;
 class A1Settings : public Settings
 {
 private:
-	std::set<std::pair<int32_t, std::string>> _instructions_to_replace;
+	//                line num. file name     inst. id
+	std::map<std::pair<int32_t, std::string>, int> _instructions_to_replace;
 
 public:
 	A1Settings()
@@ -36,58 +37,26 @@ public:
 	{
 	}
 
-	void AddInstToReplace(int line_num, const std::string &file_name)
+	void AddInstToReplace(int line_num, const std::string &file_name, int inst_id = -1)
 	{
-		_instructions_to_replace.insert(std::make_pair(line_num, file_name));
+		_instructions_to_replace[std::make_pair(line_num, file_name)] = inst_id;
 	}
 
-	bool IsInstToReplace(int line_num, const std::string &file_name) const
+	bool IsInstToReplace(int line_num, const std::string &file_name, int *inst_id = nullptr) const
 	{
-		return (_instructions_to_replace.find(std::make_pair(line_num, file_name)) != _instructions_to_replace.end());
-	}
-
-	virtual A1_T_ERROR ProcessNumPostfix(const std::wstring &postfix, int32_t &n)
-	{
-		if(!postfix.empty())
+		auto itr = _instructions_to_replace.find(std::make_pair(line_num, file_name));
+		
+		if(itr == _instructions_to_replace.end())
 		{
-			if(postfix.size() > 2)
-			{
-				return A1_T_ERROR::A1_RES_ESYNTAX;
-			}
-
-			if(postfix[0] == L'l' || postfix[0] == L'L')
-			{
-				n = (uint16_t)n;
-			}
-			else
-			if(postfix[0] == L'h' || postfix[0] == L'H')
-			{
-				n = (uint16_t)(n >> 16);
-			}
-			else
-			{
-				return A1_T_ERROR::A1_RES_ESYNTAX;
-			}
-
-			if(postfix.size() > 1)
-			{
-				if(postfix[1] == L'l' || postfix[1] == L'L')
-				{
-					n = (uint8_t)n;
-				}
-				else
-				if(postfix[1] == L'h' || postfix[1] == L'H')
-				{
-					n = (uint8_t)(n >> 8);
-				}
-				else
-				{
-					return A1_T_ERROR::A1_RES_ESYNTAX;
-				}
-			}
+			return false;
 		}
 
-		return A1_T_ERROR::A1_RES_OK;
+		if(inst_id != nullptr)
+		{
+			*inst_id = itr->second;
+		}
+
+		return true;
 	}
 
 	virtual A1_T_ERROR GetInstructions(const std::wstring &inst_name, const std::wstring &inst_sign, std::vector<const Inst *> &insts, int line_num, const std::string &file_name) const = 0;
@@ -397,6 +366,11 @@ public:
 	{
 		return _warnings;
 	}
+
+	virtual int GetId() const
+	{
+		return -1;
+	}
 };
 
 
@@ -610,6 +584,11 @@ public:
 		return (*this == AT_NONE) || ((value >= _minval) && (value <= _maxval) && (value % _multof) == 0);
 	}
 
+	virtual bool IsRelOffset() const
+	{
+		return (*this == AT_1BYTE_OFF);
+	}
+
 	static const ArgType AT_NONE;
 	static const ArgType AT_1BYTE_ADDR; // 0..FF
 	static const ArgType AT_2BYTE_ADDR; // 0..FFFF
@@ -629,6 +608,8 @@ private:
 
 	void Init(const wchar_t *code, int speed, const ArgType &arg1type, const ArgType &arg2type, const ArgType &arg3type);
 public:
+	// some id
+	int _inst_id;
 	// instruction code size
 	int _size;
 	// instruction speed (in ticks)
@@ -640,8 +621,9 @@ public:
 	// code:               inst_end is_arg code      start len  postfix
 	std::vector<std::tuple<bool,    bool,  uint32_t, int,  int, std::wstring>> _code;
 
-	Inst(const wchar_t *code, const ArgType &arg1type = ArgType::AT_NONE, const ArgType &arg2type = ArgType::AT_NONE, const ArgType &arg3type = ArgType::AT_NONE);
-	Inst(const wchar_t *code, int speed, const ArgType &arg1type = ArgType::AT_NONE, const ArgType &arg2type = ArgType::AT_NONE, const ArgType &arg3type = ArgType::AT_NONE);
+	Inst() = delete;
+	Inst(int inst_id, const wchar_t *code, const ArgType &arg1type = ArgType::AT_NONE, const ArgType &arg2type = ArgType::AT_NONE, const ArgType &arg3type = ArgType::AT_NONE);
+	Inst(int inst_id, const wchar_t *code, int speed, const ArgType &arg1type = ArgType::AT_NONE, const ArgType &arg2type = ArgType::AT_NONE, const ArgType &arg3type = ArgType::AT_NONE);
 
 	virtual bool CheckArgs(int32_t a1, int32_t a2, int32_t a3) const
 	{
@@ -651,6 +633,11 @@ public:
 	virtual A1_T_ERROR GetSpecArg(int arg_num, std::pair<std::reference_wrapper<const ArgType>, Exp> &ref, int32_t &val) const
 	{
 		return A1_T_ERROR::A1_RES_EINVINST;
+	}
+
+	int GetId() const
+	{
+		return _inst_id;
 	}
 };
 
@@ -780,6 +767,11 @@ public:
 
 	A1_T_ERROR Read(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, const std::map<std::wstring, MemRef> &memrefs, const std::string &file_name) override;
 	A1_T_ERROR Write(IhxWriter *writer, const std::map<std::wstring, MemRef> &memrefs) override;
+
+	int GetId() const override
+	{
+		return _is_inst ? _inst->GetId() : -1;
+	}
 };
 
 class CodeInitStmt: public CodeStmt

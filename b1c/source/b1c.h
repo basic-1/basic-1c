@@ -15,6 +15,8 @@ extern "C"
 #include "b1ex.h"
 }
 
+#include <set>
+
 #include "errors.h"
 #include "b1cmp.h"
 
@@ -74,6 +76,8 @@ private:
 	// labels that should not be removed (used indirectly)
 	std::set<std::wstring> _req_labels;
 
+	std::map<std::wstring, std::pair<std::wstring, std::vector<iterator>>> _var_refs;
+
 
 	B1C_T_ERROR put_var_name(const std::wstring &name, const B1Types type, int dims, bool is_global, bool is_volatile, bool is_mem_var, bool is_static, bool is_const, const std::vector<std::wstring> &const_init);
 	std::wstring get_var_name(const std::wstring &name, bool &expl) const;
@@ -101,7 +105,7 @@ private:
 	B1_T_ERROR st_option_set_expr(const B1_T_CHAR *s, B1_CMP_EXP_TYPE &exp_type, B1_CMP_ARG &res);
 	bool st_option_check(bool first_run, bool& opt, bool& opt_def, bool val);
 	B1C_T_ERROR st_option(bool first_run);
-	B1C_T_ERROR st_ioctl_get_symbolic_value(std::wstring &value);
+	B1C_T_ERROR st_ioctl_get_symbolic_value(std::wstring &value, bool *is_numeric = nullptr);
 	B1C_T_ERROR st_ioctl();
 	B1_T_ERROR st_let(const B1_T_CHAR **stop_tokens, B1_CMP_ARG *var_ref = nullptr);
 	B1_T_ERROR st_goto();
@@ -114,6 +118,7 @@ private:
 	B1_T_ERROR st_def(bool first_run);
 
 	B1C_T_ERROR compile_simple_stmt(uint8_t stmt);
+	B1C_T_ERROR read_device_name(const std::vector<std::wstring> &dev_opts, bool allow_devname_only, std::wstring &dev_name);
 
 	B1C_T_ERROR st_if();
 	B1_T_ERROR st_if_end();
@@ -127,10 +132,10 @@ private:
 	B1_T_ERROR st_wend();
 	B1_T_ERROR st_continue();
 	B1_T_ERROR st_break();
-	B1_T_ERROR st_print();
-	B1_T_ERROR st_input();
+	B1C_T_ERROR st_print();
+	B1C_T_ERROR st_input();
 	B1C_T_ERROR st_read_range(std::vector<std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE>> &range);
-	B1C_T_ERROR st_put_get_trr(const std::wstring &cmd_name, bool is_input);
+	B1C_T_ERROR st_put_get_trr(const std::wstring &cmd_name, bool is_input, bool is_output);
 
 	B1_CMP_CMDS::const_iterator find_LF(B1_CMP_CMDS::const_iterator lacmd, B1_CMP_CMDS::const_iterator intlfcmd, bool &intlf_found);
 	void fix_LA_LF_order();
@@ -192,6 +197,12 @@ protected:
 
 	bool _opt_nocheck_def;
 	bool _opt_nocheck;
+
+	bool _opt_inputdevice_def;
+	std::wstring _opt_inputdevice;
+
+	bool _opt_outputdevice_def;
+	std::wstring _opt_outputdevice;
 
 	std::string _file_name;
 	std::string _int_name;
@@ -284,7 +295,6 @@ protected:
 	void change_global_ufn_names();
 
 	void mark_var_used(const std::wstring &name, bool for_read);
-	bool is_var_used(const std::wstring &name);
 	int get_var_used(const std::wstring &name);
 
 	B1C_T_ERROR recalc_vars_usage(bool &changed);

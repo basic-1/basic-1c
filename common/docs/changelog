@@ -1,3 +1,15 @@
+b1c (1.0.0-34) unstable; urgency=low
+
+  * added IOCTL CPU, DELAYMS, <count_ms> command
+  * added IOCTL SPI, WAIT, RXNE/TXE/NOTBSY command
+  * added support for monochrome LCD displays (ST7565/ST7567 driver)
+  * new options: INPUTDEVICE and OUTPUTDEVICE
+  * added possibility to specify target device for PRINT and INPUT statements
+  * more optimizer rules
+  * other minor fixes and improvements
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Fri, 13 Sep 2024 18:24:44 +0300
+
 b1c (1.0.0-33) unstable; urgency=low
 
   * code reorganization

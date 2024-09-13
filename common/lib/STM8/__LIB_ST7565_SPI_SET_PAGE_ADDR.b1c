@@ -1,0 +1,21 @@
+IMP,__LIB_ST7565_SPI_DC_LO
+
+; sets ST7565 page address
+; A - page address (0..8)
+:__LIB_ST7565_SPI_SET_PAGE_ADDR
+ASM
+PUSH A
+ENDASM
+
+; select command mode
+CALL,__LIB_ST7565_SPI_DC_LO
+
+ASM
+POP A
+AND A, 0xF
+OR A, 0xB0 ; set page address command
+ENDASM
+
+; select page
+INL,__LIB_SPI_PUT_B_INL
+RET

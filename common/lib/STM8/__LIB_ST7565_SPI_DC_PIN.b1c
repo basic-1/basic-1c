@@ -1,0 +1,2 @@
+; MCU pin number mask to drive display data\command pin (not specified by default)
+=,0<BYTE>,__LIB_ST7565_SPI_DC_PIN<BYTE>

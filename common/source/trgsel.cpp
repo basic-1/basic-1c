@@ -9,7 +9,7 @@
 #include "trgsel.h"
 
 
-#ifdef B1C_DEF_STD_FNS
+#ifdef B1_DEF_STD_FNS
 // standard functions definition
 std::vector<B1_CMP_FN> B1_CMP_FNS::_fns =
 {
@@ -21,13 +21,13 @@ std::vector<B1_CMP_FN> B1_CMP_FNS::_fns =
 
 bool select_target(Settings &settings)
 {
-#if defined(B1C_TARGET_STM8) || defined(B1C_TARGET_ALL)
+#if defined(B1_TARGET_STM8) || defined(B1_TARGET_ALL)
 	if(settings.GetTargetName() == "STM8")
 	{
 		// default values: 2 kB of RAM, 16 kB of FLASH, 256 bytes of stack
 		settings.Init(0x0, 0x0800, 0x8000, 0x4000, 0x100, 0x0, (settings.GetMemModelSmall() ? STM8_RET_ADDR_SIZE_MM_SMALL : (STM8_RET_ADDR_SIZE_MM_LARGE)));
 
-#ifdef B1C_DEF_STD_FNS
+#ifdef B1_DEF_STD_FNS
 		B1_CMP_FNS::_fns =
 		{
 			//			name,		ret. type				arg. types(def. values)				fn. name in std. library

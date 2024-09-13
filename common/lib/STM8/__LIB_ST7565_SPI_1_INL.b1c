@@ -1,0 +1,10 @@
+INI,__LIB_ST7565_SPI_DC_PIN
+INI,__LIB_ST7565_SPI_DC_PORT
+
+; specify data\command pin (DCPIN)
+; {VALUE,0,2} - port, {VALUE,2,1} - pin number
+ASM
+MOV (__LIB_ST7565_SPI_DC_PIN), 1 << {VALUE,2,1}
+LDW X, {VALUE,0,2}_ODR
+LDW (__LIB_ST7565_SPI_DC_PORT), X
+ENDASM

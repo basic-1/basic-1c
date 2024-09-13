@@ -1,0 +1,40 @@
+INI,__LIB_ST7565_SPI_COL
+INI,__LIB_ST7565_SPI_ROW
+INI,__LIB_ST7565_SPI_FONT_OPT
+INI,__LIB_ST7565_SPI_OPT
+IMP,__LIB_ST7565_SPI_SET_COL_ADDR
+IMP,__LIB_ST7565_SPI_SET_PAGE_ADDR
+
+; sets ST7565 position to draw a char
+; A - 0 (position to draw upper part of a 8x16 character) or 1 (position
+; to draw lower part of the character). The parameter has no sence in case
+; of 8x8 font
+:__LIB_ST7565_SPI_SET_CHAR_POS
+ASM
+AND A, 1
+PUSH A ; save page offset
+LD A, (__LIB_ST7565_SPI_ROW)
+BTJF (__LIB_ST7565_SPI_FONT_OPT), 0, ::__LBL_8X8_FONT
+SLL A
+ADD A, (1, SP)
+
+:::__LBL_8X8_FONT
+LD (1, SP), A
+LD A, (__LIB_ST7565_SPI_OPT) ; take into accouns display start line
+SRL A
+ADD A, (1, SP)
+ADD SP, 1
+AND A, 7
+ENDASM
+
+CALL,__LIB_ST7565_SPI_SET_PAGE_ADDR
+
+ASM
+LD A, (__LIB_ST7565_SPI_COL)
+SLL A
+SLL A
+SLL A
+ENDASM
+
+CALL,__LIB_ST7565_SPI_SET_COL_ADDR
+RET

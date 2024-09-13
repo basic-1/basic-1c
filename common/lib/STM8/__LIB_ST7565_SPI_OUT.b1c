@@ -1,0 +1,34 @@
+IMP,__LIB_ST7565_SPI_OUT_CHAR
+IMP,__LIB_STR_RLS
+
+; renders the specified string
+; X - string address
+:__LIB_ST7565_SPI_OUT
+ASM
+PUSHW X
+TNZW X
+JREQ ::__LBL_EXIT
+JRMI ::__LBL_ROM_STR
+INCW X ; skip usage counter
+
+:::__LBL_ROM_STR
+; get characters (bytes) count
+LD A, (X)
+JREQ ::__LBL_EXIT
+PUSH A
+
+:::__LBL_NEXT
+INCW X
+PUSHW X
+LD A, (X)
+CALLR __LIB_ST7565_SPI_OUT_CHAR
+POPW X
+DEC (1, SP)
+JRNE ::__LBL_NEXT
+POP A
+
+:::__LBL_EXIT
+POPW X ; restore string address to release the string
+CALLR __LIB_STR_RLS
+RET
+ENDASM

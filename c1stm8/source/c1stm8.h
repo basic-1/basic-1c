@@ -37,6 +37,7 @@ public:
 	{
 	}
 
+	bool ParseNumeric(const std::wstring &num_str, int32_t &n) const;
 	bool Parse() const;
 };
 
@@ -104,11 +105,11 @@ protected:
 	C1_T_ERROR stm8_load_ptr(const B1_CMP_ARG &first, const B1_CMP_ARG &count);
 	C1_T_ERROR stm8_write_ioctl(std::list<B1_CMP_CMD>::const_iterator &cmd_it);
 
-	C1_T_ERROR write_data_sec() override;
+	C1_T_ERROR write_data_sec(bool code_init) override;
 	C1_T_ERROR write_code_sec(bool code_init) override;
 
 	std::wstring correct_SP_offset(const std::wstring &arg, int32_t op_size, bool &no_SP_off, int32_t *offset = nullptr) const;
-	bool is_arithm_op(const std::wstring &op, int32_t &size) const;
+	bool is_arithm_op(const B1_ASM_OP_STM8 &ao, int32_t &size, bool *uses_SP = nullptr) const;
 	bool is_reg_used_after(B1_ASM_OPS::const_iterator i, const std::wstring &reg_name, bool branch = false) const;
 
 

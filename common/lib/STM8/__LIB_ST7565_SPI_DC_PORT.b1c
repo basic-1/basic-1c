@@ -1,0 +1,2 @@
+; port base address of a MCU pin connected to ST7565 data\command pin (not specified by default)
+=,0<WORD>,__LIB_ST7565_SPI_DC_PORT<WORD>

@@ -1,0 +1,26 @@
+IMP,__LIB_ST7565_SPI_DC_LO
+
+; sets ST7565 column address
+; A - column address (0..131)
+:__LIB_ST7565_SPI_SET_COL_ADDR
+ASM
+PUSH A
+ENDASM
+
+; select command mode
+CALL,__LIB_ST7565_SPI_DC_LO
+
+ASM
+LD A, (1, SP)
+AND A, 0xF
+LD XL, A
+POP A
+SWAP A
+AND A, 0xF
+OR A, 0x10
+LD XH, A
+ENDASM
+
+; select column
+INL,__LIB_SPI_PUT_W_INL
+RET

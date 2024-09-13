@@ -430,6 +430,8 @@ C1_T_ERROR C1Compiler::load_inline(size_t offset, const std::wstring &line, cons
 	auto saved_ns = _curr_name_space;
 	_curr_name_space = gen_next_tmp_namespace();
 
+	_last_dat_namespace.clear();
+
 	std::wstring inl_line;
 
 	while(true)
@@ -478,16 +480,29 @@ C1_T_ERROR C1Compiler::load_inline(size_t offset, const std::wstring &line, cons
 
 C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterator pos)
 {
-	auto b = line.begin();
-	auto e = line.end();
+	auto b = line.cbegin();
+	auto e = line.cend();
 
-	// skip leading and trailing spaces
+	// skip leading spaces
 	while(b != e && std::iswspace(*b)) b++;
+
+	// remove comment
+	size_t tmpoff = 0;
+	auto err = find_first_of(line, L";", tmpoff);
+	if(err != C1_T_ERROR::C1_RES_OK)
+	{
+		return err;
+	}
+	if(tmpoff != std::wstring::npos)
+	{
+		e = std::next(line.cbegin(), tmpoff);
+	}
+
+	// skip trailing spaces
 	while(b != e && std::iswspace(*(e - 1))) e--;
 
 	if(b != e)
-	{
-		size_t offset = 0;
+	{		
 		std::wstring cmd;
 		B1_TYPED_VALUE tv;
 		B1_CMP_ARG arg;
@@ -498,7 +513,6 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 		{
 			b++;
 			std::wstring lname(b, e);
-			lname = Utils::str_trim(get_next_value(lname, L";", offset));
 			if(!check_label_name(lname))
 			{
 				return C1_T_ERROR::C1_RES_EINVLBNAME;
@@ -519,14 +533,13 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			return C1_T_ERROR::C1_RES_OK;
 		}
 
-		// comment
-		if(*b == L';')
-		{
-			return C1_T_ERROR::C1_RES_OK;
-		}
+		const std::wstring tmpline(b, e);
+		auto b = tmpline.cbegin();
+		auto e = tmpline.cend();
+		size_t offset = 0;
 
 		// command
-		auto err = get_cmd_name(line, cmd, offset);
+		err = get_cmd_name(tmpline, cmd, offset);
 		if(err != C1_T_ERROR::C1_RES_OK)
 		{
 			return err;
@@ -554,6 +567,11 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			return C1_T_ERROR::C1_RES_EINVCMDNAME;
 		}
 
+		if(cmd != L"DAT")
+		{
+			_last_dat_namespace.clear();
+		}
+
 		if(cmd == L"ASM")
 		{
 			_asm_stmt_it = emit_inline_asm(pos);
@@ -571,7 +589,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 		if(cmd == L"DEF")
 		{
 			// read fn name
-			err = get_simple_arg(line, tv, offset);
+			err = get_simple_arg(tmpline, tv, offset);
 			if(err != C1_T_ERROR::C1_RES_OK)
 			{
 				return err;
@@ -584,7 +602,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			args.push_back(tv.value);
 
 			// read fn return type
-			err = get_simple_arg(line, tv, offset);
+			err = get_simple_arg(tmpline, tv, offset);
 			if(err != C1_T_ERROR::C1_RES_OK)
 			{
 				return err;
@@ -598,7 +616,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			// read fn arguments types
 			while(offset != std::wstring::npos)
 			{
-				err = get_simple_arg(line, tv, offset);
+				err = get_simple_arg(tmpline, tv, offset);
 				if(err != C1_T_ERROR::C1_RES_OK)
 				{
 					return err;
@@ -614,7 +632,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 		if(cmd == L"GA" || cmd == L"MA")
 		{
 			// read var. name
-			err = get_simple_arg(line, tv, offset);
+			err = get_simple_arg(tmpline, tv, offset);
 			if(err != C1_T_ERROR::C1_RES_OK)
 			{
 				return err;
@@ -627,7 +645,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			args.push_back(tv.value);
 
 			// read var. type
-			auto sval = Utils::str_trim(get_next_value(line, L",(", offset));
+			auto sval = Utils::str_trim(get_next_value(tmpline, L",(", offset));
 			if(sval.empty())
 			{
 				return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
@@ -641,9 +659,9 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			bool is_static = false;
 
 			// read optional type modifiers (V - stands for volatile, S - static, C - const)
-			if(offset != std::wstring::npos && line[offset - 1] == L'(')
+			if(offset != std::wstring::npos && tmpline[offset - 1] == L'(')
 			{
-				sval = Utils::str_trim(get_next_value(line, L")", offset));
+				sval = Utils::str_trim(get_next_value(tmpline, L")", offset));
 
 				std::wstring type_mod;
 				auto lpos = sval.find(L'V');
@@ -678,7 +696,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 					args.back().push_back(B1_TYPED_VALUE(type_mod));
 				}
 
-				sval = Utils::str_trim(get_next_value(line, L",", offset));
+				sval = Utils::str_trim(get_next_value(tmpline, L",", offset));
 				if(!sval.empty())
 				{
 					return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
@@ -688,7 +706,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			// read var. address
 			if(cmd == L"MA")
 			{
-				err = get_simple_arg(line, tv, offset);
+				err = get_simple_arg(tmpline, tv, offset);
 				if(err != C1_T_ERROR::C1_RES_OK)
 				{
 					return err;
@@ -714,7 +732,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			int argnum = 0;
 			while(offset != std::wstring::npos)
 			{
-				err = get_arg(line, arg, offset);
+				err = get_arg(tmpline, arg, offset);
 				if(err != C1_T_ERROR::C1_RES_OK)
 				{
 					return err;
@@ -731,7 +749,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 		if(cmd == L"LA")
 		{
 			// read var. name
-			err = get_simple_arg(line, tv, offset);
+			err = get_simple_arg(tmpline, tv, offset);
 			if(err != C1_T_ERROR::C1_RES_OK)
 			{
 				return err;
@@ -744,7 +762,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			args.push_back(tv.value);
 
 			// read var. type
-			err = get_simple_arg(line, tv, offset);
+			err = get_simple_arg(tmpline, tv, offset);
 			if(err != C1_T_ERROR::C1_RES_OK)
 			{
 				return err;
@@ -758,7 +776,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 		else
 		if(cmd == L"NS")
 		{
-			err = get_simple_arg(line, tv, offset);
+			err = get_simple_arg(tmpline, tv, offset);
 			if(err != C1_T_ERROR::C1_RES_OK)
 			{
 				return err;
@@ -780,14 +798,14 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 				return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
 			}
 
-			auto sval = Utils::str_trim(get_next_value(line, L",", offset));
+			auto sval = Utils::str_trim(get_next_value(tmpline, L",", offset));
 			args.push_back(sval);
 			if(offset == std::wstring::npos)
 			{
 				return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
 			}
 
-			err = get_arg(line, arg, offset);
+			err = get_arg(tmpline, arg, offset);
 			if(err != C1_T_ERROR::C1_RES_OK)
 			{
 				return err;
@@ -811,7 +829,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 
 				args.push_back(arg);
 
-				err = get_arg(line, arg, offset);
+				err = get_arg(tmpline, arg, offset);
 				if(err != C1_T_ERROR::C1_RES_OK)
 				{
 					return err;
@@ -829,7 +847,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			}
 
 			// read device name
-			err = get_arg(line, arg, offset);
+			err = get_arg(tmpline, arg, offset);
 			if(err != C1_T_ERROR::C1_RES_OK)
 			{
 				return err;
@@ -847,7 +865,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			}
 
 			// read command
-			err = get_arg(line, arg, offset);
+			err = get_arg(tmpline, arg, offset);
 			if(err != C1_T_ERROR::C1_RES_OK)
 			{
 				return err;
@@ -871,7 +889,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 
 				if(offset == std::wstring::npos)
 				{
-					if(iocmd.predef_only && !iocmd.def_val.empty())
+					if(!iocmd.def_val.empty())
 					{
 						def_val = true;
 					}
@@ -889,7 +907,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 				else
 				{
 					// read data
-					err = get_arg(line, arg, offset);
+					err = get_arg(tmpline, arg, offset);
 					if(err != C1_T_ERROR::C1_RES_OK)
 					{
 						return err;
@@ -921,12 +939,22 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 						}
 						_req_symbols.insert(label);
 						arg[0].value = label;
+						arg[0].type = B1Types::B1T_LABEL;
+					}
+					else
+					if(iocmd.data_type == B1Types::B1T_VARREF)
+					{
+						const auto varname = (arg[0].value.length() >= 3 && arg[0].value[0] == L'\"') ? arg[0].value.substr(1, arg[0].value.length() - 2) : arg[0].value;
+						_req_symbols.insert(varname);
+						arg[0].value = varname;
+						arg[0].type = B1Types::B1T_VARREF;
 					}
 					else
 					if(iocmd.data_type == B1Types::B1T_TEXT)
 					{
 						const auto text = (arg[0].value.length() >= 3 && arg[0].value[0] == L'\"') ? arg[0].value.substr(1, arg[0].value.length() - 2) : arg[0].value;
 						arg[0].value = text;
+						arg[0].type = B1Types::B1T_TEXT;
 					}
 					else
 					if(!B1CUtils::are_types_compatible(arg[0].type, iocmd.data_type))
@@ -949,7 +977,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 					return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
 				}
 
-				err = get_simple_arg(line, tv, offset);
+				err = get_simple_arg(tmpline, tv, offset);
 				if(err != C1_T_ERROR::C1_RES_OK)
 				{
 					return err;
@@ -965,7 +993,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			{
 				if(cmd == L"RST")
 				{
-					err = get_simple_arg(line, tv, offset);
+					err = get_simple_arg(tmpline, tv, offset);
 					if(err != C1_T_ERROR::C1_RES_OK)
 					{
 						return err;
@@ -982,14 +1010,14 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 		else
 		if(cmd == L"RETVAL")
 		{
-			err = get_arg(line, arg, offset);
+			err = get_arg(tmpline, arg, offset);
 			if(err != C1_T_ERROR::C1_RES_OK)
 			{
 				return err;
 			}
 			args.push_back(arg);
 
-			err = get_simple_arg(line, tv, offset);
+			err = get_simple_arg(tmpline, tv, offset);
 			if(err != C1_T_ERROR::C1_RES_OK)
 			{
 				return err;
@@ -1008,7 +1036,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 				return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
 			}
 
-			err = get_simple_arg(line, tv, offset);
+			err = get_simple_arg(tmpline, tv, offset);
 			if(err != C1_T_ERROR::C1_RES_OK)
 			{
 				return err;
@@ -1017,7 +1045,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 
 			if(tv.value == L"ERR")
 			{
-				err = get_arg(line, arg, offset);
+				err = get_arg(tmpline, arg, offset);
 				if(err != C1_T_ERROR::C1_RES_OK)
 				{
 					return err;
@@ -1033,7 +1061,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 		if(cmd == L"JMP" || cmd == L"JF" || cmd == L"JT" || cmd == L"CALL" || cmd == L"GF" || cmd == L"LF" || cmd == L"IMP" || cmd == L"INI" || cmd == L"INT")
 		{
 			// read label name
-			err = get_simple_arg(line, tv, offset);
+			err = get_simple_arg(tmpline, tv, offset);
 			if(err != C1_T_ERROR::C1_RES_OK)
 			{
 				return err;
@@ -1067,7 +1095,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 		else
 		if(cmd == L"INL")
 		{
-			return load_inline(offset, line, pos);
+			return load_inline(offset, tmpline, pos);
 		}
 		else
 		if(cmd == L"ERR")
@@ -1078,7 +1106,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 				return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
 			}
 
-			auto sval = Utils::str_trim(get_next_value(line, L",", offset));
+			auto sval = Utils::str_trim(get_next_value(tmpline, L",", offset));
 			args.push_back(sval);
 			if(offset == std::wstring::npos)
 			{
@@ -1086,7 +1114,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			}
 
 			// read label name
-			err = get_simple_arg(line, tv, offset);
+			err = get_simple_arg(tmpline, tv, offset);
 			if(err != C1_T_ERROR::C1_RES_OK)
 			{
 				return err;
@@ -1107,16 +1135,33 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 				return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
 			}
 
-			err = get_simple_arg(line, tv, offset);
+			err = get_simple_arg(tmpline, tv, offset);
 			if(err != C1_T_ERROR::C1_RES_OK)
 			{
 				return err;
 			}
+
+			tv.value = add_namespace(tv.value);
+
+			if(tv.value == L"*")
+			{
+				if(_last_dat_namespace.empty())
+				{
+					return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
+				}
+
+				tv.value = _last_dat_namespace;
+			}
+			else
+			{
+				_last_dat_namespace = tv.value;
+			}
+
 			args.push_back(tv.value);
 
 			while(offset != std::wstring::npos)
 			{
-				err = get_arg(line, arg, offset);
+				err = get_arg(tmpline, arg, offset);
 				if(err != C1_T_ERROR::C1_RES_OK)
 				{
 					return err;
@@ -1133,7 +1178,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 				return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
 			}
 
-			err = get_simple_arg(line, tv, offset);
+			err = get_simple_arg(tmpline, tv, offset);
 			if(err != C1_T_ERROR::C1_RES_OK)
 			{
 				return err;
@@ -1144,7 +1189,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			{
 				return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
 			}
-			err = get_arg(line, arg, offset);
+			err = get_arg(tmpline, arg, offset);
 			if(err != C1_T_ERROR::C1_RES_OK)
 			{
 				return err;
@@ -1156,7 +1201,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 		{
 			while(offset != std::wstring::npos)
 			{
-				err = get_arg(line, arg, offset);
+				err = get_arg(tmpline, arg, offset);
 				if(err != C1_T_ERROR::C1_RES_OK)
 				{
 					return err;
@@ -1540,8 +1585,8 @@ C1_T_ERROR C1Compiler::read_and_check_locals()
 // check variables types and sizes, set values of optional function arguments, build variable list
 C1_T_ERROR C1Compiler::read_and_check_vars()
 {
-	//       name          GAs number
-	std::map<std::wstring, int32_t> exp_alloc;
+	//       name                    GAs number  imm. sizes
+	std::map<std::wstring, std::pair<int32_t,    bool>> exp_alloc;
 	std::map<std::wstring, std::tuple<int32_t, int32_t, bool>> arr_ranges;
 
 	_vars.clear();
@@ -1565,7 +1610,7 @@ C1_T_ERROR C1Compiler::read_and_check_vars()
 
 		if(	cmd.cmd == L"LA" || cmd.cmd == L"LF" || cmd.cmd == L"NS" || cmd.cmd == L"JMP" || cmd.cmd == L"JF" || cmd.cmd == L"JT" ||
 			cmd.cmd == L"CALL" || cmd.cmd == L"RET" || cmd.cmd == L"DAT" || cmd.cmd == L"RST" || cmd.cmd == L"END" || cmd.cmd == L"DEF" ||
-			cmd.cmd == L"ERR" || cmd.cmd == L"IMP" || cmd.cmd == L"INI" || cmd.cmd == L"INT")
+			cmd.cmd == L"ERR" || cmd.cmd == L"IMP" || cmd.cmd == L"INI" || cmd.cmd == L"INT" || cmd.cmd == L"INL")
 		{
 			if(cmd.cmd == L"DAT")
 			{
@@ -1616,12 +1661,12 @@ C1_T_ERROR C1Compiler::read_and_check_vars()
 				auto ea = exp_alloc.find(vname);
 				if(ea == exp_alloc.end())
 				{
-					exp_alloc[vname] = 1;
+					exp_alloc.emplace(std::make_pair(vname, std::make_pair(1, true)));
 					check_sizes = true;
 				}
 				else
 				{
-					ea->second++;
+					ea->second.first++;
 				}
 			}
 
@@ -1697,7 +1742,19 @@ C1_T_ERROR C1Compiler::read_and_check_vars()
 				}
 				v->second.dim_num = dims / 2;
 
-				if(v->second.type != B1Types::B1T_UNKNOWN && ((v->second.is_volatile != is_volatile) || (v->second.is_const != is_const)))
+				if(!is_ma)
+				{
+					// allow the first DIM statement to override implicit const and volatile flags
+					auto ea = exp_alloc.find(vname);
+
+					if(ea->second.first == 1)
+					{
+						v->second.is_volatile = is_volatile;
+						v->second.is_const = is_const;
+					}
+				}
+
+				if((v->second.is_volatile != is_volatile) || (v->second.is_const != is_const))
 				{
 					return C1_T_ERROR::C1_RES_EVARTYPMIS;
 				}
@@ -1735,7 +1792,7 @@ C1_T_ERROR C1Compiler::read_and_check_vars()
 						}
 						else
 						{
-							exp_alloc.find(vname)->second++;
+							exp_alloc.find(vname)->second.second = false;
 							v->second.dims.clear();
 							check_sizes = false;
 							continue;
@@ -1753,7 +1810,7 @@ C1_T_ERROR C1Compiler::read_and_check_vars()
 						}
 						else
 						{
-							exp_alloc.find(vname)->second++;
+							exp_alloc.find(vname)->second.second = false;
 							v->second.dims.clear();
 							check_sizes = false;
 							continue;
@@ -1879,10 +1936,10 @@ C1_T_ERROR C1Compiler::read_and_check_vars()
 					return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
 				}
 
-				if(!(iocmd.data_type == B1Types::B1T_LABEL || iocmd.data_type == B1Types::B1T_TEXT))
+				if(!(iocmd.data_type == B1Types::B1T_LABEL || iocmd.data_type == B1Types::B1T_VARREF || iocmd.data_type == B1Types::B1T_TEXT))
 				{
 					auto err = check_arg(cmd.args[2]);
-					if (err != C1_T_ERROR::C1_RES_OK)
+					if(err != C1_T_ERROR::C1_RES_OK)
 					{
 						return err;
 					}
@@ -1960,7 +2017,7 @@ C1_T_ERROR C1Compiler::read_and_check_vars()
 		}
 		else
 		// OPTION EXPLICIT and single GA (DIM) with fixed sizes
-		if(b1_opt_explicit_val != 0 && ea->second == 1)
+		if(b1_opt_explicit_val != 0 && ea->second.first == 1 && ea->second.second)
 		{
 			var.second.fixed_size = true;
 		}
@@ -2128,7 +2185,7 @@ C1_T_ERROR C1Compiler::process_imm_str_values()
 					return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
 				}
 
-				if(!iocmd.predef_only && !(iocmd.data_type == B1Types::B1T_LABEL || iocmd.data_type == B1Types::B1T_TEXT))
+				if(!iocmd.predef_only && !(iocmd.data_type == B1Types::B1T_LABEL || iocmd.data_type == B1Types::B1T_VARREF || iocmd.data_type == B1Types::B1T_TEXT))
 				{
 					auto err = process_imm_str_value(cmd.args[2]);
 					if(err != C1_T_ERROR::C1_RES_OK)
@@ -2196,7 +2253,7 @@ C1_T_ERROR C1Compiler::add_data_def(const std::wstring &name, const std::wstring
 	return C1_T_ERROR::C1_RES_OK;
 }
 
-C1_T_ERROR C1Compiler::write_data_sec()
+C1_T_ERROR C1Compiler::write_data_sec(bool code_init)
 {
 	_comment.clear();
 
@@ -2268,6 +2325,11 @@ C1_T_ERROR C1Compiler::write_data_sec()
 			}
 		}
 
+		if(!code_init && std::find(_init_files.cbegin(), _init_files.cend(), v->first) != _init_files.cend())
+		{
+			continue;
+		}
+
 		auto err = add_data_def(v->first, type, rep, v->second.is_volatile);
 		if(err != C1_T_ERROR::C1_RES_OK)
 		{
@@ -2298,7 +2360,7 @@ C1_T_ERROR C1Compiler::write_data_sec()
 			label = label.empty() ? std::wstring() : (label + L"::");
 
 			label = label + L"__DAT_PTR";
-#ifdef B1_POINTER_SIZE_32_BIT
+#ifdef C1_POINTER_SIZE_32_BIT
 			B1_CMP_VAR var(label, B1Types::B1T_LONG, 0, false, false, -1, 0);
 			B1CUtils::get_asm_type(B1Types::B1T_LONG, &asmtype, &var.size);
 #else
@@ -2405,6 +2467,9 @@ C1_T_ERROR C1Compiler::write_const_sec()
 					_comment = Utils::str_trim(_src_lines[i->src_line_id]);
 				}
 
+				std::wstring val_type;
+				std::wstring values;
+
 				for(const auto &a: cmd.args)
 				{
 					if(skip_nmspc)
@@ -2415,6 +2480,13 @@ C1_T_ERROR C1Compiler::write_const_sec()
 
 					if(a[0].type == B1Types::B1T_STRING)
 					{
+						if(!values.empty())
+						{
+							add_data(_const_sec, _const_sec.cend(), val_type + L" " + values, false);
+							val_type.clear();
+							values.clear();
+						}
+
 						auto err = process_imm_str_value(a);
 						if(err != C1_T_ERROR::C1_RES_OK)
 						{
@@ -2429,17 +2501,46 @@ C1_T_ERROR C1Compiler::write_const_sec()
 						std::wstring asmtype;
 						int32_t size;
 
-						// store bytes as words (for all types to be 2 bytes long, to simplify READ statement)
+#ifdef C1_DAT_STORE_BYTE_AS_WORD
+						// store bytes as words (to simplify READ statement)
 						if(!B1CUtils::get_asm_type((a[0].type == B1Types::B1T_BYTE && !const_var_data) ? B1Types::B1T_WORD : a[0].type, &asmtype, &size))
+#else
+						if(!B1CUtils::get_asm_type(a[0].type, &asmtype, &size))
+#endif
 						{
 							return C1_T_ERROR::C1_RES_EINVTYPNAME;
 						}
 
-						add_data(_const_sec, _const_sec.cend(), asmtype + L" " + a[0].value, false);
+						if(values.empty())
+						{
+							val_type = asmtype;
+							values = a[0].value;
+						}
+						else
+						{
+							if(val_type == asmtype)
+							{
+								values += L", " + a[0].value;
+							}
+							else
+							{
+								add_data(_const_sec, _const_sec.cend(), val_type + L" " + values, false);
+								val_type = asmtype;
+								values = a[0].value;
+							}
+						}
+
 						_const_size += size;
 					}
 
 					values_num++;
+				}
+
+				if(!values.empty())
+				{
+					add_data(_const_sec, _const_sec.cend(), val_type + L" " + values, false);
+					val_type.clear();
+					values.clear();
 				}
 			}
 
@@ -2610,6 +2711,8 @@ C1_T_ERROR C1Compiler::Load(const std::vector<std::string> &file_names)
 		_curr_line_cnt = 0;
 		_curr_src_file_id = _src_file_name_ids[fn];
 
+		_last_dat_namespace.clear();
+
 		std::FILE *ofp = std::fopen(fn.c_str(), "r");
 		if(ofp == nullptr)
 		{
@@ -2708,7 +2811,7 @@ C1_T_ERROR C1Compiler::WriteCode(bool code_init)
 {
 	_curr_code_sec = nullptr;
 
-	auto err = write_data_sec();
+	auto err = write_data_sec(code_init);
 	if(err != C1_T_ERROR::C1_RES_OK)
 	{
 		return err;
@@ -2782,7 +2885,7 @@ C1_T_ERROR C1Compiler::Save(const std::string &file_name, bool overwrite_existin
 		return err;
 	}
 
-#ifndef B1_SECT_CONST_AFTER_CODE
+#ifndef C1_SECT_CONST_AFTER_CODE
 	err = save_section(L".CONST", _const_sec, ofs);
 	if(err != C1_T_ERROR::C1_RES_OK)
 	{
@@ -2796,7 +2899,7 @@ C1_T_ERROR C1Compiler::Save(const std::string &file_name, bool overwrite_existin
 		return err;
 	}
 
-#ifdef B1_SECT_CONST_AFTER_CODE
+#ifdef C1_SECT_CONST_AFTER_CODE
 	err = save_section(L".CONST", _const_sec, ofs);
 	if (err != C1_T_ERROR::C1_RES_OK)
 	{

@@ -1,0 +1,57 @@
+INI,__LIB_ST7565_SPI_COL
+INI,__LIB_ST7565_SPI_ROW
+INI,__LIB_ST7565_SPI_FONT_OPT
+INI,__LIB_ST7565_SPI_FONT
+INI,__LIB_ST7565_SPI_FONT_EXT
+IMP,__LIB_ST7565_SPI_SET_CHAR_POS
+IMP,__LIB_ST7565_SPI_DRAW_BMP_8X8
+
+; draws a char at position specified with __LIB_ST7565_SPI_ROW and
+; __LIB_ST7565_SPI_COL variables
+; A - character to draw
+:__LIB_ST7565_SPI_DRAW_CHAR
+ASM
+CP A, 127
+JRUGT ::__LBL_8BIT_CHAR
+LDW X, (__LIB_ST7565_SPI_FONT)
+JRA ::__LBL_CALC_CHR_OFF
+
+:::__LBL_8BIT_CHAR
+AND A, 127
+LDW X, (__LIB_ST7565_SPI_FONT_EXT)
+
+:::__LBL_CALC_CHR_OFF
+JREQ ::__LBL_RET ; font is not loaded
+PUSHW X
+CLRW X
+LD XL, A
+LD A, 8
+BTJF (__LIB_ST7565_SPI_FONT_OPT), 0, ::__LBL_8X8_FONT
+SLL A
+
+:::__LBL_8X8_FONT
+MUL X, A
+ADDW X, (1, SP) ; here X is the character bitmap address
+LDW (1, SP), X ; save bitmap address in stack
+
+BTJF (__LIB_ST7565_SPI_FONT_OPT), 0, ::__LBL_DRAW_8X8_CHR
+; draw 8x16 character
+CLR A ; draw upper part of the character
+CALLR __LIB_ST7565_SPI_SET_CHAR_POS
+LD A, 1
+LDW X, (1, SP)
+CALLR __LIB_ST7565_SPI_DRAW_BMP_8X8
+POPW X
+ADDW X, 8
+PUSHW X
+
+:::__LBL_DRAW_8X8_CHR
+LD A, 1 ; draw 8x8 character or lower part of 8x16 character
+CALLR __LIB_ST7565_SPI_SET_CHAR_POS
+LD A, 1
+POPW X
+CALLR __LIB_ST7565_SPI_DRAW_BMP_8X8
+
+:::__LBL_RET
+RET
+ENDASM

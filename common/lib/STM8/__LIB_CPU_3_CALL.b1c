@@ -1,0 +1,30 @@
+; CPU DELAYMS
+; A - delay time in milliseconds
+INI,__LIB_CPU_OPT
+
+:__LIB_CPU_3_CALL
+ASM
+TNZ A
+JREQ ::__LBL_EXIT
+LDW X, 44 ; 128 kHz
+BTJT (__LIB_CPU_OPT), 1, ::__LBL_DO_DELAY
+LDW X, 42 * 8 * 16 ; 16 MHz
+BTJF (__LIB_CPU_OPT), 0, ::__LBL_DO_DELAY
+SRLW X ; 8 MHz
+
+:::__LBL_DO_DELAY
+PUSHW X
+
+:::__LBL_DELAY_LOOP
+LDW X, (1, SP) ; 2
+
+:::__LBL_1_MS_LOOP
+DECW X ; 1
+JRNE ::__LBL_1_MS_LOOP ; 1/2
+DEC A ; 1
+JRNE ::__LBL_DELAY_LOOP ; 1/2
+POPW X
+
+:::__LBL_EXIT
+RET
+ENDASM

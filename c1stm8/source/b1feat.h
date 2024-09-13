@@ -11,8 +11,10 @@
 #define _B1_FEATURES_
 
 
-#define B1C_TARGET_STM8
-#define B1C_DEF_STD_FNS
+#define B1_TARGET_STM8
+#define B1_DEF_STD_FNS
+
+#define C1_DAT_STORE_BYTE_AS_WORD
 
 
 // ERASE statement

@@ -32,6 +32,7 @@ enum class B1Types
 
 	// special types
 	B1T_LABEL = 1000, // used with IOCTL
+	B1T_VARREF, // used with IOCTL
 	B1T_TEXT, // used with IOCTL
 	B1T_COMMON, // used when choosing type of IIF pseudo-function
 };
@@ -297,4 +298,6 @@ public:
 	std::vector<std::wstring> GetDevCmdsList(const std::wstring &dev_name) const;
 	std::vector<std::wstring> GetIoDevList() const;
 	const std::set<std::wstring> *GetDeviceOptions(const std::wstring &dev_name) const;
+
+	virtual B1_T_ERROR ProcessNumPostfix(const std::wstring &postfix, int32_t &n) const;
 };

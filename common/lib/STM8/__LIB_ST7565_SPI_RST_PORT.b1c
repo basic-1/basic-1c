@@ -1,0 +1,2 @@
+; port base address of a MCU pin connected to ST7565 reset pin (default is NONE)
+=,0<WORD>,__LIB_ST7565_SPI_RST_PORT<WORD>

@@ -65,7 +65,7 @@ static std::wstring get_size_kB(int64_t size)
 
 static std::multimap<std::wstring, std::unique_ptr<Inst>> _instructions;
 
-#define ADD_INST(SIGN, OPCODE, ...) _instructions.emplace(SIGN, new Inst((OPCODE), ##__VA_ARGS__))
+#define ADD_INST(SIGN, OPCODE, ...) _instructions.emplace(SIGN, new Inst(-1, (OPCODE), ##__VA_ARGS__))
 
 static void load_all_instructions()
 {
@@ -832,7 +832,7 @@ static void load_all_instructions()
 
 static std::multimap<std::wstring, std::unique_ptr<Inst>> _instructions_ex;
 
-#define ADD_INST_EX(SIGN, OPCODE, ...) _instructions_ex.emplace(SIGN, new Inst((OPCODE), ##__VA_ARGS__))
+#define ADD_INST_EX(SIGN, OPCODE, ...) _instructions_ex.emplace(SIGN, new Inst(-1, (OPCODE), ##__VA_ARGS__))
 
 // CALLR -> CALL (if necessary), JRX -> JP (if necessary)
 static void load_extra_instructions_small()

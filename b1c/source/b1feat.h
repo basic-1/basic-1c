@@ -11,8 +11,8 @@
 #define _B1_FEATURES_
 
 
-#define B1C_TARGET_ALL
-#define B1C_DEF_STD_FNS
+#define B1_TARGET_ALL
+#define B1_DEF_STD_FNS
 
 
 // ERASE statement

@@ -37,6 +37,8 @@ static const B1_T_CHAR _VOLATILE[] = { 8, 'V', 'O', 'L', 'A', 'T', 'I', 'L', 'E'
 static const B1_T_CHAR _STATIC[] = { 6, 'S', 'T', 'A', 'T', 'I', 'C' };
 static const B1_T_CHAR _CONST[] = { 5, 'C', 'O', 'N', 'S', 'T' };
 static const B1_T_CHAR _NOCHECK[] = { 7, 'N', 'O', 'C', 'H', 'E', 'C', 'K' };
+static const B1_T_CHAR _INPUTDEVICE[] = { 11, 'I', 'N', 'P', 'U', 'T', 'D', 'E', 'V', 'I', 'C', 'E' };
+static const B1_T_CHAR _OUTPUTDEVICE[] = { 12, 'O', 'U', 'T', 'P', 'U', 'T', 'D', 'E', 'V', 'I', 'C', 'E' };
 
 static const B1_T_CHAR *CONST_VAL_SEPARATORS[3] = { _COMMA, _CLBRACKET, NULL };
 static const B1_T_CHAR *CONST_STOP_TOKEN[2] = { _CLBRACKET, NULL };
@@ -1074,6 +1076,11 @@ B1_T_ERROR B1FileCompiler::st_option_set(const B1_T_CHAR *s, uint8_t value_type,
 			}
 		}
 		else
+		if(value_type == B1_TOKEN_TYPE_DEVNAME)
+		{
+			*value = len;
+		}
+		else
 		{
 			return B1_RES_EINVARG;
 		}
@@ -1245,16 +1252,69 @@ B1C_T_ERROR B1FileCompiler::st_option(bool first_run)
 		return B1C_T_ERROR::B1C_RES_OK;
 	}
 	else
+	if(err != B1_RES_EEOF)
+	{
+		return static_cast<B1C_T_ERROR>(B1_RES_EINVSTAT);
+	}
+
+	err = st_option_set(_INPUTDEVICE, B1_TOKEN_TYPE_DEVNAME, false, &value);
+	if(err == B1_RES_OK)
+	{
+		if(!first_run)
+		{
+			if(!_opt_inputdevice_def)
+			{
+				return B1C_T_ERROR::B1C_RES_EINCOPTS;
+			}
+			_opt_inputdevice_def = false;
+			_opt_inputdevice = _global_settings.GetIoDeviceName(Utils::str_toupper(B1CUtils::b1str_to_cstr(b1_tmp_buf)));
+			if(_global_settings.GetDevCmdsList(_opt_inputdevice).empty())
+			{
+				return B1C_T_ERROR::B1C_RES_EUNKIODEV;
+			}
+		}
+		return B1C_T_ERROR::B1C_RES_OK;
+	}
+	else
+	if(err != B1_RES_EEOF)
+	{
+		return static_cast<B1C_T_ERROR>(B1_RES_EINVSTAT);
+	}
+
+	err = st_option_set(_OUTPUTDEVICE, B1_TOKEN_TYPE_DEVNAME, false, &value);
+	if(err == B1_RES_OK)
+	{
+		if(!first_run)
+		{
+			if(!_opt_outputdevice_def)
+			{
+				return B1C_T_ERROR::B1C_RES_EINCOPTS;
+			}
+			_opt_outputdevice_def = false;
+			_opt_outputdevice = _global_settings.GetIoDeviceName(Utils::str_toupper(B1CUtils::b1str_to_cstr(b1_tmp_buf)));
+			if(_global_settings.GetDevCmdsList(_opt_outputdevice).empty())
+			{
+				return B1C_T_ERROR::B1C_RES_EUNKIODEV;
+			}
+		}
+		return B1C_T_ERROR::B1C_RES_OK;
+	}
+	else
 	if(err == B1_RES_EEOF)
 	{
 		return static_cast<B1C_T_ERROR>(B1_RES_EINVSTAT);
 	}
 
-	return B1C_T_ERROR::B1C_RES_OK;
+	return static_cast<B1C_T_ERROR>(err);
 }
 
-B1C_T_ERROR B1FileCompiler::st_ioctl_get_symbolic_value(std::wstring &value)
+B1C_T_ERROR B1FileCompiler::st_ioctl_get_symbolic_value(std::wstring &value, bool *is_numeric /*= nullptr*/)
 {
+	if(is_numeric != nullptr)
+	{
+		*is_numeric = false;
+	}
+
 	if(b1_rpn[1].flags == 0)
 	{
 		bool get_value = false;
@@ -1268,6 +1328,11 @@ B1C_T_ERROR B1FileCompiler::st_ioctl_get_symbolic_value(std::wstring &value)
 				get_value = true;
 				id_off = b1_rpn[0].data.token.offset;
 				id_len = b1_rpn[0].data.token.length;
+
+				if(is_numeric != nullptr)
+				{
+					*is_numeric = true;
+				}
 			}
 		}
 		else
@@ -1387,7 +1452,7 @@ B1C_T_ERROR B1FileCompiler::st_ioctl()
 		{
 			use_def_val = true;
 
-			if(!(cmd.predef_only && !cmd.def_val.empty()))
+			if(cmd.def_val.empty())
 			{
 				return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
 			}
@@ -1406,14 +1471,14 @@ B1C_T_ERROR B1FileCompiler::st_ioctl()
 			}
 		}
 
-		if(cmd.predef_only)
+		if(use_def_val)
 		{
-			if(use_def_val)
-			{
-				// do not specify the default value
-				emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING) }));
-			}
-			else
+			// do not specify the default value
+			emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING) }));
+		}
+		else
+		{
+			if(cmd.predef_only)
 			{
 				err1 = st_ioctl_get_symbolic_value(data);
 				if(err1 != B1C_T_ERROR::B1C_RES_OK)
@@ -1429,58 +1494,82 @@ B1C_T_ERROR B1FileCompiler::st_ioctl()
 
 				emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + data + L"\"", B1Types::B1T_STRING) }));
 			}
-		}
-		else
-		{
-			if(cmd.data_type == B1Types::B1T_STRING && concat_strings_rpn(data) == B1_RES_OK)
-			{
-				emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(data, B1Types::B1T_STRING) }));
-			}
-			else
-			if(cmd.data_type == B1Types::B1T_LABEL)
-			{
-				err1 = st_ioctl_get_symbolic_value(data);
-				if(err1 != B1C_T_ERROR::B1C_RES_OK)
-				{
-					return err1;
-				}
-
-				const auto lbl_name = get_name_space_prefix() + L"__ULB_" + data;
-				_req_labels.insert(lbl_name);
-				emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + lbl_name + L"\"", B1Types::B1T_STRING) }));
-			}
-			else
-			if(cmd.data_type == B1Types::B1T_TEXT)
-			{
-				err1 = st_ioctl_get_symbolic_value(data);
-				if(err1 != B1C_T_ERROR::B1C_RES_OK)
-				{
-					return err1;
-				}
-
-				emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + data + L"\"", B1Types::B1T_STRING) }));
-			}
 			else
 			{
-				// compile the expression part
-				B1_CMP_EXP_TYPE exp_type;
-				B1_CMP_ARG res;
-				err = process_expression(exp_type, res);
-				if(err != B1_RES_OK)
+				if(cmd.data_type == B1Types::B1T_STRING && concat_strings_rpn(data) == B1_RES_OK)
 				{
-					return static_cast<B1C_T_ERROR>(err);
+					emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(data, B1Types::B1T_STRING) }));
 				}
-
-				if(exp_type == B1_CMP_EXP_TYPE::B1_CMP_ET_LOGICAL)
+				else
+				if(cmd.data_type == B1Types::B1T_LABEL)
 				{
-					return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+					bool is_numeric = true;
+					// numeric labels are local and non-numeric ones are global and should be loaded only once
+					err1 = st_ioctl_get_symbolic_value(data, &is_numeric);
+					if(err1 != B1C_T_ERROR::B1C_RES_OK)
+					{
+						return err1;
+					}
+
+					const auto lbl_name = is_numeric ? (get_name_space_prefix() + L"__ULB_" + data) : data;
+					_req_labels.insert(lbl_name);
+					emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + lbl_name + L"\"", B1Types::B1T_STRING) }));
 				}
-
-				emit_command(L"IOCTL", std::vector<B1_CMP_ARG>({ B1_CMP_ARG(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_CMP_ARG(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), res }));
-
-				if(exp_type == B1_CMP_EXP_TYPE::B1_CMP_ET_LOCAL)
+				else					
+				if(cmd.data_type == B1Types::B1T_VARREF)
 				{
-					emit_command(L"LF", res[0].value);
+					err1 = st_ioctl_get_symbolic_value(data);
+					if(err1 != B1C_T_ERROR::B1C_RES_OK)
+					{
+						return err1;
+					}
+
+					emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(data, B1Types::B1T_VARREF) }));
+
+					// save iterator to the command to correct the reference name
+					auto vr = _var_refs.find(data);
+					if(vr == _var_refs.end())
+					{
+						_var_refs.insert(std::make_pair(data, std::make_pair(L"__VAR_" + data, std::vector<iterator>({ std::prev(end()) }))));
+					}
+					else
+					{
+						vr->second.second.push_back(std::prev(end()));
+					}
+				}
+				else					
+				if(cmd.data_type == B1Types::B1T_TEXT)
+				{
+					err1 = st_ioctl_get_symbolic_value(data);
+					if(err1 != B1C_T_ERROR::B1C_RES_OK)
+					{
+						return err1;
+					}
+
+					emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + data + L"\"", B1Types::B1T_STRING) }));
+				}
+				else
+				{
+					// compile the expression part
+					B1_CMP_EXP_TYPE exp_type;
+					B1_CMP_ARG res;
+					err = process_expression(exp_type, res);
+					if(err != B1_RES_OK)
+					{
+						return static_cast<B1C_T_ERROR>(err);
+					}
+
+					if(exp_type == B1_CMP_EXP_TYPE::B1_CMP_ET_LOGICAL)
+					{
+						return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+					}
+
+					emit_command(L"IOCTL", std::vector<B1_CMP_ARG>({ B1_CMP_ARG(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_CMP_ARG(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), res }));
+
+					if(exp_type == B1_CMP_EXP_TYPE::B1_CMP_ET_LOCAL)
+					{
+						emit_command(L"LF", res[0].value);
+					}
 				}
 			}
 		}
@@ -2767,25 +2856,25 @@ B1C_T_ERROR B1FileCompiler::compile_simple_stmt(uint8_t stmt)
 
 	if(stmt == B1_ID_STMT_PRINT)
 	{
-		err = st_print();
-		if(err != B1_RES_OK)
+		auto err1 = st_print();
+		if(err1 != B1C_T_ERROR::B1C_RES_OK)
 		{
-			return static_cast<B1C_T_ERROR>(err);
+			return err1;
 		}
 	}
 
 	if(stmt == B1_ID_STMT_INPUT)
 	{
-		err = st_input();
-		if(err != B1_RES_OK)
+		auto err1 = st_input();
+		if(err1 != B1C_T_ERROR::B1C_RES_OK)
 		{
-			return static_cast<B1C_T_ERROR>(err);
+			return err1;
 		}
 	}
 
 	if(stmt == B1_ID_STMT_PUT)
 	{
-		auto err1 = st_put_get_trr(L"PUT", false);
+		auto err1 = st_put_get_trr(L"PUT", false, true);
 		if(err1 != B1C_T_ERROR::B1C_RES_OK)
 		{
 			return err1;
@@ -2794,7 +2883,7 @@ B1C_T_ERROR B1FileCompiler::compile_simple_stmt(uint8_t stmt)
 
 	if(stmt == B1_ID_STMT_GET)
 	{
-		auto err1 = st_put_get_trr(L"GET", true);
+		auto err1 = st_put_get_trr(L"GET", true, false);
 		if(err1 != B1C_T_ERROR::B1C_RES_OK)
 		{
 			return err1;
@@ -2803,7 +2892,7 @@ B1C_T_ERROR B1FileCompiler::compile_simple_stmt(uint8_t stmt)
 
 	if(stmt == B1_ID_STMT_TRANSFER)
 	{
-		auto err1 = st_put_get_trr(L"TRR", true);
+		auto err1 = st_put_get_trr(L"TRR", true, true);
 		if (err1 != B1C_T_ERROR::B1C_RES_OK)
 		{
 			return err1;
@@ -3581,20 +3670,28 @@ B1_T_ERROR B1FileCompiler::st_break()
 	return B1_RES_OK;
 }
 
-B1_T_ERROR B1FileCompiler::st_print()
+B1C_T_ERROR B1FileCompiler::st_print()
 {
-	B1_T_ERROR err;
+	B1C_T_ERROR err;
 	bool next_print_zone, newline;
 
 	next_print_zone = false;
 	newline = true;
 
+	std::wstring dev_name;
+
+	err = read_device_name(std::vector({ std::wstring(B1C_DEV_OPT_TXT), std::wstring(B1C_DEV_OPT_OUT) }), true, dev_name);
+	if(err != B1C_T_ERROR::B1C_RES_OK)
+	{
+		return err;
+	}
+
 	// process PRINT statement arguments
 	for(;; b1_curr_prog_line_offset++)
 	{
 		// build RPN for every PRINT statement argument
-		err = b1_rpn_build(b1_curr_prog_line_offset, PRINT_STOP_TOKENS, &b1_curr_prog_line_offset);
-		if(err != B1_RES_OK)
+		err = static_cast<B1C_T_ERROR>(b1_rpn_build(b1_curr_prog_line_offset, PRINT_STOP_TOKENS, &b1_curr_prog_line_offset));
+		if(err != B1C_T_ERROR::B1C_RES_OK)
 		{
 			return err;
 		}
@@ -3602,7 +3699,7 @@ B1_T_ERROR B1FileCompiler::st_print()
 		if(next_print_zone)
 		{
 			// go to the next print zone
-			emit_command(L"OUT", std::vector<std::wstring>({ L"", L"TAB" }));
+			emit_command(L"OUT", std::vector<std::wstring>({ dev_name, L"TAB" }));
 			back().args[1].push_back(B1_TYPED_VALUE(L"0"));
 
 			next_print_zone = false;
@@ -3622,15 +3719,15 @@ B1_T_ERROR B1FileCompiler::st_print()
 		// compile the expression part
 		B1_CMP_EXP_TYPE exp_type;
 		B1_CMP_ARG res;
-		err = process_expression(exp_type, res);
-		if(err != B1_RES_OK)
+		err = static_cast<B1C_T_ERROR>(process_expression(exp_type, res));
+		if(err != B1C_T_ERROR::B1C_RES_OK)
 		{
 			return err;
 		}
 
 		if(exp_type == B1_CMP_EXP_TYPE::B1_CMP_ET_LOGICAL)
 		{
-			return B1_RES_ESYNTAX;
+			return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
 		}
 
 		if(!(exp_type == B1_CMP_EXP_TYPE::B1_CMP_ET_IMM_VAL && res[0].value.empty()))
@@ -3644,12 +3741,12 @@ B1_T_ERROR B1FileCompiler::st_print()
 				back().args[0][0] = back().args[0][1];
 				back().args[0].pop_back();
 
-				emit_command(L"OUT", std::vector<std::wstring>({ L"", cmd }));
+				emit_command(L"OUT", std::vector<std::wstring>({ dev_name, cmd }));
 				back().args[1].push_back(B1_TYPED_VALUE(res[0].value));
 			}
 			else
 			{
-				emit_command(L"OUT", std::vector<std::wstring>({ L"", res[0].value }));
+				emit_command(L"OUT", std::vector<std::wstring>({ dev_name, res[0].value }));
 			}
 
 			if(exp_type == B1_CMP_EXP_TYPE::B1_CMP_ET_LOCAL)
@@ -3668,32 +3765,40 @@ B1_T_ERROR B1FileCompiler::st_print()
 
 	if(newline)
 	{
-		emit_command(L"OUT", std::vector<std::wstring>({ L"", L"NL"}));
+		emit_command(L"OUT", std::vector<std::wstring>({ dev_name, L"NL"}));
 	}
 
-	return B1_RES_OK;
+	return B1C_T_ERROR::B1C_RES_OK;
 }
 
-B1_T_ERROR B1FileCompiler::st_input()
+B1C_T_ERROR B1FileCompiler::st_input()
 {
-	B1_T_ERROR err;
+	B1C_T_ERROR err;
 	bool get_prompt = true;
 	bool first = true;
+
+	std::wstring dev_name;
+
+	err = read_device_name(std::vector({ std::wstring(B1C_DEV_OPT_TXT), std::wstring(B1C_DEV_OPT_IN) }), false, dev_name);
+	if(err != B1C_T_ERROR::B1C_RES_OK)
+	{
+		return err;
+	}
 
 	auto rep_label = emit_label();
 
 	while(b1_curr_prog_line_offset != 0)
 	{
 		// build RPN
-		err = b1_rpn_build(b1_curr_prog_line_offset, INPUT_STOP_TOKEN, &b1_curr_prog_line_offset);
-		if(err != B1_RES_OK)
+		err = static_cast<B1C_T_ERROR>(b1_rpn_build(b1_curr_prog_line_offset, INPUT_STOP_TOKEN, &b1_curr_prog_line_offset));
+		if(err != B1C_T_ERROR::B1C_RES_OK)
 		{
 			return err;
 		}
 		if(b1_rpn[0].flags == 0)
 		{
 			// INPUT statement without arguments
-			return B1_RES_ESYNTAX;
+			return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
 		}
 
 		if(get_prompt)
@@ -3706,7 +3811,7 @@ B1_T_ERROR B1FileCompiler::st_input()
 				if(b1_curr_prog_line_offset == 0)
 				{
 					// INPUT with prompt string only is not allowed
-					return B1_RES_ESYNTAX;
+					return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
 				}
 			}
 			else
@@ -3717,7 +3822,7 @@ B1_T_ERROR B1FileCompiler::st_input()
 
 			if(prompt != L"\"\"")
 			{
-				emit_command(L"OUT", std::vector<std::wstring>({ L"", prompt }));
+				emit_command(L"OUT", std::vector<std::wstring>({ dev_name, prompt }));
 			}
 		}
 
@@ -3733,23 +3838,23 @@ B1_T_ERROR B1FileCompiler::st_input()
 			B1_CMP_EXP_TYPE exp_type;
 			B1_CMP_ARG res;
 
-			err = process_expression(exp_type, res, true);
-			if(err != B1_RES_OK)
+			err = static_cast<B1C_T_ERROR>(process_expression(exp_type, res, true));
+			if(err != B1C_T_ERROR::B1C_RES_OK)
 			{
 				return err;
 			}
 
 			if(exp_type != B1_CMP_EXP_TYPE::B1_CMP_ET_VAR)
 			{
-				return B1_RES_ESYNTAX;
+				return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
 			}
 
 			if(is_const_var(res[0].value))
 			{
-				return B1_RES_ETYPMISM;
+				return static_cast<B1C_T_ERROR>(B1_RES_ETYPMISM);
 			}
 
-			emit_command(L"IN", { B1_CMP_ARG(L""), res });
+			emit_command(L"IN", { B1_CMP_ARG(dev_name), res });
 
 			if(res.size() > 1)
 			{
@@ -3775,12 +3880,12 @@ B1_T_ERROR B1FileCompiler::st_input()
 			}
 			else
 			{
-				return B1_RES_ESYNTAX;
+				return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
 			}
 		}
 	}
 
-	return B1_RES_OK;
+	return B1C_T_ERROR::B1C_RES_OK;
 }
 
 B1C_T_ERROR B1FileCompiler::st_read_range(std::vector<std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE>> &range)
@@ -3879,14 +3984,12 @@ B1C_T_ERROR B1FileCompiler::st_read_range(std::vector<std::pair<B1_CMP_ARG, B1_C
 	return B1C_T_ERROR::B1C_RES_OK;
 }
 
-// PUT [#<dev_name>, ] <value1> [, <value2>, ..., <valueN>]: is_input = false
-// GET [#<dev_name>, ] <var1> [, <var2>, ..., <varN>]: is_input = true
-// TRANSFER [#<dev_name>, ] <var1> [, <var2>, ..., <varN>]: is_input = true
-B1C_T_ERROR B1FileCompiler::st_put_get_trr(const std::wstring &cmd_name, bool is_input)
+B1C_T_ERROR B1FileCompiler::read_device_name(const std::vector<std::wstring> &dev_opts, bool allow_devname_only, std::wstring &dev_name)
 {
 	B1_TOKENDATA td;
 	auto saved_line_offset = b1_curr_prog_line_offset;
-	std::wstring dev_name;
+
+	dev_name.clear();
 
 	// read optional device name
 	auto err = b1_tok_get(b1_curr_prog_line_offset, 0, &td);
@@ -3894,43 +3997,98 @@ B1C_T_ERROR B1FileCompiler::st_put_get_trr(const std::wstring &cmd_name, bool is
 	{
 		return static_cast<B1C_T_ERROR>(err);
 	}
+
 	if(td.length == 0)
 	{
-		return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+		if(!allow_devname_only)
+		{
+			return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+		}
 	}
+	else
 	if(td.type & B1_TOKEN_TYPE_DEVNAME)
 	{
 		b1_curr_prog_line_offset = td.offset + td.length;
 
-		auto spc_dev_name = Utils::str_toupper(B1CUtils::get_progline_substring(td.offset, b1_curr_prog_line_offset));
-
-		dev_name = _global_settings.GetIoDeviceName(spc_dev_name);
-		if(dev_name.empty() && !spc_dev_name.empty())
-		{
-			return B1C_T_ERROR::B1C_RES_EUNKIODEV;
-		}
-
-		auto dev_opts = _global_settings.GetDeviceOptions(dev_name);
-		if (dev_opts == nullptr || dev_opts->find(B1C_DEV_OPT_BIN) == dev_opts->cend())
-		{
-			return B1C_T_ERROR::B1C_RES_EWDEVTYPE;
-		}
+		dev_name = Utils::str_toupper(B1CUtils::get_progline_substring(td.offset, b1_curr_prog_line_offset));
 
 		err = b1_tok_get(b1_curr_prog_line_offset, 0, &td);
 		if(err != B1_RES_OK)
 		{
 			return static_cast<B1C_T_ERROR>(err);
 		}
+
 		if(td.length != 1 || !B1_T_ISCOMMA(b1_progline[td.offset]))
 		{
-			return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+			if(!(allow_devname_only && td.length == 0))
+			{
+				return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+			}
 		}
-		b1_curr_prog_line_offset = td.offset + td.length;
+		else
+		{
+			b1_curr_prog_line_offset = td.offset + td.length;
+		}
 	}
-	else
+	
+	if(dev_name.empty())
 	{
 		// no device name specified
 		b1_curr_prog_line_offset = saved_line_offset;
+
+		if(!_opt_inputdevice_def && std::find(dev_opts.cbegin(), dev_opts.cend(), B1C_DEV_OPT_IN) != dev_opts.cend())
+		{
+			dev_name = _opt_inputdevice;
+		}
+
+		if(!_opt_outputdevice_def && std::find(dev_opts.cbegin(), dev_opts.cend(), B1C_DEV_OPT_OUT) != dev_opts.cend())
+		{
+			dev_name = _opt_outputdevice;
+		}
+	}
+
+	if(!dev_name.empty())
+	{
+		dev_name = _global_settings.GetIoDeviceName(dev_name);
+
+		auto dopts = _global_settings.GetDeviceOptions(dev_name);
+		if(dopts == nullptr)
+		{
+			return B1C_T_ERROR::B1C_RES_EWDEVTYPE;
+		}
+		for(auto &o: dev_opts)
+		{
+			if(dopts->find(o) == dopts->cend())
+			{
+				return B1C_T_ERROR::B1C_RES_EWDEVTYPE;
+			}
+		}
+	}
+
+	return static_cast<B1C_T_ERROR>(B1_RES_OK);
+}
+
+// PUT [#<dev_name>, ] <value1> [, <value2>, ..., <valueN>]: is_input = false, is_output = true
+// GET [#<dev_name>, ] <var1> [, <var2>, ..., <varN>]: is_input = true, is_output = false
+// TRANSFER [#<dev_name>, ] <var1> [, <var2>, ..., <varN>]: is_input = true, is_output = true
+B1C_T_ERROR B1FileCompiler::st_put_get_trr(const std::wstring &cmd_name, bool is_input, bool is_output)
+{
+	std::wstring dev_name;
+	auto dev_opts = std::vector({ std::wstring(B1C_DEV_OPT_BIN) });
+
+	if(is_input)
+	{
+		dev_opts.push_back(B1C_DEV_OPT_IN);
+	}
+	if(is_output)
+	{
+		dev_opts.push_back(B1C_DEV_OPT_OUT);
+	}
+
+	auto err = read_device_name(dev_opts, false, dev_name);
+	if(err != B1C_T_ERROR::B1C_RES_OK)
+	{
+		return err;
 	}
 
 	// read other statement arguments
@@ -3938,13 +4096,13 @@ B1C_T_ERROR B1FileCompiler::st_put_get_trr(const std::wstring &cmd_name, bool is
 	{
 		// first try to read array range
 		std::vector<std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE>> range;
-		auto err1 = st_read_range(range);
-		if(err1 == static_cast<B1C_T_ERROR>(B1_RES_ETYPMISM) || err1 == B1C_T_ERROR::B1C_RES_ERANGSNTX)
+		auto err = st_read_range(range);
+		if(err == static_cast<B1C_T_ERROR>(B1_RES_ETYPMISM) || err == B1C_T_ERROR::B1C_RES_ERANGSNTX)
 		{
-			return err1;
+			return err;
 		}
 
-		if(err1 == B1C_T_ERROR::B1C_RES_OK)
+		if(err == B1C_T_ERROR::B1C_RES_OK)
 		{
 			if(range[1].second == B1_CMP_EXP_TYPE::B1_CMP_ET_LOGICAL)
 			{
@@ -3978,10 +4136,10 @@ B1C_T_ERROR B1FileCompiler::st_put_get_trr(const std::wstring &cmd_name, bool is
 		else
 		{
 			// build RPN
-			err = b1_rpn_build(b1_curr_prog_line_offset, INPUT_STOP_TOKEN, &b1_curr_prog_line_offset);
-			if(err != B1_RES_OK)
+			auto err1 = b1_rpn_build(b1_curr_prog_line_offset, INPUT_STOP_TOKEN, &b1_curr_prog_line_offset);
+			if(err1 != B1_RES_OK)
 			{
-				return static_cast<B1C_T_ERROR>(err);
+				return static_cast<B1C_T_ERROR>(err1);
 			}
 
 			// no RPN: empty expression was specified to b1_rpn_build function
@@ -3992,10 +4150,10 @@ B1C_T_ERROR B1FileCompiler::st_put_get_trr(const std::wstring &cmd_name, bool is
 
 			// compile the expression
 			range.push_back(std::make_pair(B1_CMP_ARG(), B1_CMP_EXP_TYPE::B1_CMP_ET_UNKNOWN));
-			err = process_expression(range[0].second, range[0].first, is_input);
-			if(err != B1_RES_OK)
+			err1 = process_expression(range[0].second, range[0].first, is_input);
+			if(err1 != B1_RES_OK)
 			{
-				return static_cast<B1C_T_ERROR>(err);
+				return static_cast<B1C_T_ERROR>(err1);
 			}
 
 			if(is_input)
@@ -4170,7 +4328,7 @@ B1C_T_ERROR B1FileCompiler::remove_duplicate_labels(bool &changed)
 		// do not take into account functions
 		if(B1CUtils::is_label(*cmdi) && !B1CUtils::is_def_fn(*cmdi))
 		{
-			range.push_back(std::make_pair(cmdi, (_req_labels.find(cmdi->cmd) != _req_labels.end())));
+			range.push_back(std::make_pair(cmdi, (_req_labels.find(cmdi->cmd) != _req_labels.cend())));
 		}
 		else
 		{
@@ -5503,7 +5661,7 @@ std::wstring B1FileCompiler::set_to_init_value(B1_CMP_CMD &cmd, const std::map<s
 
 	if(cmd.cmd == L"IOCTL")
 	{
-		if(cmd.args.size() > 2)
+		if(cmd.args.size() > 2 && cmd.args[2][0].type != B1Types::B1T_VARREF)
 		{
 			set_to_init_value_arg(cmd.args[2], false, vars, init, changed);
 		}
@@ -5932,23 +6090,39 @@ B1_T_ERROR B1FileCompiler::get_type(B1_TYPED_VALUE &v, bool read, std::map<std::
 	}
 
 	// simple variable
-	_compiler.mark_var_used(v.value, read);
+	if(v.type != B1Types::B1T_VARREF)
+	{
+		_compiler.mark_var_used(v.value, read);
+	}
 
 	// check current file variables
 	auto vt = _vars.find(v.value);
 
 	if(vt != _vars.end())
 	{
-		if(std::get<1>(vt->second) != 0)
+		if(v.type != B1Types::B1T_VARREF)
 		{
-			return B1_RES_ETYPMISM;
+			if(std::get<1>(vt->second) != 0)
+			{
+				return B1_RES_ETYPMISM;
+			}
+			v.type = std::get<0>(vt->second);
 		}
-		v.type = std::get<0>(vt->second);
 
 		if(std::get<5>(vt->second))
 		{
-			// replace scalar const variable with its value
-			v.value = _const_init.find(v.value)->second.second[0];
+			if(v.type == B1Types::B1T_VARREF)
+			{
+				if(std::get<1>(vt->second) == 0)
+				{
+					return B1_RES_ETYPMISM;
+				}
+			}
+			else
+			{
+				// replace scalar const variable with its value
+				v.value = _const_init.find(v.value)->second.second[0];
+			}
 		}
 
 		return B1_RES_OK;
@@ -5959,28 +6133,44 @@ B1_T_ERROR B1FileCompiler::get_type(B1_TYPED_VALUE &v, bool read, std::map<std::
 
 	if(vt != _compiler._global_vars.end())
 	{
-		if(std::get<1>(vt->second) != 0)
+		if(v.type != B1Types::B1T_VARREF)
 		{
-			return B1_RES_ETYPMISM;
+			if(std::get<1>(vt->second) != 0)
+			{
+				return B1_RES_ETYPMISM;
+			}
+			v.type = std::get<0>(vt->second);
 		}
-		v.type = std::get<0>(vt->second);
 
 		if(std::get<5>(vt->second))
 		{
-			// replace scalar const variable with its value
-			v.value = _compiler._global_const_init.find(v.value)->second.second[0];
+			if(v.type == B1Types::B1T_VARREF)
+			{
+				if(std::get<1>(vt->second) == 0)
+				{
+					return B1_RES_ETYPMISM;
+				}
+			}
+			else
+			{
+				// replace scalar const variable with its value
+				v.value = _compiler._global_const_init.find(v.value)->second.second[0];
+			}
 		}
 
 		return B1_RES_OK;
 	}
 
-	v.type = Utils::get_type_by_type_spec(v.value, B1Types::B1T_UNKNOWN);
-	if(v.type == B1Types::B1T_UNKNOWN)
+	if(v.type != B1Types::B1T_VARREF)
 	{
-		return B1_RES_ETYPMISM;
-	}
+		v.type = Utils::get_type_by_type_spec(v.value, B1Types::B1T_UNKNOWN);
+		if(v.type == B1Types::B1T_UNKNOWN)
+		{
+			return B1_RES_ETYPMISM;
+		}
 
-	_vars[v.value] = std::make_tuple(v.type, 0, false, false, false, false);
+		_vars[v.value] = std::make_tuple(v.type, 0, false, false, false, false);
+	}
 
 	return B1_RES_OK;
 }
@@ -7869,7 +8059,7 @@ B1C_T_ERROR B1FileCompiler::remove_DAT_stmts()
 
 B1C_T_ERROR B1FileCompiler::remove_unused_vars(B1_CMP_ARG &a, bool &changed, bool subs_and_args_only /*= false*/)
 {
-	bool optimize = true;
+	bool optimize = (a[0].type != B1Types::B1T_VARREF);
 
 	// check arguments
 	for(auto aa = a.begin() + 1; aa != a.end(); aa++)
@@ -7909,6 +8099,8 @@ B1C_T_ERROR B1FileCompiler::remove_unused_vars(B1_CMP_ARG &a, bool &changed, boo
 	return B1C_T_ERROR::B1C_RES_OK;
 }
 
+// replaces variables used for reading only with their default values (in expressions)
+// the function does not remove variables declarations
 B1C_T_ERROR B1FileCompiler::remove_unused_vars(bool &changed)
 {
 	B1C_T_ERROR err;
@@ -8502,6 +8694,8 @@ B1FileCompiler::B1FileCompiler(B1Compiler &compiler, const std::wstring &name_sp
 , _opt_base1(false)
 , _opt_nocheck_def(true)
 , _opt_nocheck(false)
+, _opt_inputdevice_def(true)
+, _opt_outputdevice_def(true)
 {
 }
 
@@ -9230,6 +9424,30 @@ B1C_T_ERROR B1FileCompiler::PutTypesAndOptimize()
 		return err;
 	}
 
+	// set proper references' names
+	for(auto &vr: _var_refs)
+	{
+		auto v = _var_names.find(vr.first);
+		if(v != _var_names.cend())
+		{
+			vr.second.first = v->second;
+		}
+
+		for(auto &c: vr.second.second)
+		{
+			if(c->cmd == L"IOCTL")
+			{
+				for(auto &a: c->args)
+				{
+					if(a[0].type == B1Types::B1T_VARREF && a[0].value == vr.first)
+					{
+						a[0].value = vr.second.first;
+					}
+				}
+			}
+		}
+	}
+
 	stop = false;
 
 	while(!stop)
@@ -9673,7 +9891,7 @@ B1C_T_ERROR B1FileCompiler::WriteMAs(const std::string &file_name)
 
 		// remove unused variables
 		auto used = _compiler.get_var_used(c.args[0][0].value);
-		if(used == 0 /*|| (used == 1 && !(is_const || is_volatile_var(c.args[0][0].value)))*/)
+		if(used == 0)
 		{
 			continue;
 		}
@@ -9752,7 +9970,7 @@ B1C_T_ERROR B1FileCompiler::Write(const std::string &file_name) const
 		if(!B1CUtils::is_label(c) && (c.cmd == L"GA" || c.cmd == L"GF"))
 		{
 			auto used = _compiler.get_var_used(c.args[0][0].value);
-			if(used == 0 || (used == 1 && !(is_volatile_var(c.args[0][0].value) || is_const_var(c.args[0][0].value) || is_mem_var_name(c.args[0][0].value))))
+			if(used == 0)
 			{
 				continue;
 			}
@@ -9947,11 +10165,6 @@ void B1Compiler::mark_var_used(const std::wstring &name, bool for_read)
 	{
 		v->second = v->second | (for_read ? 1 : 2);
 	}
-}
-
-bool B1Compiler::is_var_used(const std::wstring &name)
-{
-	return (_used_vars.find(name) != _used_vars.end());
 }
 
 int B1Compiler::get_var_used(const std::wstring &name)

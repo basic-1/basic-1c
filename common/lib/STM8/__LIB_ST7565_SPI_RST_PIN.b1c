@@ -1,0 +1,2 @@
+; MCU pin number mask to drive display reset pin (default is NONE)
+=,0<BYTE>,__LIB_ST7565_SPI_RST_PIN<BYTE>

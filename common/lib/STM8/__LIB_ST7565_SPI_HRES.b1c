@@ -1,0 +1,2 @@
+; display horizontal resolution (default is 128)
+=,0x80<BYTE>,__LIB_ST7565_SPI_HRES<BYTE>

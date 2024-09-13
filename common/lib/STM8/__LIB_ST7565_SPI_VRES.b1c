@@ -1,0 +1,2 @@
+; display vertical resolution (default is 64)
+=,0x40<BYTE>,__LIB_ST7565_SPI_VRES<BYTE>

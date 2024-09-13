@@ -1,0 +1,6 @@
+INI,__LIB_ST7565_SPI_ZW
+
+; configure zone width (ZONEWIDTH)
+ASM
+LD (__LIB_ST7565_SPI_ZW), A
+ENDASM

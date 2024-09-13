@@ -1,0 +1,3 @@
+; bit 0 - configure pins (1 by default)
+; bits 1..3 - display start line (in 8-line units, 0 by default)
+=,1<BYTE>,__LIB_ST7565_SPI_OPT<BYTE>

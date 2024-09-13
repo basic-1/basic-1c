@@ -144,6 +144,8 @@ protected:
 
 	std::set<std::string> _inline_code;
 
+	std::wstring _last_dat_namespace;
+
 	// resolved symbols
 	std::set<std::wstring> _all_symbols;
 	// symbols to resolve
@@ -213,7 +215,7 @@ protected:
 	void add_op(B1_ASM_OPS &sec, const std::wstring &op, bool is_volatile, bool is_inline = false);
 
 	virtual C1_T_ERROR add_data_def(const std::wstring &name, const std::wstring &asmtype, int32_t rep, bool is_volatile);
-	virtual C1_T_ERROR write_data_sec();
+	virtual C1_T_ERROR write_data_sec(bool code_init);
 	virtual C1_T_ERROR write_const_sec();
 	virtual C1_T_ERROR write_code_sec(bool code_init) = 0;
 

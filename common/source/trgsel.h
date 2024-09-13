@@ -13,7 +13,7 @@
 #include "moresym.h"
 
 
-#if defined(B1C_TARGET_STM8) || defined(B1C_TARGET_ALL)
+#if defined(B1_TARGET_STM8) || defined(B1_TARGET_ALL)
 #define STM8_PAGE0_SIZE 0x100
 
 #define STM8_PAGE0_SECTION_TYPE_MOD L"PAGE0"

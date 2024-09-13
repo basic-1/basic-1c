@@ -400,6 +400,8 @@ std::wstring Utils::get_type_name(B1Types type)
 			return L"LONG";
 		case B1Types::B1T_STRING:
 			return L"STRING";
+		case B1Types::B1T_VARREF:
+			return L"VARREF";
 	}
 
 	return std::wstring();
@@ -426,6 +428,9 @@ B1Types Utils::get_type_by_name(const std::wstring &type_name)
 	else
 	if(type_name_uc == L"LABEL")
 		return B1Types::B1T_LABEL;
+	else
+	if(type_name_uc == L"VARREF")
+		return B1Types::B1T_VARREF;
 	else
 	if(type_name_uc == L"TEXT")
 		return B1Types::B1T_TEXT;
@@ -704,6 +709,7 @@ void Settings::SetLibDir(const std::string &lib_dir)
 	if(!_target_name.empty())
 	{
 		lib_dir1 += "/lib/";
+		_lib_dirs.push_back(lib_dir1);
 		_lib_dirs.push_back(lib_dir1 + _target_name + "/");
 		_lib_dirs.push_back(lib_dir1 + _target_name + "/" + (_mem_model_small ? "small" : "large") + "/");
 		if(!_MCU_name.empty())
@@ -716,13 +722,23 @@ void Settings::SetLibDir(const std::string &lib_dir)
 
 std::string Settings::GetLibFileName(const std::string &file_name, const std::string &ext) const
 {
-	for(auto dir = _lib_dirs.rbegin(); dir != _lib_dirs.rend(); dir++)
+	for(auto dir = _lib_dirs.crbegin(); dir != _lib_dirs.crend(); dir++)
 	{
 		FILE *fp = std::fopen((*dir + file_name + ext).c_str(), "r");
 		if(fp != nullptr)
 		{
 			std::fclose(fp);
 			return *dir + file_name + ext;
+		}
+
+		if(file_name.find("__VAR_") == 0)
+		{
+			fp = std::fopen((*dir + file_name.substr(6) + ext).c_str(), "r");
+			if(fp != nullptr)
+			{
+				std::fclose(fp);
+				return *dir + file_name.substr(6) + ext;
+			}
 		}
 	}
 
@@ -766,7 +782,9 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 	std::vector<std::wstring> dev_names;
 	std::map<std::wstring, IoCmd> cmds;
 
-	while(true)
+	bool is_eof = false;
+
+	while(!is_eof)
 	{
 		std::wstring line;
 
@@ -774,7 +792,7 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 		if(err == B1_RES_EEOF)
 		{
 			err = B1_RES_OK;
-			break;
+			is_eof = true;
 		}
 
 		if(err != B1_RES_OK)
@@ -883,7 +901,7 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 			cmd.code_place = IoCmd::IoCmdCodePlacement::CP_END;
 		}
 		else
-		if (Utils::str_toupper(value).empty())
+		if(Utils::str_toupper(value).empty() || Utils::str_toupper(value) == L"CURR_POS")
 		{
 			cmd.code_place = IoCmd::IoCmdCodePlacement::CP_CURR_POS;
 		}
@@ -1238,4 +1256,48 @@ const std::set<std::wstring> *Settings::GetDeviceOptions(const std::wstring &dev
 	}
 
 	return nullptr;
+}
+
+B1_T_ERROR Settings::ProcessNumPostfix(const std::wstring &postfix, int32_t &n) const
+{
+	if(!postfix.empty())
+	{
+		if(postfix.size() > 2)
+		{
+			return B1_RES_ESYNTAX;
+		}
+
+		if(postfix[0] == L'l' || postfix[0] == L'L')
+		{
+			n = (uint16_t)n;
+		}
+		else
+		if(postfix[0] == L'h' || postfix[0] == L'H')
+		{
+			n = (uint16_t)(n >> 16);
+		}
+		else
+		{
+			return B1_RES_ESYNTAX;
+		}
+
+		if(postfix.size() > 1)
+		{
+			if(postfix[1] == L'l' || postfix[1] == L'L')
+			{
+				n = (uint8_t)n;
+			}
+			else
+			if(postfix[1] == L'h' || postfix[1] == L'H')
+			{
+				n = (uint8_t)(n >> 8);
+			}
+			else
+			{
+				return B1_RES_ESYNTAX;
+			}
+		}
+	}
+
+	return B1_RES_OK;
 }
