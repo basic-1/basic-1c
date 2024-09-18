@@ -130,7 +130,7 @@ SPI continuous transmission example (8 MHz, 100 bytes long array)
 - `IOCTL ST7565_SPI, DCPIN, <pin_name>` - specify MCU pin connected to display driver data/command mode selection pin (the command is mandatory).  
 - `IOCTL ST7565_SPI, CFGPINS, ON | OFF` - configure GPIO pins automatically (enabled by default). The command affects the next pins: SPI MOSI pin, SPI NSS pin (if not disabled), SPI CLK pin, RST pin (if not disabled) and DC pin.  
 - `IOCTL ST7565_SPI, INIT, <disp_cfg_name> | <var_name>` - select display model (`<disp_cfg_name>` - name of one of the predefined models, `<var_name>` - name of byte array variable that contains display initializaton data).  
-- `IOCTL ST7565_SPI, FONT, <font_name>` -  select font (`8x8` and `8x16` dot matrix fonts are supported).  
+- `IOCTL ST7565_SPI, FONT, <font_name>` -  select font (`8x8` and `8x16` dot matrix fonts are supported). Either 7-bit font (characters of the original ASCII table) or 8-bit font (for 256 characters of the extended ASCII table) can be selected: the font type is specified with font data. A special `EXT` font type represents upper 128 characters of the extended ASCII table and cannot be use alone: use it to change glyphs of the upper part of the current font.  
 - `IOCTL ST7565_SPI, ZONEWIDTH, <numeric_value>` - set print zone width (default is 8 characters)  
 - `IOCTL ST7565_SPI, START` - initializes SPI, resets LCD driver chip, applies display initialization parameters (set with `INIT` command), etc. After the command execution display is ready to operate.  
 - `IOCTL ST7565_SPI, STOP` - completes current SPI transmission, releases slave SPI device (display driver chip).  
@@ -139,10 +139,42 @@ SPI continuous transmission example (8 MHz, 100 bytes long array)
 - `IOCTL ST7565_SPI, CONTRAST, <numeric_value>` - set display contrast, acceptable value range is \[1..100\]. The command can be used after `ENABLE` command (when display driver is ready to accept commands).  
   
 Fonts included with the compiler:  
-`FONT_IBM_8X8_CP437_7BIT_ST7565` - 8x8 ASCII font (128 characters), CP437 code page  
-`FONT_IBM_8X8_CP437_FULL_ST7565` - 8x8 extended ASCII font (256 characters), CP437 code page  
-`FONT_IBM_8X16_CP437_7BIT_ST7565` - 8x16 ASCII font (128 characters), CP437 code page  
-`FONT_IBM_8X16_CP437_FULL_ST7565` - 8x16 extended ASCII font (256 characters), CP437 code page  
+`FONT_8X8_CP437_7BIT_ST7565` - 8x8 ASCII font (128 characters), CP437 code page  
+`FONT_8X8_CP437_FULL_ST7565` - 8x8 extended ASCII font (256 characters), CP437 code page  
+`FONT_8X8_CP437_EXT_ST7565` - 8x8 ASCII font (upper 128 characters), CP437 code page  
+`FONT_8X16_CP437_7BIT_ST7565` - 8x16 ASCII font (128 characters), CP437 code page  
+`FONT_8X16_CP437_FULL_ST7565` - 8x16 extended ASCII font (256 characters), CP437 code page  
+`FONT_8X16_CP437_EXT_ST7565` - 8x16 ASCII font (upper 128 characters), CP437 code page  
+`FONT_8X8T_CP437_7BIT_ST7565` - thin 8x8 ASCII font (128 characters), CP437 code page  
+`FONT_8X8T_CP437_FULL_ST7565` - thin 8x8 extended ASCII font (256 characters), CP437 code page  
+`FONT_8X8T_CP437_EXT_ST7565` - thin 8x8 ASCII font (upper 128 characters), CP437 code page  
+`FONT_8X16T_CP437_7BIT_ST7565` - thin 8x16 ASCII font (128 characters), CP437 code page  
+`FONT_8X16T_CP437_FULL_ST7565` - thin 8x16 extended ASCII font (256 characters), CP437 code page  
+`FONT_8X16T_CP437_EXT_ST7565` - thin 8x16 ASCII font (upper 128 characters), CP437 code page  
+`FONT_8X8_CP850_7BIT_ST7565` - 8x8 ASCII font (128 characters), CP850 code page  
+`FONT_8X8_CP850_FULL_ST7565` - 8x8 extended ASCII font (256 characters), CP850 code page  
+`FONT_8X8_CP850_EXT_ST7565` - 8x8 ASCII font (upper 128 characters), CP850 code page  
+`FONT_8X16_CP850_7BIT_ST7565` - 8x16 ASCII font (128 characters), CP850 code page  
+`FONT_8X16_CP850_FULL_ST7565` - 8x16 extended ASCII font (256 characters), CP850 code page  
+`FONT_8X16_CP850_EXT_ST7565` - 8x16 ASCII font (upper 128 characters), CP850 code page  
+`FONT_8X8_CP866_7BIT_ST7565` - 8x8 ASCII font (128 characters), CP866 code page  
+`FONT_8X8_CP866_FULL_ST7565` - 8x8 extended ASCII font (256 characters), CP866 code page  
+`FONT_8X8_CP866_EXT_ST7565` - 8x8 ASCII font (upper 128 characters), CP866 code page  
+`FONT_8X16_CP866_7BIT_ST7565` - 8x16 ASCII font (128 characters), CP866 code page  
+`FONT_8X16_CP866_FULL_ST7565` - 8x16 extended ASCII font (256 characters), CP866 code page  
+`FONT_8X16_CP866_EXT_ST7565` - 8x16 ASCII font (upper 128 characters), CP866 code page  
+`FONT_8X8_ISO8859_1_7BIT_ST7565` - 8x8 ASCII font (128 characters), ISO8859-1 code page  
+`FONT_8X8_ISO8859_1_FULL_ST7565` - 8x8 extended ASCII font (256 characters), ISO8859-1 code page  
+`FONT_8X8_ISO8859_1_EXT_ST7565` - 8x8 ASCII font (upper 128 characters), ISO8859-1 code page  
+`FONT_8X16_ISO8859_1_7BIT_ST7565` - 8x16 ASCII font (128 characters), ISO8859-1 code page  
+`FONT_8X16_ISO8859_1_FULL_ST7565` - 8x16 extended ASCII font (256 characters), ISO8859-1 code page  
+`FONT_8X16_ISO8859_1_EXT_ST7565` - 8x16 ASCII font (upper 128 characters), ISO8859-1 code page  
+`FONT_8X8_ISO8859_5_7BIT_ST7565` - 8x8 ASCII font (128 characters), ISO8859-5 code page  
+`FONT_8X8_ISO8859_5_FULL_ST7565` - 8x8 extended ASCII font (256 characters), ISO8859-5 code page  
+`FONT_8X8_ISO8859_5_EXT_ST7565` - 8x8 ASCII font (upper 128 characters), ISO8859-5 code page  
+`FONT_8X16_ISO8859_5_7BIT_ST7565` - 8x16 ASCII font (128 characters), ISO8859-5 code page  
+`FONT_8X16_ISO8859_5_FULL_ST7565` - 8x16 extended ASCII font (256 characters), ISO8859-5 code page  
+`FONT_8X16_ISO8859_5_EXT_ST7565` - 8x16 ASCII font (upper 128 characters), ISO8859-5 code page  
   
 The library was tested with two Chinese displays marked "GM12864-01A" and "GMG12864-06D Ver:2.0", predefined configuration names for them are `DISP_GM12864_01A` and `DISP_GMG12864_06D_V2`.  
   
@@ -152,7 +184,7 @@ The library was tested with two Chinese displays marked "GM12864-01A" and "GMG12
 `IOCTL ST7565_SPI, DCPIN, PB3`  
 `IOCTL ST7565_SPI, CFGPINS`  
 `IOCTL ST7565_SPI, INIT, DISP_GM12864_01A`  
-`IOCTL ST7565_SPI, FONT, FONT_IBM_8X16_CP437_7BIT_ST7565`  
+`IOCTL ST7565_SPI, FONT, FONT_8X16_CP437_7BIT_ST7565` 'select `FONT_8X16_CP437_7BIT_ST7565` font  
 `IOCTL ST7565_SPI, START`  
 `PRINT #ST7565_SPI, "Hello world!"`  
   

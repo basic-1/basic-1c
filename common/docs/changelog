@@ -1,3 +1,11 @@
+b1c (1.0.0-35) unstable; urgency=low
+
+  * added more fonts for ST7565 driver
+  * added possibility to load/change upper 128 characters of a font
+  * some minor improvements
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Wed, 18 Sep 2024 18:47:04 +0300
+
 b1c (1.0.0-34) unstable; urgency=low
 
   * added IOCTL CPU, DELAYMS, <count_ms> command

@@ -4036,14 +4036,25 @@ B1C_T_ERROR B1FileCompiler::read_device_name(const std::vector<std::wstring> &de
 		// no device name specified
 		b1_curr_prog_line_offset = saved_line_offset;
 
-		if(!_opt_inputdevice_def && std::find(dev_opts.cbegin(), dev_opts.cend(), B1C_DEV_OPT_IN) != dev_opts.cend())
+		bool in_dev = std::find(dev_opts.cbegin(), dev_opts.cend(), B1C_DEV_OPT_IN) != dev_opts.cend();
+		bool out_dev = std::find(dev_opts.cbegin(), dev_opts.cend(), B1C_DEV_OPT_OUT) != dev_opts.cend();
+
+		if(!_opt_inputdevice_def && in_dev)
 		{
 			dev_name = _opt_inputdevice;
 		}
 
-		if(!_opt_outputdevice_def && std::find(dev_opts.cbegin(), dev_opts.cend(), B1C_DEV_OPT_OUT) != dev_opts.cend())
+		if(!_opt_outputdevice_def && out_dev)
 		{
 			dev_name = _opt_outputdevice;
+		}
+
+		if(in_dev && out_dev && !dev_name.empty())
+		{
+			if(_opt_inputdevice != _opt_outputdevice)
+			{
+				return B1C_T_ERROR::B1C_RES_EINCOPTS;
+			}
 		}
 	}
 

@@ -10,6 +10,7 @@ INI,__LIB_ST7565_SPI_FONT_EXT
 ; bit 4 - font type: 0 - ASCII font (first 128 characters), 1 - extended ASCII font (256 characters)
 
 ; specify font (FONT)
+; X - font data address
 :__LIB_ST7565_SPI_4_CALL
 ASM
 TNZW X
@@ -20,8 +21,30 @@ LDW (__LIB_ST7565_SPI_FONT_EXT), X
 RET
 
 :::__LBL_SET_FONT
-LD A, (X) ; the first byte of font data is font options
+LD A, (X) ; the first byte of font data is font options:
+; bit 0 - font size: 0 - 8x8 font, 1 - 8x16 font
+; bits 1..3 - reserved
+; bits 4..5 - font size: 0 - first 128 characters, 1 - all 256 characters, 2 - upper 128 characters
+; upper 128 characters can be set only if another font of the same size is already loaded
 INCW X
+BCP A, 0x20 ; test for the EXT (upper 128 chars) font
+JREQ ::__LBL_NON_EXT_FONT
+LDW Y, (__LIB_ST7565_SPI_FONT) ; check if a font is already selected
+JRNE ::__LBL_FONT_SELECTED
+RET ; can't install EXT font without lower 128 chars
+
+:::__LBL_FONT_SELECTED
+XOR A, (__LIB_ST7565_SPI_FONT_OPT)
+SRL A
+JRNC ::__LBL_SAME_SIZE
+RET ; font sizes are not the same
+
+:::__LBL_SAME_SIZE
+LDW (__LIB_ST7565_SPI_FONT_EXT), X
+BSET (__LIB_ST7565_SPI_FONT_OPT), 4
+RET
+
+:::__LBL_NON_EXT_FONT
 LDW (__LIB_ST7565_SPI_FONT), X
 LD (__LIB_ST7565_SPI_FONT_OPT), A
 ADDW X, 1024
@@ -31,10 +54,10 @@ ADDW X, 1024
 
 :::__LBL_FONT_8X8
 BCP A, 0x10
-JRNE ::__LBL_EXT_ASCII_FONT
+JRNE ::__LBL_FULL_ASCII_FONT
 CLRW X
 
-:::__LBL_EXT_ASCII_FONT
+:::__LBL_FULL_ASCII_FONT
 LDW (__LIB_ST7565_SPI_FONT_EXT), X
 SRL A ; bit0 (font size) -> carry flag
 

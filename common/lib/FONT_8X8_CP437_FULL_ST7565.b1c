@@ -1,8 +1,8 @@
 ; 8x8 CP437 font, all 256 characters (full extended ASCII table)
 ; The font is based on Bm437_IBM_CGA.FON font from http://int10h.org/oldschool-pc-fonts/
 ; CC BY-SA 4.0 license
-GA,__VAR_FONT_IBM_8X8_CP437_FULL_ST7565,BYTE(C),0<BYTE>,2048<WORD>
-DAT,__VAR_FONT_IBM_8X8_CP437_FULL_ST7565,0x10<BYTE> ; 8x8, full extended ASCII table (256 characters)
+GA,__VAR_FONT_8X8_CP437_FULL_ST7565,BYTE(C),0<BYTE>,2048<WORD>
+DAT,__VAR_FONT_8X8_CP437_FULL_ST7565,0x10<BYTE> ; 8x8, full extended ASCII table (256 characters)
 DAT,*,0x00<BYTE>,0x00<BYTE>,0x00<BYTE>,0x00<BYTE>,0x00<BYTE>,0x00<BYTE>,0x00<BYTE>,0x00<BYTE>
 DAT,*,0x7E<BYTE>,0x81<BYTE>,0x95<BYTE>,0xB1<BYTE>,0xB1<BYTE>,0x95<BYTE>,0x81<BYTE>,0x7E<BYTE>
 DAT,*,0x7E<BYTE>,0xFF<BYTE>,0xEB<BYTE>,0xCF<BYTE>,0xCF<BYTE>,0xEB<BYTE>,0xFF<BYTE>,0x7E<BYTE>

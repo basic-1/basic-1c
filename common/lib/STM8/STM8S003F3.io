@@ -94,6 +94,7 @@ START,         7,  CALL,     ,         ,                    ,          FALSE
 STOP,          8,  INL,      ,         ,                    ,          FALSE
 ENABLE,        9,  INL,      ,         ,                    ,          FALSE
 DISABLE,       10, INL,      ,         ,                    ,          FALSE
+RESUME,        11, INL,      ,         ,                    ,          FALSE
 SCROLL,        13, CALL,     ,         ,                    ,          FALSE
 CLR,           14, CALL,     ,         ,                    ,          FALSE
 CONTRAST,      15, CALL,     ,         ,                    ,          TRUE,        BYTE,      FALSE
