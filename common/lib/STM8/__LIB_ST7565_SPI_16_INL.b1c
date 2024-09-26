@@ -1,0 +1,12 @@
+INI,__LIB_ST7565_SPI_COL
+
+; set current print column, 0..15 (COL)
+ASM
+.IF {ARG_TYPE} == I
+MOV (__LIB_ST7565_SPI_COL), {!VALUE}
+.ELIF {ARG_TYPE} == M
+MOV (__LIB_ST7565_SPI_COL), ({!VALUE})
+.ELSE
+LD (__LIB_ST7565_SPI_COL), A
+.ENDIF
+ENDASM

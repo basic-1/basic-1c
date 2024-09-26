@@ -39,9 +39,12 @@ static const B1_T_CHAR _CONST[] = { 5, 'C', 'O', 'N', 'S', 'T' };
 static const B1_T_CHAR _NOCHECK[] = { 7, 'N', 'O', 'C', 'H', 'E', 'C', 'K' };
 static const B1_T_CHAR _INPUTDEVICE[] = { 11, 'I', 'N', 'P', 'U', 'T', 'D', 'E', 'V', 'I', 'C', 'E' };
 static const B1_T_CHAR _OUTPUTDEVICE[] = { 12, 'O', 'U', 'T', 'P', 'U', 'T', 'D', 'E', 'V', 'I', 'C', 'E' };
+static const B1_T_CHAR _USING[] = { 5, 'U', 'S', 'I', 'N', 'G' };
 
 static const B1_T_CHAR *CONST_VAL_SEPARATORS[3] = { _COMMA, _CLBRACKET, NULL };
 static const B1_T_CHAR *CONST_STOP_TOKEN[2] = { _CLBRACKET, NULL };
+static const B1_T_CHAR *PUT_GET_STOP_TOKENS[3] = { _COMMA, _USING, NULL };
+static const B1_T_CHAR *USING_SEPARATORS[3] = { _COMMA, _CLBRACKET, NULL };
 
 
 Settings global_settings;
@@ -406,7 +409,7 @@ bool B1FileCompiler::correct_rpn(B1_CMP_EXP_TYPE &res_type, B1_CMP_ARG &res, boo
 	return false;
 }
 
-B1_T_ERROR B1FileCompiler::process_expression(B1_CMP_EXP_TYPE &res_type, B1_CMP_ARG &res, bool get_ref /*= false*/)
+B1_T_ERROR B1FileCompiler::process_expression(iterator pos, B1_CMP_EXP_TYPE &res_type, B1_CMP_ARG &res, bool get_ref /*= false*/)
 {
 	uint8_t tflags, args_num;
 	B1_T_INDEX i;
@@ -472,45 +475,45 @@ B1_T_ERROR B1FileCompiler::process_expression(B1_CMP_EXP_TYPE &res_type, B1_CMP_
 			{
 				auto label1 = emit_label(true);
 				auto label2 = emit_label(true);
-				min_eval.push_back(std::make_tuple(label1, label2, emit_local(B1Types::B1T_UNKNOWN)));
+				min_eval.push_back(std::make_tuple(label1, label2, emit_local(B1Types::B1T_UNKNOWN, pos)));
 
-				iif_refs.push_back({ back() });
+				iif_refs.push_back({ *std::prev(pos) });
 
-				emit_command(L"JF", std::get<0>(min_eval.back()));
+				emit_command(L"JF", pos, std::get<0>(min_eval.back()));
 			}
 			else
 			if(tflags == B1_RPNREC_TYPE_SPEC_ARG_2)
 			{
 				const auto &v = stack.back();
-				emit_command(L"=", std::vector<std::wstring>({ v.first, std::get<2>(min_eval.back()) }));
+				emit_command(L"=", pos, std::vector<std::wstring>({ v.first, std::get<2>(min_eval.back()) }));
 
-				iif_refs.back().push_back(back());
+				iif_refs.back().push_back(*std::prev(pos));
 
 				if(is_gen_local(v.first))
 				{
-					emit_command(L"LF", v.first);
+					emit_command(L"LF", pos, v.first);
 				}
 
 				stack.pop_back();
 
-				emit_command(L"JMP", std::get<1>(min_eval.back()));
-				emit_label(std::get<0>(min_eval.back()));
+				emit_command(L"JMP", pos, std::get<1>(min_eval.back()));
+				emit_label(std::get<0>(min_eval.back()), pos);
 			}
 			else
 			{
 				const auto &v = stack.back();
-				emit_command(L"=", std::vector<std::wstring>({ v.first, std::get<2>(min_eval.back()) }));
+				emit_command(L"=", pos, std::vector<std::wstring>({ v.first, std::get<2>(min_eval.back()) }));
 
-				iif_refs.back().push_back(back());
+				iif_refs.back().push_back(*std::prev(pos));
 
 				if(is_gen_local(v.first))
 				{
-					emit_command(L"LF", v.first);
+					emit_command(L"LF", pos, v.first);
 				}
 
 				stack.pop_back();
 
-				emit_label(std::get<1>(min_eval.back()));
+				emit_label(std::get<1>(min_eval.back()), pos);
 
 				stack.push_back(std::pair<std::wstring, B1_CMP_VAL_TYPE>(std::get<2>(min_eval.back()), B1_CMP_VAL_TYPE::B1_CMP_VT_LOCAL));
 
@@ -691,7 +694,7 @@ B1_T_ERROR B1FileCompiler::process_expression(B1_CMP_EXP_TYPE &res_type, B1_CMP_
 
 				if(!log_op)
 				{
-					local = emit_local(B1Types::B1T_UNKNOWN);
+					local = emit_local(B1Types::B1T_UNKNOWN, pos);
 				}
 
 				std::vector<std::wstring> locals;
@@ -726,16 +729,16 @@ B1_T_ERROR B1FileCompiler::process_expression(B1_CMP_EXP_TYPE &res_type, B1_CMP_
 				cmd.type = B1_CMD_TYPE::B1_CMD_TYPE_COMMAND;
 				cmd.cmd = token;
 				cmd.args = args;
-				push_back(cmd);
+				insert(pos, cmd);
 
 				if(B1_RPNREC_GET_TYPE(tflags) != B1_RPNREC_TYPE_OPER)
 				{
-					last_loc_assign = --cend();
+					last_loc_assign = std::prev(pos);
 				}
 
 				for(auto l = locals.crbegin(); l != locals.crend(); l++)
 				{
-					emit_command(L"LF", *l);
+					emit_command(L"LF", pos, *l);
 				}
 
 				if(!log_op)
@@ -808,7 +811,7 @@ B1_T_ERROR B1FileCompiler::process_expression(B1_CMP_EXP_TYPE &res_type, B1_CMP_
 					res.push_back(*a);
 				}
 
-				erase(std::prev(last_loc_assign), cend());
+				erase(std::prev(last_loc_assign), pos);
 
 				res_type = B1_CMP_EXP_TYPE::B1_CMP_ET_VAR;
 			}
@@ -1120,7 +1123,7 @@ B1_T_ERROR B1FileCompiler::st_option_set_expr(const B1_T_CHAR *s, B1_CMP_EXP_TYP
 
 		exp_type = B1_CMP_EXP_TYPE::B1_CMP_ET_UNKNOWN;
 
-		err = process_expression(exp_type, res);
+		err = process_expression(end(), exp_type, res);
 		if(err != B1_RES_OK)
 		{
 			return err;
@@ -1267,8 +1270,8 @@ B1C_T_ERROR B1FileCompiler::st_option(bool first_run)
 				return B1C_T_ERROR::B1C_RES_EINCOPTS;
 			}
 			_opt_inputdevice_def = false;
-			_opt_inputdevice = _global_settings.GetIoDeviceName(Utils::str_toupper(B1CUtils::b1str_to_cstr(b1_tmp_buf)));
-			if(_global_settings.GetDevCmdsList(_opt_inputdevice).empty())
+			_opt_inputdevice = Utils::str_toupper(B1CUtils::b1str_to_cstr(b1_tmp_buf));
+			if(_global_settings.GetDevCmdsList(_global_settings.GetIoDeviceName(_opt_inputdevice)).empty())
 			{
 				return B1C_T_ERROR::B1C_RES_EUNKIODEV;
 			}
@@ -1291,8 +1294,8 @@ B1C_T_ERROR B1FileCompiler::st_option(bool first_run)
 				return B1C_T_ERROR::B1C_RES_EINCOPTS;
 			}
 			_opt_outputdevice_def = false;
-			_opt_outputdevice = _global_settings.GetIoDeviceName(Utils::str_toupper(B1CUtils::b1str_to_cstr(b1_tmp_buf)));
-			if(_global_settings.GetDevCmdsList(_opt_outputdevice).empty())
+			_opt_outputdevice = Utils::str_toupper(B1CUtils::b1str_to_cstr(b1_tmp_buf));
+			if(_global_settings.GetDevCmdsList(_global_settings.GetIoDeviceName(_opt_outputdevice)).empty())
 			{
 				return B1C_T_ERROR::B1C_RES_EUNKIODEV;
 			}
@@ -1415,10 +1418,10 @@ B1C_T_ERROR B1FileCompiler::st_ioctl()
 		return err1;
 	}
 
-	dev_name = _global_settings.GetIoDeviceName(dev_name);
+	auto dev_real_name = _global_settings.GetIoDeviceName(dev_name);
 
 	Settings::IoCmd cmd;
-	if(!_global_settings.GetIoCmd(dev_name, cmd_name, cmd))
+	if(!_global_settings.GetIoCmd(dev_real_name, cmd_name, cmd))
 	{
 		return B1C_T_ERROR::B1C_RES_EUNKDEVCMD;
 	}
@@ -1553,7 +1556,7 @@ B1C_T_ERROR B1FileCompiler::st_ioctl()
 					// compile the expression part
 					B1_CMP_EXP_TYPE exp_type;
 					B1_CMP_ARG res;
-					err = process_expression(exp_type, res);
+					err = process_expression(end(), exp_type, res);
 					if(err != B1_RES_OK)
 					{
 						return static_cast<B1C_T_ERROR>(err);
@@ -1615,7 +1618,7 @@ B1_T_ERROR B1FileCompiler::st_let(const B1_T_CHAR **stop_tokens, B1_CMP_ARG *var
 	// compile the expression part
 	B1_CMP_EXP_TYPE exp_type;
 	B1_CMP_ARG res;
-	err = process_expression(exp_type, res);
+	err = process_expression(end(), exp_type, res);
 	if(err != B1_RES_OK)
 	{
 		return err;
@@ -1643,7 +1646,7 @@ B1_T_ERROR B1FileCompiler::st_let(const B1_T_CHAR **stop_tokens, B1_CMP_ARG *var
 	// compile the expression on the left side of assignment operator
 	B1_CMP_EXP_TYPE exp_type1;
 	B1_CMP_ARG res1;
-	err = process_expression(exp_type1, res1, true);
+	err = process_expression(end(), exp_type1, res1, true);
 	if(err != B1_RES_OK)
 	{
 		return err;
@@ -1789,7 +1792,7 @@ B1_T_ERROR B1FileCompiler::st_dim_get_one_size(bool first_run, bool allow_TO_sto
 	}
 
 	// do not produce code during the first run
-	return first_run ? B1_RES_OK : process_expression(res.second, res.first);
+	return first_run ? B1_RES_OK : process_expression(end(), res.second, res.first);
 }
 
 B1_T_ERROR B1FileCompiler::st_dim_get_size(bool first_run, bool range_only, std::vector<std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE>> &range)
@@ -2695,7 +2698,7 @@ B1_T_ERROR B1FileCompiler::st_def(bool first_run)
 
 	prev_rpn = b1_rpn;
 	b1_rpn = defrpn.data();
-	err = process_expression(exp_type, res);
+	err = process_expression(end(), exp_type, res);
 	b1_rpn = prev_rpn;
 
 	if(err != B1_RES_OK)
@@ -2952,7 +2955,7 @@ B1C_T_ERROR B1FileCompiler::st_if()
 			_state.second.push_back(emit_label(true));
 		}
 
-		err = process_expression(exp_type, res);
+		err = process_expression(end(), exp_type, res);
 		if(err != B1_RES_OK)
 		{
 			return static_cast<B1C_T_ERROR>(err);
@@ -3061,7 +3064,7 @@ B1_T_ERROR B1FileCompiler::st_for()
 		return err;
 	}
 
-	err = process_expression(exp_type, res);
+	err = process_expression(end(), exp_type, res);
 	if(err != B1_RES_OK)
 	{
 		return err;
@@ -3099,7 +3102,7 @@ B1_T_ERROR B1FileCompiler::st_for()
 			return B1_RES_ESYNTAX;
 		}
 
-		err = process_expression(exp_type, res);
+		err = process_expression(end(), exp_type, res);
 		if(err != B1_RES_OK)
 		{
 			return err;
@@ -3485,7 +3488,7 @@ B1_T_ERROR B1FileCompiler::st_read()
 		// compile the expression
 		B1_CMP_EXP_TYPE exp_type;
 		B1_CMP_ARG res;
-		err = process_expression(exp_type, res, true);
+		err = process_expression(end(), exp_type, res, true);
 		if(err != B1_RES_OK)
 		{
 			return err;
@@ -3586,7 +3589,7 @@ B1_T_ERROR B1FileCompiler::st_while()
 	// evaluate WHILE expression
 	B1_CMP_EXP_TYPE exp_type;
 	B1_CMP_ARG res;
-	err = process_expression(exp_type, res);
+	err = process_expression(end(), exp_type, res);
 	if(err != B1_RES_OK)
 	{
 		return err;
@@ -3719,7 +3722,7 @@ B1C_T_ERROR B1FileCompiler::st_print()
 		// compile the expression part
 		B1_CMP_EXP_TYPE exp_type;
 		B1_CMP_ARG res;
-		err = static_cast<B1C_T_ERROR>(process_expression(exp_type, res));
+		err = static_cast<B1C_T_ERROR>(process_expression(end(), exp_type, res));
 		if(err != B1C_T_ERROR::B1C_RES_OK)
 		{
 			return err;
@@ -3838,7 +3841,7 @@ B1C_T_ERROR B1FileCompiler::st_input()
 			B1_CMP_EXP_TYPE exp_type;
 			B1_CMP_ARG res;
 
-			err = static_cast<B1C_T_ERROR>(process_expression(exp_type, res, true));
+			err = static_cast<B1C_T_ERROR>(process_expression(end(), exp_type, res, true));
 			if(err != B1C_T_ERROR::B1C_RES_OK)
 			{
 				return err;
@@ -4060,8 +4063,6 @@ B1C_T_ERROR B1FileCompiler::read_device_name(const std::vector<std::wstring> &de
 
 	if(!dev_name.empty())
 	{
-		dev_name = _global_settings.GetIoDeviceName(dev_name);
-
 		auto dopts = _global_settings.GetDeviceOptions(dev_name);
 		if(dopts == nullptr)
 		{
@@ -4076,16 +4077,177 @@ B1C_T_ERROR B1FileCompiler::read_device_name(const std::vector<std::wstring> &de
 		}
 	}
 
-	return static_cast<B1C_T_ERROR>(B1_RES_OK);
+	return B1C_T_ERROR::B1C_RES_OK;
 }
 
-// PUT [#<dev_name>, ] <value1> [, <value2>, ..., <valueN>]: is_input = false, is_output = true
-// GET [#<dev_name>, ] <var1> [, <var2>, ..., <varN>]: is_input = true, is_output = false
-// TRANSFER [#<dev_name>, ] <var1> [, <var2>, ..., <varN>]: is_input = true, is_output = true
+// now the only USING clause option is XOR
+B1C_T_ERROR B1FileCompiler::st_read_using_clause(B1_CMP_ARGS &args, iterator pos)
+{
+	B1_TOKENDATA td;
+
+	args.clear();
+
+	auto err = b1_tok_get(b1_curr_prog_line_offset, 0, &td);
+	if(err != B1_RES_OK)
+	{
+		return static_cast<B1C_T_ERROR>(err);
+	}
+	else
+	if(td.length != 0 && (td.type & B1_TOKEN_TYPE_IDNAME) && !b1_t_strcmpi(_USING, b1_progline + td.offset, td.length))
+	{
+		b1_curr_prog_line_offset = td.offset + td.length;
+		
+		err = b1_tok_get(b1_curr_prog_line_offset, 0, &td);
+		if(err != B1_RES_OK)
+		{
+			return static_cast<B1C_T_ERROR>(err);
+		}
+
+		if(td.length != 0 && (td.type & B1_TOKEN_TYPE_IDNAME) && !b1_t_strcmpi(_XOR, b1_progline + td.offset, td.length))
+		{
+			b1_curr_prog_line_offset = td.offset + td.length;
+
+			err = b1_tok_get(b1_curr_prog_line_offset, 0, &td);
+			if(err != B1_RES_OK)
+			{
+				return static_cast<B1C_T_ERROR>(err);
+			}
+			if(td.length != 1 || b1_progline[td.offset] != B1_T_C_OPBRACK)
+			{
+				return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+			}
+			b1_curr_prog_line_offset = td.offset + td.length;
+
+			bool read_second_val = false;
+			B1_CMP_EXP_TYPE res_type1 = B1_CMP_EXP_TYPE::B1_CMP_ET_UNKNOWN, res_type2 = B1_CMP_EXP_TYPE::B1_CMP_ET_UNKNOWN;
+
+			// read the first value: USING XOR(<value1>[,[<value2>]])
+			err = b1_tok_get(b1_curr_prog_line_offset, 0, &td);
+			if(err != B1_RES_OK)
+			{
+				return static_cast<B1C_T_ERROR>(err);
+			}
+
+			if(td.length == 1 && b1_progline[td.offset] == B1_T_C_COMMA)
+			{
+				// the first value is omitted: USING XOR(,<value2>)
+				b1_curr_prog_line_offset = td.offset + td.length;
+				args.push_back(B1_CMP_ARG(L""));
+				read_second_val = true;
+			}
+			else
+			if(td.length == 1 && b1_progline[td.offset] == B1_T_C_CLBRACK)
+			{
+				// error, no values at all: USING XOR()
+				return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+			}
+			else
+			{
+				auto err1 = b1_rpn_build(b1_curr_prog_line_offset, USING_SEPARATORS, &b1_curr_prog_line_offset);
+				if(err1 != B1_RES_OK)
+				{
+					return static_cast<B1C_T_ERROR>(err1);
+				}
+				if(b1_curr_prog_line_offset == 0)
+				{
+					return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+				}
+
+				args.push_back(B1_CMP_ARG());
+				err1 = process_expression(pos, res_type1, args.back());
+				if(err1 != B1_RES_OK)
+				{
+					return static_cast<B1C_T_ERROR>(err1);
+				}
+				if(res_type1 == B1_CMP_EXP_TYPE::B1_CMP_ET_LOGICAL)
+				{
+					return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+				}
+
+				if(b1_progline[b1_curr_prog_line_offset] == B1_T_C_CLBRACK)
+				{
+					// one value for both input and output data: USING XOR(<value>)
+					b1_curr_prog_line_offset++;
+					args.push_back(args.back());
+				}
+				else
+				{
+					// put the first value: USING XOR(<value1>, [<value2>])
+					b1_curr_prog_line_offset++;
+					read_second_val = true;
+				}
+			}
+
+			if(read_second_val)
+			{
+				auto err1 = b1_rpn_build(b1_curr_prog_line_offset, USING_SEPARATORS, &b1_curr_prog_line_offset);
+				if(err1 != B1_RES_OK)
+				{
+					return static_cast<B1C_T_ERROR>(err1);
+				}
+				if(b1_curr_prog_line_offset == 0 || b1_progline[b1_curr_prog_line_offset] != B1_T_C_CLBRACK)
+				{
+					return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+				}
+
+				if(b1_rpn[0].flags == 0)
+				{
+					// the second value is omitted: USING XOR(<value1>,)
+					if(args.back()[0].value.empty())
+					{
+						return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+					}
+					args.push_back(B1_CMP_ARG(L""));
+				}
+				else
+				{
+					// process the second value
+					args.push_back(B1_CMP_ARG());
+					err1 = process_expression(pos, res_type2, args.back());
+					if(err1 != B1_RES_OK)
+					{
+						return static_cast<B1C_T_ERROR>(err1);
+					}
+					if(res_type2 == B1_CMP_EXP_TYPE::B1_CMP_ET_LOGICAL)
+					{
+						return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+					}
+				}
+
+				b1_curr_prog_line_offset++;
+			}
+
+			if(res_type2 == B1_CMP_EXP_TYPE::B1_CMP_ET_LOCAL)
+			{
+				emit_command(L"LF", args.back()[0].value);
+			}
+			if(res_type1 == B1_CMP_EXP_TYPE::B1_CMP_ET_LOCAL)
+			{
+				emit_command(L"LF", (*std::prev(args.end(), 2))[0].value);
+			}
+		}
+		else
+		{
+			return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+		}
+	}
+	else
+	{
+		return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+	}
+
+	return B1C_T_ERROR::B1C_RES_OK;
+}
+
+// PUT [#<dev_name>, ] <value1> [, <value2>, ..., <valueN>][USING XOR([IN_VALUE][,][OUT_VALUE])]: is_input = false, is_output = true
+// GET [#<dev_name>, ] <var1> [, <var2>, ..., <varN>][USING XOR([IN_VALUE][,][OUT_VALUE])]: is_input = true, is_output = false
+// TRANSFER [#<dev_name>, ] <var1> [, <var2>, ..., <varN>][USING XOR([IN_VALUE][,][OUT_VALUE])]: is_input = true, is_output = true
 B1C_T_ERROR B1FileCompiler::st_put_get_trr(const std::wstring &cmd_name, bool is_input, bool is_output)
 {
 	std::wstring dev_name;
 	auto dev_opts = std::vector({ std::wstring(B1C_DEV_OPT_BIN) });
+	std::vector<iterator> cmds;
+	iterator start = std::prev(end());
 
 	if(is_input)
 	{
@@ -4132,6 +4294,7 @@ B1C_T_ERROR B1FileCompiler::st_put_get_trr(const std::wstring &cmd_name, bool is
 			emit_command(L"-", { range[1].first, B1_CMP_ARG(range[0].first[1].value, range[0].first[1].type), B1_CMP_ARG(count_local) });
 			emit_command(L"+", { count_local, L"1", count_local });
 			emit_command(cmd_name, std::vector<B1_CMP_ARG>({ dev_name, range[0].first, count_local }));
+			cmds.push_back(std::prev(end()));
 			emit_command(L"LF", count_local);
 
 			if(range[1].second == B1_CMP_EXP_TYPE::B1_CMP_ET_LOCAL)
@@ -4147,7 +4310,7 @@ B1C_T_ERROR B1FileCompiler::st_put_get_trr(const std::wstring &cmd_name, bool is
 		else
 		{
 			// build RPN
-			auto err1 = b1_rpn_build(b1_curr_prog_line_offset, INPUT_STOP_TOKEN, &b1_curr_prog_line_offset);
+			auto err1 = b1_rpn_build(b1_curr_prog_line_offset, PUT_GET_STOP_TOKENS, &b1_curr_prog_line_offset);
 			if(err1 != B1_RES_OK)
 			{
 				return static_cast<B1C_T_ERROR>(err1);
@@ -4161,10 +4324,15 @@ B1C_T_ERROR B1FileCompiler::st_put_get_trr(const std::wstring &cmd_name, bool is
 
 			// compile the expression
 			range.push_back(std::make_pair(B1_CMP_ARG(), B1_CMP_EXP_TYPE::B1_CMP_ET_UNKNOWN));
-			err1 = process_expression(range[0].second, range[0].first, is_input);
+			err1 = process_expression(end(), range[0].second, range[0].first, is_input);
 			if(err1 != B1_RES_OK)
 			{
 				return static_cast<B1C_T_ERROR>(err1);
+			}
+
+			if(range[0].first[0].value.empty())
+			{
+				return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
 			}
 
 			if(is_input)
@@ -4180,6 +4348,7 @@ B1C_T_ERROR B1FileCompiler::st_put_get_trr(const std::wstring &cmd_name, bool is
 				}
 
 				emit_command(cmd_name, std::vector<B1_CMP_ARG>({ dev_name, range[0].first }));
+				cmds.push_back(std::prev(end()));
 
 				if(range[0].first.size() > 1)
 				{
@@ -4200,6 +4369,7 @@ B1C_T_ERROR B1FileCompiler::st_put_get_trr(const std::wstring &cmd_name, bool is
 				}
 
 				emit_command(cmd_name, std::vector<std::wstring>({ dev_name, range[0].first[0].value }));
+				cmds.push_back(std::prev(end()));
 
 				if(range[0].second == B1_CMP_EXP_TYPE::B1_CMP_ET_LOCAL)
 				{
@@ -4216,7 +4386,35 @@ B1C_T_ERROR B1FileCompiler::st_put_get_trr(const std::wstring &cmd_name, bool is
 			}
 			else
 			{
-				return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
+				// check for USING keyword presence
+				B1_CMP_ARGS args;
+				err = st_read_using_clause(args, std::next(start));
+				if(err != B1C_T_ERROR::B1C_RES_OK)
+				{
+					return err;
+				}
+
+				for(auto &cmd: cmds)
+				{
+					B1_CMP_ARGS a;
+
+					if(!args[0][0].value.empty())
+					{
+						a.push_back(B1_CMP_ARG(L"XORIN", B1Types::B1T_BYTE));
+						a[0].push_back(args[0][0]);
+						emit_command(L"XARG", cmd, a);
+					}
+					
+					a.clear();
+					if(!args[1][0].value.empty())
+					{
+						a.push_back(B1_CMP_ARG(L"XOROUT", B1Types::B1T_BYTE));
+						a[0].push_back(args[1][0]);
+						emit_command(L"XARG", cmd, a);
+					}
+				}
+
+				break;
 			}
 		}
 	}
@@ -4504,6 +4702,12 @@ bool B1FileCompiler::is_udef_used(const B1_CMP_CMD &cmd)
 		return (cmd.args.size() == 2) ? is_udef_used(cmd.args[1]) : (is_udef_used(cmd.args[1]) || is_udef_used(cmd.args[2]));
 	}
 
+	if(cmd.cmd == L"XARG")
+	{
+		return is_udef_used(cmd.args[0]);
+	}
+
+
 	if(cmd.args.size() == 2)
 	{
 		for(auto &op: B1CUtils::_un_ops)
@@ -4627,6 +4831,11 @@ bool B1FileCompiler::is_volatile_used(const B1_CMP_CMD &cmd)
 	if(cmd.cmd == L"GET" || cmd.cmd == L"PUT" || cmd.cmd == L"TRR")
 	{
 		return (cmd.args.size() == 2) ? is_volatile_used(cmd.args[1]) : (is_volatile_used(cmd.args[1]) || is_volatile_used(cmd.args[2]));
+	}
+
+	if(cmd.cmd == L"XARG")
+	{
+		return is_volatile_used(cmd.args[0]);
 	}
 
 	if(cmd.args.size() == 2)
@@ -5667,6 +5876,12 @@ std::wstring B1FileCompiler::set_to_init_value(B1_CMP_CMD &cmd, const std::map<s
 			return cmd.args[1][0].value;
 		}
 
+		return L"";
+	}
+
+	if(cmd.cmd == L"XARG")
+	{
+		set_to_init_value_arg(cmd.args[0], false, vars, init, changed);
 		return L"";
 	}
 
@@ -7856,6 +8071,14 @@ B1C_T_ERROR B1FileCompiler::eval_imm_exps(bool &changed)
 				}
 			}
 		}
+		else
+		if(cmd.cmd == L"XARG")
+		{
+			if(eval_imm_fn_arg(cmd.args[0]))
+			{
+				changed = true;
+			}
+		}
 	}
 
 	// +,A,0,B -> =,A,B
@@ -8218,6 +8441,17 @@ B1C_T_ERROR B1FileCompiler::remove_unused_vars(bool &changed)
 		if(cmd.cmd == L"SET")
 		{
 			err = remove_unused_vars(cmd.args[1], changed);
+			if(err != B1C_T_ERROR::B1C_RES_OK)
+			{
+				return err;
+			}
+
+			continue;
+		}
+
+		if(cmd.cmd == L"XARG")
+		{
+			err = remove_unused_vars(cmd.args[0], changed);
 			if(err != B1C_T_ERROR::B1C_RES_OK)
 			{
 				return err;
@@ -9346,6 +9580,17 @@ B1C_T_ERROR B1FileCompiler::put_fn_def_values()
 		if(cmd.cmd == L"SET")
 		{
 			err = put_fn_def_values(cmd.args[1]);
+			if(err != B1C_T_ERROR::B1C_RES_OK)
+			{
+				return err;
+			}
+
+			continue;
+		}
+
+		if(cmd.cmd == L"XARG")
+		{
+			err = put_fn_def_values(cmd.args[0]);
 			if(err != B1C_T_ERROR::B1C_RES_OK)
 			{
 				return err;

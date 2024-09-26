@@ -87,6 +87,10 @@ bool select_target(Settings &settings)
 			B1_CMP_FN(L"SPC",		B1Types::B1T_STRING,	{ B1Types::B1T_BYTE },				L""),
 			B1_CMP_FN(L"NL",		B1Types::B1T_STRING,	std::initializer_list<B1Types>(),	L""),
 
+			// extra argument pseudo-functions
+			B1_CMP_FN(L"XORIN",		B1Types::B1T_BYTE,		{ B1Types::B1T_BYTE },				L""),
+			B1_CMP_FN(L"XOROUT",	B1Types::B1T_BYTE,		{ B1Types::B1T_BYTE },				L""),
+
 			// the last empty record, used to get records number
 			B1_CMP_FN(L"",			B1Types::B1T_UNKNOWN,	std::initializer_list<B1Types>(),	L"")
 		};

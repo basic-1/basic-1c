@@ -132,11 +132,16 @@ SPI continuous transmission example (8 MHz, 100 bytes long array)
 - `IOCTL ST7565_SPI, INIT, <disp_cfg_name> | <var_name>` - select display model (`<disp_cfg_name>` - name of one of the predefined models, `<var_name>` - name of byte array variable that contains display initializaton data).  
 - `IOCTL ST7565_SPI, FONT, <font_name>` -  select font (`8x8` and `8x16` dot matrix fonts are supported). Either 7-bit font (characters of the original ASCII table) or 8-bit font (for 256 characters of the extended ASCII table) can be selected: the font type is specified with font data. A special `EXT` font type represents upper 128 characters of the extended ASCII table and cannot be use alone: use it to change glyphs of the upper part of the current font.  
 - `IOCTL ST7565_SPI, ZONEWIDTH, <numeric_value>` - set print zone width (default is 8 characters)  
+- `IOCTL ST7565_SPI, INVERT, ON | OFF` - inverts colors  
 - `IOCTL ST7565_SPI, START` - initializes SPI, resets LCD driver chip, applies display initialization parameters (set with `INIT` command), etc. After the command execution display is ready to operate.  
 - `IOCTL ST7565_SPI, STOP` - completes current SPI transmission, releases slave SPI device (display driver chip).  
 - `IOCTL ST7565_SPI, ENABLE` - enables SPI bus.  
 - `IOCTL ST7565_SPI, DISABLE` - disables SPI bus.  
-- `IOCTL ST7565_SPI, CONTRAST, <numeric_value>` - set display contrast, acceptable value range is \[1..100\]. The command can be used after `ENABLE` command (when display driver is ready to accept commands).  
+- `IOCTL ST7565_SPI, RESUME` - enables display chip (after it was disabled with `STOP` command)  
+- `IOCTL ST7565_SPI, CONTRAST, <numeric_value>` - set display contrast, acceptable value range is \[1..100\]. The command can be used after `ENABLE` command (when display driver is ready to accept commands)  
+- `IOCTL ST7565_SPI, COL, <numeric_value>` - sets column to put the next character in (0-based, max. value is specific to the current display: for a display with resolution 128x64 and 8x16 font the range is \[0..15]\)  
+- `IOCTL ST7565_SPI, ROW, <numeric_value>` - sets row to put the next character at (0-based, max. value is specific to the current display: for a display with resolution 128x64 and 8x16 font the range is \[0..3]\)  
+- `IOCTL ST7565_SPI, DRAWCHAR, <numeric_value>` - draws a character with the code specified with the commnd argument at the current display position  
   
 Fonts included with the compiler:  
 `FONT_8X8_CP437_7BIT_ST7565` - 8x8 ASCII font (128 characters), CP437 code page  
@@ -176,7 +181,12 @@ Fonts included with the compiler:
 `FONT_8X16_ISO8859_5_FULL_ST7565` - 8x16 extended ASCII font (256 characters), ISO8859-5 code page  
 `FONT_8X16_ISO8859_5_EXT_ST7565` - 8x16 ASCII font (upper 128 characters), ISO8859-5 code page  
   
-The library was tested with two Chinese displays marked "GM12864-01A" and "GMG12864-06D Ver:2.0", predefined configuration names for them are `DISP_GM12864_01A` and `DISP_GMG12864_06D_V2`.  
+The library was tested with two Chinese displays marked "GM12864-01A" and "GMG12864-06D Ver:2.2", predefined configuration names for them are `DISP_GM12864_01A` and `DISP_GMG12864_06D_V2`.  
+  
+![Tested displays, front](./images/dispfront.png "Tested displays, front")  
+Tested displays, front view  
+![Tested displays, back](./images/dispback.png "Tested displays, back")  
+Tested displays, back view  
   
 **Example:**  
 `IOCTL ST7565_SPI, ENABLE`  

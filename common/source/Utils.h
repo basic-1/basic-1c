@@ -38,6 +38,37 @@ enum class B1Types
 };
 
 
+// loading value types
+enum class LVT
+{
+	LVT_NONE = 0,
+	LVT_REG = 1,		// value is loaded into register (e.g. A, X, or X+Y pair for STM8, depending on data type)
+	LVT_IMMVAL = 2,		// immediate value (for numeric types only)
+	LVT_MEMREF = 4,		// memory address (e.g. __VAR_A, __STR_S$, __VAR_B + 0x10)
+	LVT_STKREF = 8,		// value in stack (local or function argument, returns offset relative to SP)
+	LVT_REGARG = 16,	// function argument passed in register
+};
+
+inline LVT operator |(LVT lhs, LVT rhs)
+{
+	using T = std::underlying_type_t<LVT>;
+	return static_cast<LVT>(static_cast<T>(lhs) | static_cast<T>(rhs));
+}
+
+inline LVT &operator |=(LVT &lhs, LVT rhs)
+{
+	lhs = lhs | rhs;
+	return lhs;
+}
+
+inline bool operator &(LVT lhs, LVT rhs)
+{
+	using T = std::underlying_type_t<LVT>;
+	auto bit_and = static_cast<T>(lhs) & static_cast<T>(rhs);
+	return (bit_and != 0);
+}
+
+
 class Utils
 {
 public:
@@ -79,6 +110,9 @@ public:
 	static size_t str_split(const std::wstring &str, const std::vector<wchar_t> &dels, std::vector<std::wstring> &out_strs, bool include_dels = false);
 
 	[[nodiscard]]
+	static size_t find_first_of(const std::wstring &str, const std::vector<std::wstring> &search_for, int32_t &val_index);
+
+	[[nodiscard]]
 	static std::wstring get_type_name(B1Types type);
 
 	[[nodiscard]]
@@ -118,6 +152,7 @@ public:
 		int32_t mask;
 		bool accepts_data;
 		B1Types data_type;
+		LVT arg_types;
 		bool predef_only;
 		std::map<std::wstring, std::wstring> values;
 		std::wstring def_val;
@@ -129,6 +164,7 @@ public:
 		, mask(0)
 		, accepts_data(false)
 		, data_type(B1Types::B1T_UNKNOWN)
+		, arg_types(LVT::LVT_NONE)
 		, predef_only(true)
 		{
 		}
@@ -142,6 +178,7 @@ public:
 			mask = 0;
 			accepts_data = false;
 			data_type = B1Types::B1T_UNKNOWN;
+			arg_types = LVT::LVT_NONE;
 			predef_only = true;
 			values.clear();
 			def_val.clear();

@@ -386,6 +386,23 @@ size_t Utils::str_split(const std::wstring &str, const std::vector<wchar_t> &del
 	return out_strs.size();
 }
 
+size_t Utils::find_first_of(const std::wstring &str, const std::vector<std::wstring> &search_for, int32_t &val_index)
+{
+	int32_t i;
+
+	for(i = 0; i < search_for.size(); i++)
+	{
+		auto pos = str.find(search_for[i]);
+		if(pos != std::wstring::npos)
+		{
+			val_index = i;
+			return pos;
+		}
+	}
+
+	return std::wstring::npos;
+}
+
 std::wstring Utils::get_type_name(B1Types type)
 {
 	switch(type)
@@ -960,6 +977,16 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 		}
 		cmd.data_type = Utils::get_type_by_name(value);
 
+		// acceptable argument types
+		if(!get_field(line, true, value))
+		{
+			return B1_RES_ESYNTAX;
+		}
+		cmd.arg_types = (value.find(L"I") == std::wstring::npos ? LVT::LVT_NONE : LVT::LVT_IMMVAL) |
+			(value.find(L"M") == std::wstring::npos ? LVT::LVT_NONE : LVT::LVT_MEMREF) |
+			(value.find(L"S") == std::wstring::npos ? LVT::LVT_NONE : LVT::LVT_STKREF) |
+			(value.find(L"R") == std::wstring::npos ? LVT::LVT_NONE : LVT::LVT_REG);
+
 		// predefined values only
 		if(!get_field(line, true, value))
 		{
@@ -980,6 +1007,15 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 			{
 				return B1_RES_ESYNTAX;
 			}
+		}
+
+		if(cmd.call_type == IoCmd::IoCmdCallType::CT_INL && cmd.accepts_data && !cmd.predef_only)
+		{
+			cmd.arg_types |= LVT::LVT_REG;
+		}
+		else
+		{
+			cmd.arg_types = LVT::LVT_NONE;
 		}
 
 		// values number
@@ -1069,6 +1105,7 @@ bool Settings::GetIoCmd(const std::wstring &dev_name, const std::wstring &cmd_na
 	return false;
 }
 
+// returns real device name, if specified device name is empty uses default IO device name
 std::wstring Settings::GetIoDeviceName(const std::wstring &spec_dev_name) const
 {
 	std::wstring def_dev_name = spec_dev_name;
@@ -1173,6 +1210,7 @@ std::wstring Settings::GetDefaultDeviceName(const std::wstring &real_dev_name) c
 	return std::wstring();
 }
 
+// dev_name must be a real device name
 std::vector<std::wstring> Settings::GetDevCmdsList(const std::wstring &dev_name) const
 {
 	std::vector<std::wstring> cmds;

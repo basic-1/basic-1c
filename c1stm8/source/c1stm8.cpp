@@ -544,6 +544,67 @@ C1_T_ERROR C1STM8Compiler::stm8_arrange_types(const B1Types type_from, const B1T
 	return C1_T_ERROR::C1_RES_OK;
 }
 
+int32_t C1STM8Compiler::stm8_get_local_offset(const std::wstring &local_name)
+{
+	int32_t offset = -1;
+
+	for(const auto &loc: _local_offset)
+	{
+		if(loc.first.value == local_name)
+		{
+			offset = _stack_ptr - loc.second;
+		}
+	}
+
+	return offset;
+}
+
+int32_t C1STM8Compiler::stm8_get_type_cvt_offset(B1Types type_from, B1Types type_to)
+{
+	int32_t offset = 0;
+
+	if(type_from != B1Types::B1T_BYTE && type_from != B1Types::B1T_INT && type_from != B1Types::B1T_WORD && type_from != B1Types::B1T_LONG && type_from != B1Types::B1T_STRING)
+	{
+		return -1;
+	}
+	if(type_to != B1Types::B1T_BYTE && type_to != B1Types::B1T_INT && type_to != B1Types::B1T_WORD && type_to != B1Types::B1T_LONG && type_to != B1Types::B1T_STRING)
+	{
+		return -1;
+	}
+
+	if(type_from == type_to)
+	{
+		return 0;
+	}
+
+	if(type_from == B1Types::B1T_STRING || type_to == B1Types::B1T_STRING)
+	{
+		return -1;
+	}
+
+	if(type_from == B1Types::B1T_LONG)
+	{
+		switch(type_to)
+		{
+			case B1Types::B1T_BYTE:
+				return 3;
+			case B1Types::B1T_INT:
+			case B1Types::B1T_WORD:
+				return 2;
+		}
+	}
+	else
+	if(type_from == B1Types::B1T_INT || type_from == B1Types::B1T_WORD)
+	{
+		if(type_to == B1Types::B1T_BYTE)
+		{
+			return 1;
+		}
+	}
+
+	return -1;
+}
+
 C1_T_ERROR C1STM8Compiler::stm8_load_from_stack(int32_t offset, const B1Types init_type, const B1Types req_type, LVT req_valtype, LVT &rvt, std::wstring &rv)
 {
 	if(offset < 0 || offset > 255)
@@ -725,6 +786,85 @@ C1_T_ERROR C1STM8Compiler::stm8_load_from_stack(int32_t offset, const B1Types in
 	return C1_T_ERROR::C1_RES_OK;
 }
 
+std::wstring C1STM8Compiler::stm8_get_var_addr(const std::wstring &var_name, B1Types type_from, B1Types type_to, bool direct_cvt, bool *volatile_var /*= nullptr*/)
+{
+	// simple variable
+	auto ma = _mem_areas.find(var_name);
+	bool is_ma = ma != _mem_areas.end();
+	std::wstring str_off;
+	int int_off = 0;
+	bool is_volatile = false;
+
+	if(type_from != B1Types::B1T_BYTE && type_from != B1Types::B1T_INT && type_from != B1Types::B1T_WORD && type_from != B1Types::B1T_LONG && type_from != B1Types::B1T_STRING)
+	{
+		return std::wstring();
+	}
+	if(type_to != B1Types::B1T_BYTE && type_to != B1Types::B1T_INT && type_to != B1Types::B1T_WORD && type_to != B1Types::B1T_LONG && type_to != B1Types::B1T_STRING)
+	{
+		return std::wstring();
+	}
+
+	if(type_from == B1Types::B1T_LONG)
+	{
+		if(type_to == B1Types::B1T_INT || type_to == B1Types::B1T_WORD)
+		{
+			str_off = L" + 0x2";
+			int_off = 2;
+		}
+		else
+		if(type_to == B1Types::B1T_BYTE)
+		{
+			str_off = L" + 0x3";
+			int_off = 3;
+		}
+		else
+		if(direct_cvt && type_to != B1Types::B1T_LONG)
+		{
+			return std::wstring();
+		}
+	}
+	else
+	if(type_from == B1Types::B1T_INT || type_from == B1Types::B1T_WORD)
+	{
+		if(type_to == B1Types::B1T_BYTE)
+		{
+			str_off = L" + 0x1";
+			int_off = 1;
+		}
+		else
+		if(direct_cvt && !(type_to == B1Types::B1T_INT || type_to == B1Types::B1T_WORD))
+		{
+			return std::wstring();
+		}
+	}
+	else
+	if(direct_cvt && !(type_from == B1Types::B1T_BYTE && type_to == B1Types::B1T_BYTE) && !(type_from == B1Types::B1T_STRING && type_to == B1Types::B1T_STRING))
+	{
+		return std::wstring();
+	}
+
+	auto addr = is_ma ?
+		(ma->second.use_symbol ? (ma->second.symbol + str_off) : std::to_wstring(ma->second.address + int_off)) :
+		(var_name + str_off);
+
+	if(is_ma)
+	{
+		is_volatile = ma->second.is_volatile;
+	}
+	else
+	{
+		is_volatile = _vars.find(var_name)->second.is_volatile;
+		_req_symbols.insert(var_name);
+	}
+
+	if(volatile_var != nullptr)
+	{
+		*volatile_var = is_volatile;
+	}
+
+	return addr;
+}
+
 C1_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types req_type, LVT req_valtype, LVT *res_valtype /*= nullptr*/, std::wstring *res_val /*= nullptr*/, bool *volatile_var /*= nullptr*/)
 {
 	std::wstring rv;
@@ -895,16 +1035,7 @@ C1_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types req
 	if(_locals.find(tv.value) != _locals.end())
 	{
 		// local variable
-		int32_t offset = -1;
-
-		for(const auto &loc: _local_offset)
-		{
-			if(loc.first.value == tv.value)
-			{
-				offset = _stack_ptr - loc.second;
-			}
-		}
-
+		int32_t offset = stm8_get_local_offset(tv.value);
 		auto err = stm8_load_from_stack(offset, init_type, req_type, req_valtype, rvt, rv);
 		if(err != C1_T_ERROR::C1_RES_OK)
 		{
@@ -941,50 +1072,8 @@ C1_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types req
 		if(fn == nullptr)
 		{
 			// simple variable
-			auto ma = _mem_areas.find(tv.value);
-			bool is_ma = ma != _mem_areas.end();
-			std::wstring str_off;
-			int int_off = 0;
 			bool is_volatile = false;
-
-			if(init_type == B1Types::B1T_LONG)
-			{
-				if(req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD)
-				{
-					str_off = L" + 0x2";
-					int_off = 2;
-				}
-				else
-				if(req_type == B1Types::B1T_BYTE)
-				{
-					str_off = L" + 0x3";
-					int_off = 3;
-				}
-			}
-			else
-			if(init_type == B1Types::B1T_INT || init_type == B1Types::B1T_WORD)
-			{
-				if(req_type == B1Types::B1T_BYTE)
-				{
-					str_off = L" + 0x1";
-					int_off = 1;
-				}
-			}
-
-			rv = is_ma ?
-				(ma->second.use_symbol ? (ma->second.symbol + str_off) : std::to_wstring(ma->second.address + int_off)) :
-				(tv.value + str_off);
-
-			if(is_ma)
-			{
-				is_volatile = ma->second.is_volatile;
-			}
-			else
-			{
-				is_volatile = _vars.find(tv.value)->second.is_volatile;
-				_req_symbols.insert(tv.value);
-			}
-
+			rv = stm8_get_var_addr(tv.value, init_type, req_type, false, &is_volatile);
 			if(volatile_var != nullptr)
 			{
 				*volatile_var = is_volatile;
@@ -2251,15 +2340,7 @@ C1_T_ERROR C1STM8Compiler::stm8_store(const B1_TYPED_VALUE &tv)
 	if(_locals.find(tv.value) != _locals.end())
 	{
 		// local variable
-		int32_t offset = -1;
-
-		for(const auto &loc: _local_offset)
-		{
-			if(loc.first.value == tv.value)
-			{
-				offset = _stack_ptr - loc.second;
-			}
-		}
+		int32_t offset = stm8_get_local_offset(tv.value);
 
 		if(offset < 0 || offset > (tv.type == B1Types::B1T_LONG ? 253 : 255))
 		{
@@ -2313,22 +2394,8 @@ C1_T_ERROR C1STM8Compiler::stm8_store(const B1_TYPED_VALUE &tv)
 	else
 	{
 		// simple variable
-		auto ma = _mem_areas.find(tv.value);
-		bool is_ma = ma != _mem_areas.end();
-		std::wstring dst;
 		bool is_volatile = false;
-
-		if(is_ma)
-		{
-			dst = ma->second.use_symbol ? ma->second.symbol : std::to_wstring(ma->second.address);
-			is_volatile = ma->second.is_volatile;
-		}
-		else
-		{
-			dst = tv.value;
-			is_volatile = _vars.find(tv.value)->second.is_volatile;
-			_req_symbols.insert(dst);
-		}
+		auto dst = stm8_get_var_addr(tv.value, tv.type, tv.type, true, &is_volatile);
 
 		if(tv.type == B1Types::B1T_BYTE)
 		{
@@ -4048,6 +4115,7 @@ C1_T_ERROR C1STM8Compiler::stm8_write_ioctl(std::list<B1_CMP_CMD>::const_iterato
 	auto code_place = Settings::IoCmd::IoCmdCodePlacement::CP_CURR_POS;
 	std::wstring file_name;
 	int32_t ioctl_num = 1;
+	LVT res_lvt = LVT::LVT_NONE;
 
 	while(true)
 	{
@@ -4130,7 +4198,7 @@ C1_T_ERROR C1STM8Compiler::stm8_write_ioctl(std::list<B1_CMP_CMD>::const_iterato
 			}
 			else
 			{
-				auto err = stm8_load(cmd_it->args[2], iocmd.data_type, LVT::LVT_REG);
+				auto err = stm8_load(cmd_it->args[2], iocmd.data_type, iocmd.call_type == Settings::IoCmd::IoCmdCallType::CT_INL ? iocmd.arg_types : LVT::LVT_REG, &res_lvt, &str_value);
 				if(err != C1_T_ERROR::C1_RES_OK)
 				{
 					return err;
@@ -4269,10 +4337,13 @@ C1_T_ERROR C1STM8Compiler::stm8_write_ioctl(std::list<B1_CMP_CMD>::const_iterato
 			file_name = L"__LIB_" + dev_name + L"_" + std::to_wstring(id) + L"_INL";
 		}
 
+		const std::wstring arg_type = (!pre_cmd && res_lvt != LVT::LVT_NONE) ? (res_lvt == LVT::LVT_IMMVAL ? L"I" : res_lvt == LVT::LVT_MEMREF ? L"M" : res_lvt == LVT::LVT_STKREF ? L"S" : L"R") : L"";
+
 		// inline code
 		std::map<std::wstring, std::wstring> params =
 		{
-			{ L"VALUE", (data_type == B1Types::B1T_LABEL || data_type == B1Types::B1T_VARREF || data_type == B1Types::B1T_TEXT) ? str_value : std::to_wstring(values) },
+			{ L"ARG_TYPE", arg_type },
+			{ L"VALUE", (data_type == B1Types::B1T_LABEL || data_type == B1Types::B1T_VARREF || data_type == B1Types::B1T_TEXT || !arg_type.empty()) ? str_value : std::to_wstring(values) },
 			{ L"MASK", std::to_wstring(mask) },
 			{ L"DEV_NAME", dev_name },
 			{ L"ID", std::to_wstring(id) },
@@ -4463,6 +4534,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 
 	bool omit_zero_init = code_init;
 
+	std::map<std::wstring, std::wstring> extra_params;
+
 	for(auto ci = cbegin(); ci != cend(); ci++)
 	{
 		const auto &cmd = *ci;
@@ -4484,6 +4557,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 
 				_cmp_active = false;
 				_retval_active = false;
+
+				extra_params.clear();
 
 				break;
 			}
@@ -4562,6 +4637,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 
 			omit_zero_init = false;
 
+			extra_params.clear();
+
 			continue;
 		}
 
@@ -4612,6 +4689,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 			_allocated_arrays.clear();
 
 			omit_zero_init = false;
+			
+			extra_params.clear();
 
 			continue;
 		}
@@ -4631,6 +4710,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 			_curr_name_space = cmd.args[0][0].value;
 			_next_label = 32768;
 			_next_local = 32768;
+
+			extra_params.clear();
 
 			continue;
 		}
@@ -4671,6 +4752,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 			_cmp_active = false;
 			_retval_active = false;
 
+			extra_params.clear();
+
 			continue;
 		}
 
@@ -4695,6 +4778,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 			_retval_active = false;
 
 			_allocated_arrays.erase(cmd.args[0][0].value);
+
+			extra_params.clear();
 
 			continue;
 		}
@@ -4782,7 +4867,7 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 					_store_at.emplace_back(std::make_tuple(ci, cmd.args[1], _curr_src_file_id, _curr_line_cnt));
 				}
 
-				auto err = load_inline(0, L"__LIB_" + in_dev + L"_GET" + suffix + L"_INL", ci);
+				auto err = load_inline(0, L"__LIB_" + in_dev + L"_GET" + suffix + L"_INL", ci, extra_params);
 				if(err != C1_T_ERROR::C1_RES_OK)
 				{
 					return err;
@@ -4795,6 +4880,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 			_retval_active = false;
 
 			omit_zero_init = false;
+
+			extra_params.clear();
 
 			continue;
 		}
@@ -4815,6 +4902,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 			_allocated_arrays.clear();
 
 			omit_zero_init = false;
+
+			extra_params.clear();
 
 			continue;
 		}
@@ -4884,6 +4973,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 			_local_offset.push_back(std::pair<B1_TYPED_VALUE, int>(B1_TYPED_VALUE(cmd.args[0][0].value, cmd.args[1][0].type), _stack_ptr - 1));
 
 			_retval_active = false;
+
+			extra_params.clear();
 
 			continue;
 		}
@@ -5018,21 +5109,26 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 			_stack_ptr -= size;
 			_local_offset.pop_back();
 
+			extra_params.clear();
+
 			continue;
 		}
 
 		if(cmd.cmd == L"MA")
 		{
+			extra_params.clear();
 			continue;
 		}
 
 		if(cmd.cmd == L"DAT")
 		{
+			extra_params.clear();
 			continue;
 		}
 
 		if(cmd.cmd == L"DEF")
 		{
+			extra_params.clear();
 			continue;
 		}
 
@@ -5101,6 +5197,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 
 			omit_zero_init = false;
 
+			extra_params.clear();
+
 			continue;
 		}
 
@@ -5116,6 +5214,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 			_retval_active = false;
 
 			omit_zero_init = false;
+
+			extra_params.clear();
 
 			continue;
 		}
@@ -5248,6 +5348,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 
 			omit_zero_init = false;
 
+			extra_params.clear();
+
 			continue;
 		}
 
@@ -5330,7 +5432,7 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 					_stack_ptr -= 2;
 				}
 
-				auto err = load_inline(0, L"__LIB_" + out_dev + L"_PUT" + suffix + L"_INL", ci);
+				auto err = load_inline(0, L"__LIB_" + out_dev + L"_PUT" + suffix + L"_INL", ci, extra_params);
 				if(err != C1_T_ERROR::C1_RES_OK)
 				{
 					return err;
@@ -5344,6 +5446,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 			_retval_active = false;
 
 			omit_zero_init = false;
+
+			extra_params.clear();
 
 			continue;
 		}
@@ -5384,6 +5488,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 
 			_cmp_active = false;
 			_retval_active = false;
+
+			extra_params.clear();
 
 			continue;
 		}
@@ -5458,6 +5564,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 
 			omit_zero_init = false;
 
+			extra_params.clear();
+
 			continue;
 		}
 
@@ -5479,6 +5587,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 			_retval_type = cmd.args[1][0].type;
 
 			omit_zero_init = false;
+
+			extra_params.clear();
 
 			continue;
 		}
@@ -5623,6 +5733,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 
 			omit_zero_init = false;
 
+			extra_params.clear();
+
 			continue;
 		}
 
@@ -5653,6 +5765,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 
 			_cmp_active = false;
 			_retval_active = false;
+
+			extra_params.clear();
 
 			continue;
 		}
@@ -5748,13 +5862,79 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 					_store_at.emplace_back(std::make_tuple(ci, cmd.args[1], _curr_src_file_id, _curr_line_cnt));
 				}
 
-				auto err = load_inline(0, L"__LIB_" + trr_dev + L"_TRR" + suffix + L"_INL", ci);
+				auto err = load_inline(0, L"__LIB_" + trr_dev + L"_TRR" + suffix + L"_INL", ci, extra_params);
 				if(err != C1_T_ERROR::C1_RES_OK)
 				{
 					return err;
 				}
 				ci = saved_it;
 			}
+
+			_cmp_active = false;
+			_retval_active = false;
+
+			omit_zero_init = false;
+
+			extra_params.clear();
+
+			continue;
+		}
+
+		if(cmd.cmd == L"XARG")
+		{
+			if(_out_src_lines)
+			{
+				_comment = Utils::str_trim(_src_lines[cmd.src_line_id]);
+			}
+
+			auto fn = get_fn(cmd.args[0]);
+			if(fn == nullptr)
+			{
+				return C1_T_ERROR::C1_RES_EINTERR;
+			}
+
+			auto value = cmd.args[0][1].value;
+			std::wstring atype;
+
+			if(B1CUtils::is_imm_val(value) || Utils::check_const_name(value))
+			{
+				atype = L"I";
+
+				if(cmd.args[0][1].type != B1Types::B1T_BYTE && cmd.args[0][1].type != B1Types::B1T_INT && cmd.args[0][1].type != B1Types::B1T_WORD && cmd.args[0][1].type != B1Types::B1T_LONG)
+				{
+					return static_cast<C1_T_ERROR>(B1_RES_ETYPMISM);
+				}
+			}
+			else
+			if(_locals.find(value) != _locals.end())
+			{
+				atype = L"S";
+
+				int32_t offset = stm8_get_type_cvt_offset(cmd.args[0][1].type, fn->args[0].type);
+				if(offset < 0)
+				{
+					return static_cast<C1_T_ERROR>(B1_RES_ETYPMISM);
+				}
+				offset += stm8_get_local_offset(value);
+				value = Utils::str_tohex16(offset);
+			}
+			else
+			if(get_fn(cmd.args[0][1]) == nullptr && !B1CUtils::is_fn_arg(value))
+			{
+				atype = L"M";
+
+				value = stm8_get_var_addr(value, cmd.args[0][1].type, fn->args[0].type, true);
+				if(value.empty())
+				{
+					return static_cast<C1_T_ERROR>(B1_RES_ETYPMISM);
+				}
+			}
+			else
+			{
+				return C1_T_ERROR::C1_RES_EINTERR;
+			}
+			extra_params[cmd.args[0][0].value + L"_TYPE"] = atype;
+			extra_params[cmd.args[0][0].value + L"_VALUE"] = value;
 
 			_cmp_active = false;
 			_retval_active = false;
@@ -5794,6 +5974,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 
 			omit_zero_init = false;
 
+			extra_params.clear();
+
 			continue;
 		}
 
@@ -5820,11 +6002,37 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 
 			_cmp_active = false;
 
+			extra_params.clear();
+
 			continue;
 		}
 
 		if(cmd.cmd == L"IMP" || cmd.cmd == L"INI")
 		{
+			extra_params.clear();
+			continue;
+		}
+
+		if(cmd.cmd == L"INL")
+		{
+			if(_out_src_lines)
+			{
+				_comment = Utils::str_trim(_src_lines[cmd.src_line_id]);
+			}
+
+			auto err = load_inline(0, cmd.args[0][0].value, std::next(ci), extra_params);
+			if(err != C1_T_ERROR::C1_RES_OK)
+			{
+				return err;
+			}
+
+			_cmp_active = false;
+			_retval_active = false;
+
+			omit_zero_init = false;
+
+			extra_params.clear();
+
 			continue;
 		}
 
@@ -5858,6 +6066,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 
 			omit_zero_init = false;
 
+			extra_params.clear();
+
 			continue;
 		}
 
@@ -5867,6 +6077,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 			_req_symbols.insert(cmd.args[0][0].value);
 
 			_cmp_active = false;
+
+			extra_params.clear();
 
 			continue;
 		}
@@ -6022,6 +6234,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 
 			_retval_active = false;
 
+			extra_params.clear();
+
 			continue;
 		}
 
@@ -6046,6 +6260,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 			{
 				omit_zero_init = false;
 			}
+
+			extra_params.clear();
 
 			continue;
 		}
@@ -6102,6 +6318,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 
 			omit_zero_init = false;
 
+			extra_params.clear();
+
 			continue;
 		}
 
@@ -6129,6 +6347,8 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 			_retval_active = false;
 
 			omit_zero_init = false;
+
+			extra_params.clear();
 
 			continue;
 		}

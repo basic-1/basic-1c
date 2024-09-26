@@ -324,70 +324,59 @@ C1_T_ERROR C1Compiler::get_arg(const std::wstring &str, B1_CMP_ARG &arg, size_t 
 	return C1_T_ERROR::C1_RES_OK;
 }
 
-C1_T_ERROR C1Compiler::replace_inline(std::wstring &line, const std::map<std::wstring, std::wstring> &inl_params)
+C1_T_ERROR C1Compiler::replace_inline(std::wstring &line, const std::map<std::wstring, std::wstring> &inl_params, bool &empty_val) const
 {
-	for(const auto &ip: inl_params)
+	empty_val = false;
+
+	// the order of the values is important (templates starting with "{!" must be processed first)
+	std::vector<std::wstring> values = { L"{!", L"{" };
+	int32_t index = -1;
+	auto start = Utils::find_first_of(line, values, index);
+
+	while(start != std::wstring::npos)
 	{
-		auto val_start = L"{" + ip.first;
-		auto offset = line.find(val_start);
-		
-		while(offset != std::wstring::npos)
+		auto end = line.find(L"}", start + values[index].length());
+		if(end == std::wstring::npos)
 		{
-			auto val_len = val_start.length();
-
-			if(offset + val_len == line.length())
-			{
-				return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
-			}
-
-			int32_t start = 0, charnum = -1;
-
-			auto c = line[offset + val_len];
-			
-			if(c == L'}')
-			{
-				val_len++;
-			}
-			else
-			if(c == L',')
-			{
-				auto offset1 = offset + val_len + 1;
-
-				auto str = Utils::str_trim(get_next_value(line, L",", offset1));
-				if(offset1 == std::wstring::npos)
-				{
-					return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
-				}
-				auto err = Utils::str2int32(str, start);
-				if(err != B1_RES_OK)
-				{
-					return static_cast<C1_T_ERROR>(err);
-				}
-				
-				str = Utils::str_trim(get_next_value(line, L"}", offset1));
-				err = Utils::str2int32(str, charnum);
-				if(err != B1_RES_OK)
-				{
-					return static_cast<C1_T_ERROR>(err);
-				}
-				
-				if(offset1 == std::wstring::npos)
-				{
-					val_len = line.length() - offset;
-				}
-				else
-				{
-					val_len = offset1 - offset;
-				}
-			}
-			else
-			{
-				return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
-			}
-
-			line.replace(offset, val_len, (start > ip.second.length()) ? L"" : ip.second.substr(start, (charnum < 0) ? std::wstring::npos : (size_t)charnum));
-			offset = line.find(val_start);
+			break;
 		}
+
+		std::vector<std::wstring> para_parts;
+		const auto para_tmp = Utils::str_toupper(line.substr(start + values[index].length(), end - start - values[index].length()));
+		Utils::str_split(para_tmp, L",", para_parts);
+		const auto &para_name = Utils::str_trim(para_parts[0]);
+		int32_t para_start = 0, para_len = -1;
+
+		if(para_parts.size() > 1)
+		{
+			if(para_parts.size() != 3)
+			{
+				return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
+			}
+
+			auto err = Utils::str2int32(Utils::str_trim(para_parts[1]), para_start);
+			if(err != B1_RES_OK)
+			{
+				return static_cast<C1_T_ERROR>(err);
+			}
+
+			err = Utils::str2int32(Utils::str_trim(para_parts[2]), para_len);
+			if(err != B1_RES_OK)
+			{
+				return static_cast<C1_T_ERROR>(err);
+			}
+		}
+
+		auto ip = inl_params.find(para_name);
+		const std::wstring rep_val = (ip == inl_params.cend() || ip->second.empty()) ? L"" : ip->second;
+		if(index == 0 && rep_val.empty())
+		{
+			empty_val = true;
+		}
+
+		line.replace(start, end - start + 1, (para_start > rep_val.length()) ? L"" : rep_val.substr(para_start, (para_len < 0) ? std::wstring::npos : (size_t)para_len));
+
+		start = Utils::find_first_of(line, values, index);
 	}
 
 	return C1_T_ERROR::C1_RES_OK;
@@ -451,10 +440,16 @@ C1_T_ERROR C1Compiler::load_inline(size_t offset, const std::wstring &line, cons
 			break;
 		}
 
-		err = replace_inline(inl_line, inl_params);
+		bool empty_val = false;
+		err = replace_inline(inl_line, inl_params, empty_val);
 		if(err != C1_T_ERROR::C1_RES_OK)
 		{
 			break;
+		}
+
+		if(empty_val)
+		{
+			continue;
 		}
 
 		err = load_next_command(inl_line, pos);
@@ -1058,7 +1053,23 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			}
 		}
 		else
-		if(cmd == L"JMP" || cmd == L"JF" || cmd == L"JT" || cmd == L"CALL" || cmd == L"GF" || cmd == L"LF" || cmd == L"IMP" || cmd == L"INI" || cmd == L"INT")
+		if(cmd == L"XARG")
+		{
+			if(offset == std::wstring::npos)
+			{
+				return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
+			}
+
+			err = get_arg(tmpline, arg, offset);
+			if(err != C1_T_ERROR::C1_RES_OK)
+			{
+				return err;
+			}
+
+			args.push_back(arg);
+		}
+		else
+		if(cmd == L"JMP" || cmd == L"JF" || cmd == L"JT" || cmd == L"CALL" || cmd == L"GF" || cmd == L"LF" || cmd == L"IMP" || cmd == L"INI" || cmd == L"INL" || cmd == L"INT")
 		{
 			// read label name
 			err = get_simple_arg(tmpline, tv, offset);
@@ -1086,6 +1097,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 				_init_files.push_back(tv.value);
 			}
 			else
+			if(cmd != L"INL")
 			{
 				tv.value = add_namespace(tv.value);
 			}
@@ -1093,11 +1105,11 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			args.push_back(tv.value);
 		}
 		else
-		if(cmd == L"INL")
+		/*if(cmd == L"INL")
 		{
 			return load_inline(offset, tmpline, pos);
 		}
-		else
+		else*/
 		if(cmd == L"ERR")
 		{
 			// read error code (can be absent)
@@ -1886,6 +1898,17 @@ C1_T_ERROR C1Compiler::read_and_check_vars()
 				{
 					return err;
 				}
+			}
+
+			continue;
+		}
+
+		if(cmd.cmd == L"XARG")
+		{
+			auto err = check_arg(cmd.args[0]);
+			if(err != C1_T_ERROR::C1_RES_OK)
+			{
+				return err;
 			}
 
 			continue;

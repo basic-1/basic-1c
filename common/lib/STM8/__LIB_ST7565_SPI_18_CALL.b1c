@@ -7,9 +7,9 @@ IMP,__LIB_ST7565_SPI_SET_CHAR_POS
 IMP,__LIB_ST7565_SPI_DRAW_BMP_8X8
 
 ; draws a char at position specified with __LIB_ST7565_SPI_ROW and
-; __LIB_ST7565_SPI_COL variables
+; __LIB_ST7565_SPI_COL variables (DRAWCHAR)
 ; A - character to draw
-:__LIB_ST7565_SPI_DRAW_CHAR
+:__LIB_ST7565_SPI_18_CALL
 ASM
 CP A, 127
 JRUGT ::__LBL_8BIT_CHAR

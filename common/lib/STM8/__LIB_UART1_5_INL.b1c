@@ -2,5 +2,11 @@ INI,__LIB_UART1_ZW
 
 ; configure UART1 zone width
 ASM
+.IF {ARG_TYPE} == I
+MOV (__LIB_UART1_ZW), {!VALUE}
+.ELIF {ARG_TYPE} == M
+MOV (__LIB_UART1_ZW), ({!VALUE})
+.ELSE
 LD (__LIB_UART1_ZW), A
+.ENDIF
 ENDASM

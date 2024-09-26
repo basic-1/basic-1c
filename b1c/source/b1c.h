@@ -96,7 +96,7 @@ private:
 	void change_ufn_names();
 
 	bool correct_rpn(B1_CMP_EXP_TYPE &res_type, B1_CMP_ARG &res, bool get_ref);
-	B1_T_ERROR process_expression(B1_CMP_EXP_TYPE &res_type, B1_CMP_ARG &res, bool get_ref = false);
+	B1_T_ERROR process_expression(iterator pos, B1_CMP_EXP_TYPE &res_type, B1_CMP_ARG &res, bool get_ref = false);
 	
 	B1_T_ERROR eval_chr(const std::wstring &num_val, const B1Types type, std::wstring &res_str);
 	B1_T_ERROR concat_strings_rpn(std::wstring &res);
@@ -135,6 +135,7 @@ private:
 	B1C_T_ERROR st_print();
 	B1C_T_ERROR st_input();
 	B1C_T_ERROR st_read_range(std::vector<std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE>> &range);
+	B1C_T_ERROR st_read_using_clause(B1_CMP_ARGS &args, iterator pos);
 	B1C_T_ERROR st_put_get_trr(const std::wstring &cmd_name, bool is_input, bool is_output);
 
 	B1_CMP_CMDS::const_iterator find_LF(B1_CMP_CMDS::const_iterator lacmd, B1_CMP_CMDS::const_iterator intlfcmd, bool &intlf_found);

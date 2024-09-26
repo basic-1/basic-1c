@@ -84,7 +84,10 @@ protected:
 	C1_T_ERROR stm8_calc_array_size(const B1_CMP_VAR &var, int32_t size1);
 	C1_T_ERROR stm8_st_gf(const B1_CMP_VAR &var, bool is_ma);
 	C1_T_ERROR stm8_arrange_types(const B1Types type_from, const B1Types type_to);
+	int32_t stm8_get_local_offset(const std::wstring &local_name);
+	int32_t stm8_get_type_cvt_offset(B1Types type_from, B1Types type_to);
 	C1_T_ERROR stm8_load_from_stack(int32_t offset, const B1Types init_type, const B1Types req_type, LVT req_valtype, LVT &rvt, std::wstring &rv);
+	std::wstring stm8_get_var_addr(const std::wstring &var_name, B1Types type_from, B1Types type_to, bool direct_cvt, bool *volatile_var = nullptr);
 	C1_T_ERROR stm8_load(const B1_TYPED_VALUE &tv, const B1Types req_type, LVT req_valtype, LVT *res_valtype = nullptr, std::wstring *res_val = nullptr, bool *volatile_var = nullptr);
 	C1_T_ERROR stm8_arr_alloc_def(const B1_CMP_VAR &var);
 	C1_T_ERROR stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_offset, int32_t &offset);

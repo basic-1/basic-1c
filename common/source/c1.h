@@ -20,37 +20,6 @@ extern "C"
 #include <memory>
 
 
-// loading value types
-enum class LVT
-{
-	LVT_NONE = 0,
-	LVT_REG = 1,		// value is loaded into register (e.g. A, X, or X+Y pair for STM8, depending on data type)
-	LVT_IMMVAL = 2,		// immediate value (for numeric types only)
-	LVT_MEMREF = 4,		// memory address (e.g. __VAR_A, __STR_S$, __VAR_B + 0x10)
-	LVT_STKREF = 8,		// value in stack (local or function argument, returns offset relative to SP)
-	LVT_REGARG = 16,	// function argument passed in register
-};
-
-inline LVT operator |(LVT lhs, LVT rhs)
-{
-	using T = std::underlying_type_t<LVT>;
-	return static_cast<LVT>(static_cast<T>(lhs) | static_cast<T>(rhs));
-}
-
-inline LVT &operator |=(LVT &lhs, LVT rhs)
-{
-	lhs = lhs | rhs;
-	return lhs;
-}
-
-inline bool operator &(LVT lhs, LVT rhs)
-{
-	using T = std::underlying_type_t<LVT>;
-	auto bit_and = static_cast<T>(lhs) & static_cast<T>(rhs);
-	return (bit_and != 0);
-}
-
-
 // assembler op type
 enum class AOT
 {
@@ -192,7 +161,7 @@ protected:
 	std::wstring add_namespace(const std::wstring &name) const;
 	C1_T_ERROR get_arg(const std::wstring &str, B1_CMP_ARG &arg, size_t &next_off) const;
 	virtual C1_T_ERROR process_asm_cmd(const std::wstring &line) = 0;
-	C1_T_ERROR replace_inline(std::wstring &line, const std::map<std::wstring, std::wstring> &inl_params);
+	C1_T_ERROR replace_inline(std::wstring &line, const std::map<std::wstring, std::wstring> &inl_params, bool &empty_val) const;
 	C1_T_ERROR load_inline(size_t offset, const std::wstring &line, const_iterator pos, const std::map<std::wstring, std::wstring> &inl_params = std::map<std::wstring, std::wstring>());
 	C1_T_ERROR load_next_command(const std::wstring &line, const_iterator pos);
 

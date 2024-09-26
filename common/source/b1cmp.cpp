@@ -418,6 +418,16 @@ bool B1CUtils::is_src(const B1_CMP_CMD &cmd, const std::wstring &val)
 		return false;
 	}
 
+	if(cmd.cmd == L"XARG")
+	{
+		if(cmd.args[0][1].value == val)
+		{
+			return true;
+		}
+
+		return false;
+	}
+
 	if(cmd.cmd == L"SET")
 	{
 		if(cmd.args[1][0].value == val)
@@ -678,6 +688,16 @@ bool B1CUtils::is_sub_or_arg(const B1_CMP_CMD &cmd, const std::wstring &val)
 		return false;
 	}
 
+	if(cmd.cmd == L"XARG")
+	{
+		if(cmd.args[0][1].value == val)
+		{
+			return true;
+		}
+
+		return false;
+	}
+
 	if(cmd.args.size() == 2)
 	{
 		for(auto &op: B1CUtils::_un_ops)
@@ -864,6 +884,16 @@ bool B1CUtils::is_used(const B1_CMP_CMD &cmd, const std::wstring &val)
 					return true;
 				}
 			}
+		}
+
+		return false;
+	}
+
+	if(cmd.cmd == L"XARG")
+	{
+		if(cmd.args[0][1].value == val)
+		{
+			return true;
 		}
 
 		return false;
@@ -1528,6 +1558,16 @@ bool B1CUtils::replace_src_with_subs(B1_CMP_CMD &cmd, const std::wstring &val, c
 					to_replace.push_back(&*aa);
 				}
 			}
+		}
+
+		processed = true;
+	}
+
+	if(!processed && cmd.cmd == L"XARG")
+	{
+		if(cmd.args[0][1].value == val)
+		{
+			to_replace.push_back(&cmd.args[0][1]);
 		}
 
 		processed = true;

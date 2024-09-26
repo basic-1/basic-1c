@@ -8,7 +8,7 @@ BASIC1 language program is a sequence of text strings (program lines). BASIC1 co
   
 Line number is a number in the range \[1 ... 65530\]  
   
-Statement is a minimal unit of program which can be processed by compiler. Every statement should start from a statement keyword except for the implicit assignment (`LET` keyword can be omitted). Statement keywords of BASIC1 language are: `BREAK`, `CONTINUE`, `DATA`, `DEF`, `DIM`, `ELSE`, `ELSEIF`, `ERASE`, `FOR`, `GET`, `GOTO`, `GOSUB`, `IF`, `INPUT`, `IOCTL`, `LET`, `NEXT`, `OPTION`, `PRINT`, `PUT`, `READ`, `REM`, `RESTORE`, `RETURN`, `WHILE`, `WEND`.  
+Statement is a minimal unit of program which can be processed by compiler. Every statement should start from a statement keyword except for the implicit assignment (`LET` keyword can be omitted). Statement keywords of BASIC1 language are: `BREAK`, `CONTINUE`, `DATA`, `DEF`, `DIM`, `ELSE`, `ELSEIF`, `ERASE`, `FOR`, `GET`, `GOTO`, `GOSUB`, `IF`, `INPUT`, `IOCTL`, `LET`, `NEXT`, `OPTION`, `PRINT`, `PUT`, `READ`, `REM`, `RESTORE`, `RETURN`, `TRANSFER`, `WHILE`, `WEND`.  
   
 **Examples of program lines:**  
 `REM FOR statement with omitted line number`  
@@ -395,16 +395,20 @@ Here `<loop_var_name>` is a loop control numeric variable name, `<init_value>` a
 `GET` statement reads binary data from input device and stores it in variable(-s) or `BYTE` array(-s). The statement respects network byte order (big-endian) for numeric data.  
   
 **Usage:**  
-`GET [#<device_name>,] <var_name1>[, <var_name2>, ... <var_nameN>]` - syntax for scalar variables.  
-`GET [#<device_name>,] <arr_var_name1>(<lbound1> TO <ubound1>)[, <arr_var_name2>(<lbound2> TO <ubound2>, ... <arr_var_nameN>(<lboundN> TO <uboundN>]` - syntax for subscripted variables (arrays).  
+`GET [#<device_name>,] <var_name1>[, <var_name2>, ... <var_nameN>] [USING XOR(<value_in_out> | [<value_in>], [<value_out>])]` - syntax for scalar variables.  
+`GET [#<device_name>,] <arr_var_name1>(<lbound1> TO <ubound1>)[, <arr_var_name2>(<lbound2> TO <ubound2>, ... <arr_var_nameN>(<lboundN> TO <uboundN>] [USING XOR(<value_in_out> | [<value_in>], [<value_out>])]` - syntax for subscripted variables (arrays).  
   
-Here `<var_name1>` ... `<var_nameN>` are names of variables to write data into and `<device_name>` is an optional device name to read data from. If the device name is not specified the default input device is used. The device must support binary input mode. Allowed data types for input variables are: `BYTE`, `INT`, `WORD` and `LONG`. A special form of `GET` statement allows reading sequence of bytes and store it in a `BYTE` array: to use it specify one-dimensional `BYTE` array name with lower and upper bounds separated with `TO` keyword and enclosed in parentheses.  
+Here `<var_name1>` ... `<var_nameN>` are names of variables to write data into and `<device_name>` is an optional device name to read data from. If the device name is not specified the default input device is used. The device must support binary input mode. Allowed data types for input variables are: `BYTE`, `INT`, `WORD` and `LONG`. A special form of `GET` statement allows reading sequence of bytes and store it in a `BYTE` array: to use it specify one-dimensional `BYTE` array name with lower and upper bounds separated with `TO` keyword and enclosed in parentheses. `USING XOR` clause specifies a `BYTE` value to perform bitwise XOR operation on it and every byte read with the `GET` statement. If a single value `<value_in_out>` is specified in parentheses after `XOR` keyword, the value is used to perform XOR operations on both read and written data (`GET` statement performs input only). If two values `<value_in>` and `<value_out>` are specified, the first value is used for input data and the second one for output (in this case one of two values can be omitted if XOR operation is not needed for input or output data).  
   
 **Examples:**  
 `GET A` 'read a numeric from the default input device and write it into `A` variable  
 `GET #SPI, DAT(I)` 'read a numeric from `SPI` device and write it into `DAT(I)` element of subscripted variable  
 `GET #SPI, DAT1(0 TO 10)` 'read 11 bytes from `SPI` device and store them in `DAT1` array from index 0 to 10 (`DAT1` array data size must be `BYTE`)  
-`GET #SPI, DAT1(I, I + 5)` ' read 6 bytes from `#SPI` device and store them in `BYTE` array starting from index `I`  
+`GET #SPI, DAT1(I, I + 5)` 'read 6 bytes from `#SPI` device and store them in `BYTE` array starting from index `I`  
+`GET A USING XOR(0xFF)` 'read a numeric value, perform XOR operation with 0xFF byte on every its byte and write it into `A` variable  
+`GET A USING XOR(0xFF, 0xAA)` 'the same as previous, 0xAA value is not used because `GET` statement does not perform output operation  
+`GET A USING XOR(0xFF, )` 'the same as previous, an unnecessary value is omitted  
+`GET A USING XOR(, 0xFF)` 'no XOR operation is performed here because a value to XOR with input data is omitted  
   
 ### `IOCTL` statement  
   
@@ -467,9 +471,9 @@ The expression's result data type must be compatible with the variable data type
   
 `OPTION NOCHECK` option disables generating code that checks subscripted variables for being properly created (memory allocated). The check absence causes compiler to produce more compact code but usage of a non-allocated array can lead to software or hardware failure. The option has sense only when `OPTION EXPLICIT` is enabled too.  
   
-`OPTION INPUTDEVICE` specifies default device for `GET` and `INPUT` statements.  
+`OPTION INPUTDEVICE` specifies default device for `GET`, `INPUT` and `TRANSFER` statements.  
   
-`OPTION OUTPUTDEVICE` specifies default device for `PUT` and `PRINT` statements.  
+`OPTION OUTPUTDEVICE` specifies default device for `PUT`, `PRINT` and `TRANSFER` statements.  
   
 **Examples:**:  
 `10 OPTION BASE 1`  
@@ -513,10 +517,10 @@ The statement writes textual data to output device. If device name is not specif
 `PUT` statement writes binary data to output device. The statement respects network byte order (big-endian) for numeric data.  
   
 **Usage:**  
-`PUT [#<device_name>,] <exp1>[, <exp2>, ... <expN>]` - syntax for scalar values.  
-`PUT [#<device_name>,] <arr_var_name1>(<lbound1> TO <ubound1>)[, <arr_var_name2>(<lbound2> TO <ubound2>, ... <arr_var_nameN>(<lboundN> TO <uboundN>]` - syntax for subscripted variables (arrays).  
+`PUT [#<device_name>,] <exp1>[, <exp2>, ... <expN>] [USING XOR(<value_in_out> | [<value_in>], [<value_out>])]` - syntax for scalar values.  
+`PUT [#<device_name>,] <arr_var_name1>(<lbound1> TO <ubound1>)[, <arr_var_name2>(<lbound2> TO <ubound2>, ... <arr_var_nameN>(<lboundN> TO <uboundN>] [USING XOR(<value_in_out> | [<value_in>], [<value_out>])]` - syntax for subscripted variables (arrays).  
   
-The statement calculates specified expressions and writes their values to `<device_name>` device one by one. If the device name is not specified the default output device is used. The device must support binary output mode. Valid data types for the results of an expressions are: `BYTE`, `INT`, `WORD`, `LONG` or `STRING`. A special form of `PUT` statement allows transmitting sequence of bytes stored in `BYTE` array: to use it specify one-dimensional `BYTE` array name with lower and upper bounds separated with `TO` keyword and enclosed in parentheses.  
+The statement calculates specified expressions and writes their values to `<device_name>` device one by one. If the device name is not specified the default output device is used. The device must support binary output mode. Valid data types for the results of an expressions are: `BYTE`, `INT`, `WORD`, `LONG` or `STRING`. A special form of `PUT` statement allows transmitting sequence of bytes stored in `BYTE` array: to use it specify one-dimensional `BYTE` array name with lower and upper bounds separated with `TO` keyword and enclosed in parentheses. `USING XOR` clause specifies a `BYTE` value to perform bitwise XOR operation on it and every byte written with the `PUT` statement. If a single value `<value_in_out>` is specified in parentheses after `XOR` keyword, the value is used to perform XOR operations on both read and written data (`PUT` statement performs output only). If two values `<value_in>` and `<value_out>` are specified, the first value is used for input data and the second one for output (in this case one of two values can be omitted if XOR operation is not needed for input or output data).  
   
 **Examples:**  
 `PUT A` 'writes value of numeric `A` variable to the default output device  
@@ -524,6 +528,10 @@ The statement calculates specified expressions and writes their values to `<devi
 `PUT #SPI, "hello"` 'writes five characters of the specified string to `SPI` device (string length or any kind of terminating character is not written)  
 `PUT #SPI, CBYTE(LEN(S$)), S$` 'writes `S$` string length (one byte) followed by the string data  
 `PUT #SPI, DAT(0 TO 10)` 'writes 11 elements of `DAT` byte array starting from index 0  
+`PUT A USING XOR(0xFF)` 'writes value of numeric `A` variable to the default output device with performing XOR operation on every its byte with 0xFF byte value  
+`PUT A USING XOR(0xAA, 0xFF)` 'the same as previous, 0xAA value is not used because `PUT` statement does not perform input operation  
+`PUT A USING XOR(, 0xFF)` 'the same as previous, an unnecessary value is omitted  
+`PUT A USING XOR(0xFF, )` 'no XOR operation is performed here because a value to XOR with output data is omitted  
   
 ### `REM` statement  
   
@@ -537,15 +545,18 @@ The statement is used to write remarks or comments in program text. Compiler ign
 `TRANSFER` statement performs data transfer over an input/output device in both directions at the same time (for devices that support full-duplex data transmission mode). The statement respects network byte order (big-endian) for numeric data.  
   
 **Usage:**  
-`TRANSFER [#<device_name>,] <var_name1>[, <var_name2>, ... <var_nameN>]` - syntax for scalar variables.  
-`TRANSFER [#<device_name>,] <arr_var_name1>(<lbound1> TO <ubound1>)[, <arr_var_name2>(<lbound2> TO <ubound2>, ... <arr_var_nameN>(<lboundN> TO <uboundN>]` - syntax for subscripted variables (arrays).  
+`TRANSFER [#<device_name>,] <var_name1>[, <var_name2>, ... <var_nameN>] [USING XOR(<value_in_out> | [<value_in>], [<value_out>])]` - syntax for scalar variables.  
+`TRANSFER [#<device_name>,] <arr_var_name1>(<lbound1> TO <ubound1>)[, <arr_var_name2>(<lbound2> TO <ubound2>, ... <arr_var_nameN>(<lboundN> TO <uboundN>] [USING XOR(<value_in_out> | [<value_in>], [<value_out>])]` - syntax for subscripted variables (arrays).  
   
-Here `<var_name1>` ... `<var_nameN>` are names of variables to read data from and to write data into when performing data exchange with the device. `<device_name>` is an optional input/output device name. If the device name is not specified the default device is used (in this case default input device must be the same as default output device). The device must support binary input and output modes. Allowed data types for the variables are: `BYTE`, `INT`, `WORD` and `LONG`. A special form of `TRANSFER` statement allows exchanging data between input/output device and one-dimensional `BYTE` array: to use it specify the array name with lower and upper bounds separated with `TO` keyword and enclosed in parentheses.  
+Here `<var_name1>` ... `<var_nameN>` are names of variables to read data from and to write data into when performing data exchange with the device. `<device_name>` is an optional input/output device name. If the device name is not specified the default device is used (in this case default input device must be the same as default output device). The device must support binary input and output modes. Allowed data types for the variables are: `BYTE`, `INT`, `WORD` and `LONG`. A special form of `TRANSFER` statement allows exchanging data between input/output device and one-dimensional `BYTE` array: to use it specify the array name with lower and upper bounds separated with `TO` keyword and enclosed in parentheses. `USING XOR` clause specifies a `BYTE` value to perform bitwise XOR operation on it and every byte transferred with the statement. If a single value `<value_in_out>` is specified in parentheses after `XOR` keyword, the value is used to perform XOR operations on both read and written data. If two values `<value_in>` and `<value_out>` are specified, the first value is used for input data and the second one for output (in this case one of two values can be omitted if XOR operation is not needed for input or output data).  
   
 **Examples:**  
 `TRANSFER A` 'writes value of numeric `A` variable to the default output device and read value from the default input device into the same `A` variable  
 `TRANSFER #SPI, DAT(I)` 'writes value of `DAT(I)` element of subscripted variable to `SPI` device and then stores a value read from `SPI` into `DAT(I)`  
 `TRANSFER #SPI, DAT(I TO I + 5)` 'sends and receives 6 bytes from `DAT` byte array starting from index `I`  
+`TRANSFER A USING XOR(0xFF)` 'writes value of numeric `A` variable to the default output device and read value from the default input device into the same `A` variable, every written byte is XORed with 0xFF value and every read byte is XORed with 0xFF value too  
+`TRANSFER A USING XOR(0xFF, )` 'the same as previous, but input data is XORed with 0xFF value only  
+`TRANSFER A USING XOR(, 0xFF)` 'the same as previous, but written data is XORed with 0xFF value only  
   
 ### `WHILE`, `WEND` statements  
   
