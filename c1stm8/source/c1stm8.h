@@ -113,6 +113,7 @@ protected:
 
 	std::wstring correct_SP_offset(const std::wstring &arg, int32_t op_size, bool &no_SP_off, int32_t *offset = nullptr) const;
 	bool is_arithm_op(const B1_ASM_OP_STM8 &ao, int32_t &size, bool *uses_SP = nullptr) const;
+	bool is_reg_used(const B1_ASM_OP_STM8 &ao, const std::wstring &reg_name, bool &reg_write_op) const;
 	bool is_reg_used_after(B1_ASM_OPS::const_iterator i, const std::wstring &reg_name, bool branch = false) const;
 
 
@@ -129,5 +130,5 @@ public:
 	C1_T_ERROR Optimize2(bool &changed);
 	C1_T_ERROR Optimize3(bool &changed);
 
-	 C1_T_ERROR Save(const std::string& file_name, bool overwrite_existing = true) override;
+	 C1_T_ERROR Save(const std::string &file_name, bool overwrite_existing = true) override;
 };

@@ -982,10 +982,18 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 		{
 			return B1_RES_ESYNTAX;
 		}
-		cmd.arg_types = (value.find(L"I") == std::wstring::npos ? LVT::LVT_NONE : LVT::LVT_IMMVAL) |
-			(value.find(L"M") == std::wstring::npos ? LVT::LVT_NONE : LVT::LVT_MEMREF) |
-			(value.find(L"S") == std::wstring::npos ? LVT::LVT_NONE : LVT::LVT_STKREF) |
-			(value.find(L"R") == std::wstring::npos ? LVT::LVT_NONE : LVT::LVT_REG);
+
+		if(cmd.data_type == B1Types::B1T_VARREF || cmd.data_type == B1Types::B1T_LABEL || cmd.data_type == B1Types::B1T_TEXT)
+		{
+			cmd.suffix = value;
+		}
+		else
+		{
+			cmd.arg_types = (value.find(L"I") == std::wstring::npos ? LVT::LVT_NONE : LVT::LVT_IMMVAL) |
+				(value.find(L"M") == std::wstring::npos ? LVT::LVT_NONE : LVT::LVT_MEMREF) |
+				(value.find(L"S") == std::wstring::npos ? LVT::LVT_NONE : LVT::LVT_STKREF) |
+				(value.find(L"R") == std::wstring::npos ? LVT::LVT_NONE : LVT::LVT_REG);
+		}
 
 		// predefined values only
 		if(!get_field(line, true, value))

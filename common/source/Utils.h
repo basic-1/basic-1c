@@ -153,6 +153,7 @@ public:
 		bool accepts_data;
 		B1Types data_type;
 		LVT arg_types;
+		std::wstring suffix;
 		bool predef_only;
 		std::map<std::wstring, std::wstring> values;
 		std::wstring def_val;
@@ -179,6 +180,7 @@ public:
 			accepts_data = false;
 			data_type = B1Types::B1T_UNKNOWN;
 			arg_types = LVT::LVT_NONE;
+			suffix.clear();
 			predef_only = true;
 			values.clear();
 			def_val.clear();

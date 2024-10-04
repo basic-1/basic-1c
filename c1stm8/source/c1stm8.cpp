@@ -299,7 +299,6 @@ B1_ASM_OPS::const_iterator C1STM8Compiler::create_asm_op(B1_ASM_OPS &sec, B1_ASM
 	return sec.emplace(where, new B1_ASM_OP_STM8(type, lbl, _comment, is_volatile, is_inline));
 }
 
-
 C1_T_ERROR C1STM8Compiler::stm8_calc_array_size(const B1_CMP_VAR &var, int32_t size1)
 {
 	if(var.fixed_size)
@@ -317,28 +316,28 @@ C1_T_ERROR C1STM8Compiler::stm8_calc_array_size(const B1_CMP_VAR &var, int32_t s
 	}
 	else
 	{
-		add_op(*_curr_code_sec, L"LDW X, (" + var.name + L" + 0x4)", var.is_volatile); //BE SHORT_ADDRESS, CE LONG_ADDRESS
+		add_op(*_curr_code_sec, L"LDW X, (" + var.name + L" + 0x4)", false); //BE SHORT_ADDRESS, CE LONG_ADDRESS
 
 		for(int32_t i = 1; i < var.dim_num; i++)
 		{
-			add_op(*_curr_code_sec, L"PUSHW X", var.is_volatile); //89
+			add_op(*_curr_code_sec, L"PUSHW X", false); //89
 			_stack_ptr += 2;
-			add_op(*_curr_code_sec, L"LDW X, (" + var.name + L" + " + Utils::str_tohex16(4 * i + 4) + L")", var.is_volatile); //BE SHORT_ADDRESS, CE LONG_ADDRESS
-			add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_COM_MUL16", var.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
+			add_op(*_curr_code_sec, L"LDW X, (" + var.name + L" + " + Utils::str_tohex16(4 * i + 4) + L")", false); //BE SHORT_ADDRESS, CE LONG_ADDRESS
+			add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_COM_MUL16", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 			_req_symbols.insert(L"__LIB_COM_MUL16");
-			add_op(*_curr_code_sec, L"ADDW SP, 2", var.is_volatile); //5B BYTE_VALUE
+			add_op(*_curr_code_sec, L"ADDW SP, 2", false); //5B BYTE_VALUE
 			_stack_ptr -= 2;
 		}
 
 		if(size1 == 2)
 		{
-			add_op(*_curr_code_sec, L"SLAW X", var.is_volatile); //58
+			add_op(*_curr_code_sec, L"SLAW X", false); //58
 		}
 		else
 		if(size1 == 4)
 		{
-			add_op(*_curr_code_sec, L"SLAW X", var.is_volatile); //58
-			add_op(*_curr_code_sec, L"SLAW X", var.is_volatile); //58
+			add_op(*_curr_code_sec, L"SLAW X", false); //58
+			add_op(*_curr_code_sec, L"SLAW X", false); //58
 		}
 	}
 
@@ -374,11 +373,11 @@ C1_T_ERROR C1STM8Compiler::stm8_st_gf(const B1_CMP_VAR &var, bool is_ma)
 			if(var.type == B1Types::B1T_STRING)
 			{
 				// release string
-				add_op(*_curr_code_sec, L"LDW X, (" + v + L")", var.is_volatile); //BE SHORT_ADDRESS, CE LONG_ADDRESS
-				add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_STR_RLS", var.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
+				add_op(*_curr_code_sec, L"LDW X, (" + v + L")", false); //BE SHORT_ADDRESS, CE LONG_ADDRESS
+				add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_STR_RLS", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_STR_RLS");
 			}
-			add_op(*_curr_code_sec, L"CLRW X", var.is_volatile); //5F
+			add_op(*_curr_code_sec, L"CLRW X", false); //5F
 			add_op(*_curr_code_sec, L"LDW (" + v + L"), X", var.is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
 			if(var.type == B1Types::B1T_LONG)
 			{
@@ -406,7 +405,7 @@ C1_T_ERROR C1STM8Compiler::stm8_st_gf(const B1_CMP_VAR &var, bool is_ma)
 				return err;
 			}
 
-			add_op(*_curr_code_sec, L"PUSHW X", var.is_volatile); //89
+			add_op(*_curr_code_sec, L"PUSHW X", false); //89
 			_stack_ptr += 2;
 		}
 
@@ -414,43 +413,43 @@ C1_T_ERROR C1STM8Compiler::stm8_st_gf(const B1_CMP_VAR &var, bool is_ma)
 		{
 			if(is_ma)
 			{
-				add_op(*_curr_code_sec, L"LDW X, " + v, var.is_volatile); //AE WORD_VALUE
+				add_op(*_curr_code_sec, L"LDW X, " + v, false); //AE WORD_VALUE
 			}
 			else
 			{
-				add_op(*_curr_code_sec, L"LDW X, (" + v + L")", var.is_volatile); //BE SHORT_ADDRESS, CE LONG_ADDRESS
+				add_op(*_curr_code_sec, L"LDW X, (" + v + L")", false); //BE SHORT_ADDRESS, CE LONG_ADDRESS
 			}
-			add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_STR_ARR_DAT_RLS", var.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
+			add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_STR_ARR_DAT_RLS", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 			_req_symbols.insert(L"__LIB_STR_ARR_DAT_RLS");
 		}
 
 		if(is_ma)
 		{
-			add_op(*_curr_code_sec, L"LDW X, " + v, var.is_volatile); //AE WORD_VALUE
-			add_op(*_curr_code_sec, L"PUSH 0", var.is_volatile); //4B BYTE_VALUE
+			add_op(*_curr_code_sec, L"LDW X, " + v, false); //AE WORD_VALUE
+			add_op(*_curr_code_sec, L"PUSH 0", false); //4B BYTE_VALUE
 			_stack_ptr += 1;
-			add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_MEM_SET", var.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
+			add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_MEM_SET", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 			_req_symbols.insert(L"__LIB_MEM_SET");
-			add_op(*_curr_code_sec, L"ADDW SP, 3", var.is_volatile); //5B BYTE_VALUE
+			add_op(*_curr_code_sec, L"ADDW SP, 3", false); //5B BYTE_VALUE
 			_stack_ptr -= 3;
 		}
 		else
 		{
 			add_op(*_curr_code_sec, L"LDW X, (" + v + L")", var.is_volatile); //BE SHORT_ADDRESS, CE LONG_ADDRESS
-			add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_MEM_FRE", var.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
+			add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_MEM_FRE", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 			_req_symbols.insert(L"__LIB_MEM_FRE");
-			add_op(*_curr_code_sec, L"CLRW X", var.is_volatile); //5F
-			add_op(*_curr_code_sec, L"LDW (" + v + L"), X", var.is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
+			add_op(*_curr_code_sec, L"CLRW X", false); //5F
+			add_op(*_curr_code_sec, L"LDW (" + v + L"), X", false); //BF SHORT_ADDRESS CF LONG_ADDRESS
 			if(var.type == B1Types::B1T_STRING)
 			{
-				add_op(*_curr_code_sec, L"POPW X", var.is_volatile); //85
+				add_op(*_curr_code_sec, L"POPW X", false); //85
 				_stack_ptr -= 2;
 			}
 		}
 
 		if(!is_ma)
 		{
-			add_lbl(*_curr_code_sec, _curr_code_sec->cend(), label, var.is_volatile);
+			add_lbl(*_curr_code_sec, _curr_code_sec->cend(), label, false);
 			_all_symbols.insert(label);
 		}
 	}
@@ -1251,6 +1250,7 @@ C1_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types req
 			{
 				rvt = LVT::LVT_REG;
 
+				// call the function
 				add_op(*_curr_code_sec, _call_stmt + L" " + fn->iname, false); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(fn->iname);
 
@@ -1302,7 +1302,7 @@ C1_T_ERROR C1STM8Compiler::stm8_arr_alloc_def(const B1_CMP_VAR &var)
 	const auto label = emit_label(true);
 	add_op(*_curr_code_sec, L"LDW X, (" + var.name + L")", var.is_volatile); //BE SHORT_ADDRESS, CE LONG_ADDRESS
 	_req_symbols.insert(var.name);
-	add_op(*_curr_code_sec, L"JRNE " + label, var.is_volatile); //26 SIGNED_BYTE_OFFSET
+	add_op(*_curr_code_sec, L"JRNE " + label, false); //26 SIGNED_BYTE_OFFSET
 	_req_symbols.insert(label);
 
 	if(b1_opt_explicit_val == 0)
@@ -1314,54 +1314,54 @@ C1_T_ERROR C1STM8Compiler::stm8_arr_alloc_def(const B1_CMP_VAR &var)
 
 		if(var.type == B1Types::B1T_BYTE)
 		{
-			add_op(*_curr_code_sec, L"LDW X, " + Utils::str_tohex16(size), var.is_volatile); //AE WORD_VALUE
+			add_op(*_curr_code_sec, L"LDW X, " + Utils::str_tohex16(size), false); //AE WORD_VALUE
 		}
 		else
 		if(var.type == B1Types::B1T_INT || var.type == B1Types::B1T_WORD || var.type == B1Types::B1T_STRING)
 		{
-			add_op(*_curr_code_sec, L"LDW X, " + Utils::str_tohex16(size * 2), var.is_volatile); //AE WORD_VALUE
+			add_op(*_curr_code_sec, L"LDW X, " + Utils::str_tohex16(size * 2), false); //AE WORD_VALUE
 		}
 		else
 		{
 			// LONG type
-			add_op(*_curr_code_sec, L"LDW X, " + Utils::str_tohex16(size * 4), var.is_volatile); //AE WORD_VALUE
+			add_op(*_curr_code_sec, L"LDW X, " + Utils::str_tohex16(size * 4), false); //AE WORD_VALUE
 		}
 
-		add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_MEM_ALC", var.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
+		add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_MEM_ALC", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 		_req_symbols.insert(L"__LIB_MEM_ALC");
 
 		// save address
-		add_op(*_curr_code_sec, L"LDW (" + var.name + L"), X", var.is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
+		add_op(*_curr_code_sec, L"LDW (" + var.name + L"), X", false); //BF SHORT_ADDRESS CF LONG_ADDRESS
 
 		// save array sizes if necessary
 		if(!var.fixed_size)
 		{
-			add_op(*_curr_code_sec, L"CLRW X", var.is_volatile); //5F
+			add_op(*_curr_code_sec, L"CLRW X", false); //5F
 			if(b1_opt_base_val == 1)
 			{
-				add_op(*_curr_code_sec, L"INCW X", var.is_volatile); //5C
+				add_op(*_curr_code_sec, L"INCW X", false); //5C
 			}
 			for(int i = 0; i < dimnum; i++)
 			{
-				add_op(*_curr_code_sec, L"LDW (" + var.name + L" + " + Utils::str_tohex16((i + 1) * 4 - 2) + L"), X", var.is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
+				add_op(*_curr_code_sec, L"LDW (" + var.name + L" + " + Utils::str_tohex16((i + 1) * 4 - 2) + L"), X", false); //BF SHORT_ADDRESS CF LONG_ADDRESS
 			}
 
-			add_op(*_curr_code_sec, L"LDW X, " + Utils::str_tohex16(size1), var.is_volatile); //AE WORD_VALUE
+			add_op(*_curr_code_sec, L"LDW X, " + Utils::str_tohex16(size1), false); //AE WORD_VALUE
 			for(int i = 0; i < dimnum; i++)
 			{
-				add_op(*_curr_code_sec, L"LDW (" + var.name + L" + " + Utils::str_tohex16((i + 1) * 4) + L"), X", var.is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
+				add_op(*_curr_code_sec, L"LDW (" + var.name + L" + " + Utils::str_tohex16((i + 1) * 4) + L"), X", false); //BF SHORT_ADDRESS CF LONG_ADDRESS
 			}
 		}
 	}
 	else
 	{
-		add_op(*_curr_code_sec, L"MOV (__LIB_ERR_LAST_ERR), " + _RTE_error_names[B1C_T_RTERROR::B1C_RTE_ARR_UNALLOC], var.is_volatile); //35 BYTE_VALUE LONG_ADDRESS
+		add_op(*_curr_code_sec, L"MOV (__LIB_ERR_LAST_ERR), " + _RTE_error_names[B1C_T_RTERROR::B1C_RTE_ARR_UNALLOC], false); //35 BYTE_VALUE LONG_ADDRESS
 		_init_files.push_back(L"__LIB_ERR_LAST_ERR");
-		add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_ERR_HANDLER", var.is_volatile); //20 SIGNED_BYTE_OFFSET
+		add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_ERR_HANDLER", false); //20 SIGNED_BYTE_OFFSET
 		_req_symbols.insert(L"__LIB_ERR_HANDLER");
 	}
 
-	add_lbl(*_curr_code_sec, _curr_code_sec->cend(), label, var.is_volatile);
+	add_lbl(*_curr_code_sec, _curr_code_sec->cend(), label, false);
 	_all_symbols.insert(label);
 
 	_allocated_arrays.insert(var.name);
@@ -1369,8 +1369,8 @@ C1_T_ERROR C1STM8Compiler::stm8_arr_alloc_def(const B1_CMP_VAR &var)
 	return C1_T_ERROR::C1_RES_OK;
 }
 
-// known size and known arguments: no code, offset is returned
-// known size and unknown arguments: code, no offset
+// fixed size and known arguments: no code, offset is returned
+// fixed size and unknown arguments: code, no offset
 // if the function sets imm_offset to true, offset variable contains offset from array's base address
 C1_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_offset, int32_t &offset)
 {
@@ -1444,12 +1444,12 @@ C1_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_offs
 		{
 			if(var->second.dims[0] != 0)
 			{
-				add_op(*_curr_code_sec, L"SUBW X, " + Utils::str_tohex16(var->second.dims[0]), var->second.is_volatile); //1D WORD_VALUE
+				add_op(*_curr_code_sec, L"SUBW X, " + Utils::str_tohex16(var->second.dims[0]), false); //1D WORD_VALUE
 			}
 		}
 		else
 		{
-			add_op(*_curr_code_sec, L"SUBW X, (" + arg[0].value + L" + " + Utils::str_tohex16(2) + L")", var->second.is_volatile); //72 B0 LONG_ADDRESS
+			add_op(*_curr_code_sec, L"SUBW X, (" + arg[0].value + L" + 0x2)", false); //72 B0 LONG_ADDRESS
 		}
 	}
 	else
@@ -1459,7 +1459,7 @@ C1_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_offs
 		dims_size = 1;
 
 		// offset
-		add_op(*_curr_code_sec, L"PUSHW X", var->second.is_volatile); //89
+		add_op(*_curr_code_sec, L"PUSHW X", false); //89
 		_stack_ptr += 2;
 
 		for(int32_t i = (arg.size() - 2); i >= 0; i--)
@@ -1468,8 +1468,9 @@ C1_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_offs
 
 			if(i != (arg.size() - 2))
 			{
-				add_op(*_curr_code_sec, L"LDW X, " + Utils::str_tohex16(dims_size), var->second.is_volatile); //AE WORD_VALUE
-				add_op(*_curr_code_sec, L"PUSHW X", var->second.is_volatile); //89
+				auto dsval = Utils::str_tohex16(dims_size);
+				add_op(*_curr_code_sec, L"PUSH " + dsval + L".ll", false); //4B BYTE_VALUE
+				add_op(*_curr_code_sec, L"PUSH " + dsval + L".lh", false); //4B BYTE_VALUE
 				_stack_ptr += 2;
 			}
 
@@ -1481,40 +1482,40 @@ C1_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_offs
 
 			if(var->second.dims[i * 2] != 0)
 			{
-				add_op(*_curr_code_sec, L"SUBW X, " + Utils::str_tohex16(var->second.dims[i * 2]), var->second.is_volatile); //1D WORD_VALUE
+				add_op(*_curr_code_sec, L"SUBW X, " + Utils::str_tohex16(var->second.dims[i * 2]), false); //1D WORD_VALUE
 			}
 
 			if(i != (arg.size() - 2))
 			{
-				add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_COM_MUL16", var->second.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
+				add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_COM_MUL16", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_COM_MUL16");
-				add_op(*_curr_code_sec, L"ADDW X, (3, SP)", var->second.is_volatile); //72 FB BYTE_OFFSET
-				add_op(*_curr_code_sec, L"LDW (3, SP), X", var->second.is_volatile); //1F BYTE_OFFSET
-				add_op(*_curr_code_sec, L"POPW X", var->second.is_volatile); //85
+				add_op(*_curr_code_sec, L"ADDW X, (3, SP)", false); //72 FB BYTE_OFFSET
+				add_op(*_curr_code_sec, L"LDW (3, SP), X", false); //1F BYTE_OFFSET
+				add_op(*_curr_code_sec, L"POPW X", false); //85
 				_stack_ptr -= 2;
 			}
 			else
 			{
-				add_op(*_curr_code_sec, L"LDW (1, SP), X", var->second.is_volatile); //1F BYTE_OFFSET
+				add_op(*_curr_code_sec, L"LDW (1, SP), X", false); //1F BYTE_OFFSET
 			}
 
 			dims_size *= var->second.dims[i * 2 + 1] - var->second.dims[i * 2] + 1;
 		}
 
-		add_op(*_curr_code_sec, L"POPW X", var->second.is_volatile); //85
+		add_op(*_curr_code_sec, L"POPW X", false); //85
 		_stack_ptr -= 2;
 	}
 	else
 	{
 		// multidimensional array of any size
 		// offset
-		add_op(*_curr_code_sec, L"CLRW X", var->second.is_volatile); //5F
-		add_op(*_curr_code_sec, L"PUSHW X", var->second.is_volatile); //89
+		add_op(*_curr_code_sec, L"CLRW X", false); //5F
+		add_op(*_curr_code_sec, L"PUSHW X", false); //89
 		_stack_ptr += 2;
 
 		// dimensions size
-		add_op(*_curr_code_sec, L"INCW X", var->second.is_volatile); //5C
-		add_op(*_curr_code_sec, L"PUSHW X", var->second.is_volatile); //89
+		add_op(*_curr_code_sec, L"INCW X", false); //5C
+		add_op(*_curr_code_sec, L"PUSHW X", false); //89
 		_stack_ptr += 2;
 
 		for(int32_t i = (arg.size() - 2); i >= 0; i--)
@@ -1527,29 +1528,29 @@ C1_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_offs
 				return err;
 			}
 
-			add_op(*_curr_code_sec, L"SUBW X, (" + arg[0].value + L" + " + Utils::str_tohex16(2 + i * 4) + L")", var->second.is_volatile); //72 B0 LONG_ADDRESS
+			add_op(*_curr_code_sec, L"SUBW X, (" + arg[0].value + L" + " + Utils::str_tohex16(2 + i * 4) + L")", false); //72 B0 LONG_ADDRESS
 
 			if(i != (arg.size() - 2))
 			{
-				add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_COM_MUL16", var->second.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
+				add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_COM_MUL16", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_COM_MUL16");
-				add_op(*_curr_code_sec, L"ADDW X, (3, SP)", var->second.is_volatile); //72 FB BYTE_OFFSET
+				add_op(*_curr_code_sec, L"ADDW X, (3, SP)", false); //72 FB BYTE_OFFSET
 			}
 			
-			add_op(*_curr_code_sec, L"LDW (3, SP), X", var->second.is_volatile); //1F BYTE_OFFSET
+			add_op(*_curr_code_sec, L"LDW (3, SP), X", false); //1F BYTE_OFFSET
 
 			if(i != 0)
 			{
-				add_op(*_curr_code_sec, L"LDW X, (" + arg[0].value + L" + " + Utils::str_tohex16(2 + 2 + i * 4) + L")", var->second.is_volatile); //BE SHORT_ADDRESS CE LONG_ADDRESS
-				add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_COM_MUL16", var->second.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
+				add_op(*_curr_code_sec, L"LDW X, (" + arg[0].value + L" + " + Utils::str_tohex16(2 + 2 + i * 4) + L")", false); //BE SHORT_ADDRESS CE LONG_ADDRESS
+				add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_COM_MUL16", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_COM_MUL16");
-				add_op(*_curr_code_sec, L"LDW (1, SP), X", var->second.is_volatile); //1F BYTE_OFFSET
+				add_op(*_curr_code_sec, L"LDW (1, SP), X", false); //1F BYTE_OFFSET
 			}
 		}
 
-		add_op(*_curr_code_sec, L"POPW X", var->second.is_volatile); //85
+		add_op(*_curr_code_sec, L"POPW X", false); //85
 		_stack_ptr -= 2;
-		add_op(*_curr_code_sec, L"POPW X", var->second.is_volatile); //85
+		add_op(*_curr_code_sec, L"POPW X", false); //85
 		_stack_ptr -= 2;
 	}
 
@@ -2246,7 +2247,7 @@ C1_T_ERROR C1STM8Compiler::stm8_init_array(const B1_CMP_CMD &cmd, const B1_CMP_V
 				return err;
 			}
 			// save lbound
-			add_op(*_curr_code_sec, L"LDW (" + cmd.args[0][0].value + L" + " + Utils::str_tohex16((i * 2 + 1) * 2) + L"), X", var.is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
+			add_op(*_curr_code_sec, L"LDW (" + cmd.args[0][0].value + L" + " + Utils::str_tohex16((i * 2 + 1) * 2) + L"), X", false); //BF SHORT_ADDRESS CF LONG_ADDRESS
 
 			// ubound
 			err = stm8_load(cmd.args[2 + i * 2 + 1], B1Types::B1T_INT, LVT::LVT_REG);
@@ -2255,30 +2256,30 @@ C1_T_ERROR C1STM8Compiler::stm8_init_array(const B1_CMP_CMD &cmd, const B1_CMP_V
 				return err;
 			}
 			// subtract lbound value
-			add_op(*_curr_code_sec, L"SUBW X, (" + cmd.args[0][0].value + L" + " + Utils::str_tohex16((i * 2 + 1) * 2) + L")", var.is_volatile); //72 B0 WORD_OFFSET
-			add_op(*_curr_code_sec, L"INCW X", var.is_volatile); //5C
+			add_op(*_curr_code_sec, L"SUBW X, (" + cmd.args[0][0].value + L" + " + Utils::str_tohex16((i * 2 + 1) * 2) + L")", false); //72 B0 WORD_OFFSET
+			add_op(*_curr_code_sec, L"INCW X", false); //5C
 			// save dimension size
-			add_op(*_curr_code_sec, L"LDW (" + cmd.args[0][0].value + L" + " + Utils::str_tohex16((i * 2 + 2) * 2) + L"), X", var.is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
+			add_op(*_curr_code_sec, L"LDW (" + cmd.args[0][0].value + L" + " + Utils::str_tohex16((i * 2 + 2) * 2) + L"), X", false); //BF SHORT_ADDRESS CF LONG_ADDRESS
 
 			if(i != 0)
 			{
-				add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_COM_MUL16", var.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
+				add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_COM_MUL16", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 				_req_symbols.insert(L"__LIB_COM_MUL16");
 				
 				if(i == dims - 1)
 				{
-					add_op(*_curr_code_sec, L"ADDW SP, 2", var.is_volatile); //5B BYTE_VALUE
+					add_op(*_curr_code_sec, L"ADDW SP, 2", false); //5B BYTE_VALUE
 					_stack_ptr -= 2;
 				}
 				else
 				{
-					add_op(*_curr_code_sec, L"LDW (1, SP), X", var.is_volatile); //1F BYTE_OFFSET
+					add_op(*_curr_code_sec, L"LDW (1, SP), X", false); //1F BYTE_OFFSET
 				}
 			}
 
 			if(i == 0 && i != dims - 1)
 			{
-				add_op(*_curr_code_sec, L"PUSHW X", var.is_volatile); //89
+				add_op(*_curr_code_sec, L"PUSHW X", false); //89
 				_stack_ptr += 2;
 			}
 		}
@@ -2286,14 +2287,14 @@ C1_T_ERROR C1STM8Compiler::stm8_init_array(const B1_CMP_CMD &cmd, const B1_CMP_V
 		if(data_size == 2)
 		{
 			// 2-byte types: data size = arr. size * 2
-			add_op(*_curr_code_sec, L"SLAW X", var.is_volatile); //58
+			add_op(*_curr_code_sec, L"SLAW X", false); //58
 		}
 		else
 		if(data_size == 4)
 		{
 			// 4-byte types: data size = arr. size * 4
-			add_op(*_curr_code_sec, L"SLAW X", var.is_volatile); //58
-			add_op(*_curr_code_sec, L"SLAW X", var.is_volatile); //58
+			add_op(*_curr_code_sec, L"SLAW X", false); //58
+			add_op(*_curr_code_sec, L"SLAW X", false); //58
 		}
 	}
 
@@ -2306,13 +2307,13 @@ C1_T_ERROR C1STM8Compiler::stm8_st_ga(const B1_CMP_CMD &cmd, const B1_CMP_VAR &v
 	add_op(*_curr_code_sec, L"LDW X, (" + cmd.args[0][0].value + L")", var.is_volatile); //BE SHORT_ADDRESS CE LONG_ADDRESS
 	_req_symbols.insert(cmd.args[0][0].value);
 	const auto label = emit_label(true);
-	add_op(*_curr_code_sec, L"JREQ " + label, var.is_volatile); //27 SIGNED_BYTE_OFFSET
+	add_op(*_curr_code_sec, L"JREQ " + label, false); //27 SIGNED_BYTE_OFFSET
 	_req_symbols.insert(label);
-	add_op(*_curr_code_sec, L"MOV (__LIB_ERR_LAST_ERR), " + _RTE_error_names[B1C_T_RTERROR::B1C_RTE_ARR_ALLOC], var.is_volatile); //35 BYTE_VALUE LONG_ADDRESS
+	add_op(*_curr_code_sec, L"MOV (__LIB_ERR_LAST_ERR), " + _RTE_error_names[B1C_T_RTERROR::B1C_RTE_ARR_ALLOC], false); //35 BYTE_VALUE LONG_ADDRESS
 	_init_files.push_back(L"__LIB_ERR_LAST_ERR");
-	add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_ERR_HANDLER", var.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
+	add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_ERR_HANDLER", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 	_req_symbols.insert(L"__LIB_ERR_HANDLER");
-	add_lbl(*_curr_code_sec, _curr_code_sec->cend(), label, var.is_volatile);
+	add_lbl(*_curr_code_sec, _curr_code_sec->cend(), label, false);
 	_all_symbols.insert(label);
 
 	auto err = stm8_init_array(cmd, var);
@@ -2321,11 +2322,11 @@ C1_T_ERROR C1STM8Compiler::stm8_st_ga(const B1_CMP_CMD &cmd, const B1_CMP_VAR &v
 		return err;
 	}
 
-	add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_MEM_ALC", var.is_volatile); //AD SIGNED_BYTE_OFFSET (CALLR)
+	add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_MEM_ALC", false); //AD SIGNED_BYTE_OFFSET (CALLR)
 	_req_symbols.insert(L"__LIB_MEM_ALC");
 
 	// save address
-	add_op(*_curr_code_sec, L"LDW (" + cmd.args[0][0].value + L"), X", var.is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
+	add_op(*_curr_code_sec, L"LDW (" + cmd.args[0][0].value + L"), X", false); //BF SHORT_ADDRESS CF LONG_ADDRESS
 
 	return C1_T_ERROR::C1_RES_OK;
 }
@@ -5204,6 +5205,11 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 
 		if(cmd.cmd == L"IOCTL")
 		{
+			if(_out_src_lines)
+			{
+				_comment = Utils::str_trim(_src_lines[cmd.src_line_id]);
+			}
+
 			auto err = stm8_write_ioctl(ci);
 			if(err != C1_T_ERROR::C1_RES_OK)
 			{
@@ -6442,6 +6448,76 @@ bool C1STM8Compiler::is_arithm_op(const B1_ASM_OP_STM8 &ao, int32_t &size, bool 
 }
 
 // for A, X and Y registers
+bool C1STM8Compiler::is_reg_used(const B1_ASM_OP_STM8 &ao, const std::wstring &reg_name, bool &reg_write_op) const
+{
+	reg_write_op = false;
+
+	if(ao._type == AOT::AOT_LABEL)
+	{
+		return false;
+	}
+	if(!ao.Parse())
+	{
+		return true;
+	}
+	if(ao._op == L"JRA" || ao._op == L"JP" || ao._op == L"JPF" || ao._op == L"JRT" || ((ao._op.size() > 2 && ao._op[0] == L'J' && ao._op[1] == L'R') || ao._op == L"BTJF" || ao._op == L"BTJT"))
+	{
+		return true;
+	}
+	if(ao._op == L"CALLR" || ao._op == L"CALL" || ao._op == L"CALLF")
+	{
+		return true;
+	}
+	if((ao._op == L"RLWA" || ao._op == L"RRWA") && reg_name == L"A")
+	{
+		return true;
+	}
+	if((ao._op == L"LD" || ao._op == L"LDW" || ao._op == L"LDF") && ao._args[0] == reg_name && ao._args[1] != L"(" + reg_name + L")" && ao._args[1].find(L"," + reg_name + L")") == std::wstring::npos)
+	{
+		reg_write_op = true;
+		return false;
+	}
+	if((ao._op == L"CLR" || ao._op == L"CLRW") && ao._args[0] == reg_name)
+	{
+		reg_write_op = true;
+		return false;
+	}
+	if((ao._op == L"POP" || ao._op == L"POPW") && ao._args[0] == reg_name)
+	{
+		reg_write_op = true;
+		return false;
+	}
+	if(ao._op == L"RET" || ao._op == L"RETF" || ao._op == L"IRET" || ao._op == L"TRAP")
+	{
+		reg_write_op = true;
+		return false;
+	}
+	for(auto &a: ao._args)
+	{
+		if(a == reg_name)
+		{
+			return true;
+		}
+
+		if((reg_name == L"X" || reg_name == L"Y") && (a == L"(" + reg_name + L")" || a.find(L"," + reg_name + L")") != std::wstring::npos))
+		{
+			return true;
+		}
+	}
+	if(ao._op == L"EXG" && ((reg_name == L"X" && ao._args[1] == L"XL") || (reg_name == L"Y" && ao._args[1] == L"YL")))
+	{
+		return true;
+	}
+
+	if(ao._op == L"LD" && ((reg_name == L"X" && (ao._args[1] == L"XL" || ao._args[1] == L"XH")) || (reg_name == L"Y" && (ao._args[1] == L"YL" || ao._args[1] == L"YH"))))
+	{
+		return true;
+	}
+
+	return false;
+}
+
+// for A, X and Y registers
 bool C1STM8Compiler::is_reg_used_after(B1_ASM_OPS::const_iterator i, const std::wstring &reg_name, bool branch /*= false*/) const
 {
 	int n = 0;
@@ -6459,6 +6535,9 @@ bool C1STM8Compiler::is_reg_used_after(B1_ASM_OPS::const_iterator i, const std::
 		{
 			return true;
 		}
+
+		bool write_op = false;
+		bool reg_used = is_reg_used(ao, reg_name, write_op);
 
 		if(ao._op == L"JRA" || ao._op == L"JP" || ao._op == L"JPF" || ao._op == L"JRT")
 		{
@@ -6492,57 +6571,9 @@ bool C1STM8Compiler::is_reg_used_after(B1_ASM_OPS::const_iterator i, const std::
 			continue;
 		}
 
-		if(ao._op == L"CALLR" || ao._op == L"CALL" || ao._op == L"CALLF")
+		if(reg_used || write_op)
 		{
-			return true;
-		}
-
-		if((ao._op == L"RLWA" || ao._op == L"RRWA") && reg_name == L"A")
-		{
-			return true;
-		}
-
-		if((ao._op == L"LD" || ao._op == L"LDW" || ao._op == L"LDF") && ao._args[0] == reg_name)
-		{
-			return false;
-		}
-
-		if((ao._op == L"CLR" || ao._op == L"CLRW") && ao._args[0] == reg_name)
-		{
-			return false;
-		}
-
-		if((ao._op == L"POP" || ao._op == L"POPW") && ao._args[0] == reg_name)
-		{
-			return false;
-		}
-
-		if(ao._op == L"RET" || ao._op == L"RETF" || ao._op == L"IRET" || ao._op == L"TRAP")
-		{
-			return false;
-		}
-
-		for(auto &a: ao._args)
-		{
-			if(a == reg_name)
-			{
-				return true;
-			}
-
-			if((reg_name == L"X" || reg_name == L"Y") && (a == L"(" + reg_name + L")" || a.find(L"," + reg_name + L")") != std::wstring::npos))
-			{
-				return true;
-			}
-		}
-
-		if(ao._op == L"EXG" && ((reg_name == L"X" && ao._args[1] == L"XL") || (reg_name == L"Y" && ao._args[1] == L"YL")))
-		{
-			return true;
-		}
-
-		if(ao._op == L"LD" && ((reg_name == L"X" && (ao._args[1] == L"XL" || ao._args[1] == L"XH")) || (reg_name == L"Y" && (ao._args[1] == L"YL" || ao._args[1] == L"YH"))))
-		{
-			return true;
+			return reg_used;
 		}
 	}
 
@@ -6833,23 +6864,6 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 		int i_size = 0;
 		bool i_arithm_op = is_arithm_op(ao, i_size);
 
-		/*rule_id++;
-		update_opt_rule_usage_stat(rule_id, true);
-		if (!ao._volatile && i_arithm_op &&
-			((i_size == 1 && ao._args[0] == L"A" && aon1._op == L"LD" && aon1._args[0] == ao._args[0]) ||
-			(i_size == 2 && (ao._args[0] == L"X" || ao._args[0] == L"Y") && aon1._op == L"LDW" && aon1._args[0] == ao._args[0] && aon1._args[1] != L"(" + ao._args[0] + L")" && aon1._args[1].find(L"," + ao._args[0] + L")") == std::wstring::npos))
-			)
-		{
-			// -CLR/CLRW/LD/LDW... <reg>, <smth>
-			// LD/LDW <reg>, <smth not depending on reg>
-			_code_sec.erase(i);
-			i = next1;
-
-			update_opt_rule_usage_stat(rule_id);
-			changed = true;
-			continue;
-		}*/
-
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
 		if(!ao._volatile && i_arithm_op && i_size == 1 && ao._args[0].front() == L'(' && (aon1._op == L"LD" || aon1._op == L"MOV") && ao._args[0] == aon1._args[0])
@@ -7029,6 +7043,32 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 			update_opt_rule_usage_stat(rule_id);
 			changed = true;
 			continue;
+		}
+
+		rule_id++;
+		update_opt_rule_usage_stat(rule_id, true);
+		if ((ao._op == L"LDW" && ao._args[0] == L"X") &&
+			(aon1._op == L"SUBW" && aon1._args[0] == L"X") &&
+			(aon2._op == L"INCW" && aon2._args[0] == L"X")
+			)
+		{
+			// LDW X, <imm>
+			// SUBW X, <smth>
+			// INCW X
+			// ->
+			// LDW X, <imm> + 1
+			// SUBW X, <smth>
+			int32_t n;
+			if (Utils::str2int32(ao._args[1], n) == B1_RES_OK)
+			{
+				ao._data = L"LDW X, " + ao._args[1] + L" + 1";
+				ao._parsed = false;
+				_code_sec.erase(next2);
+
+				update_opt_rule_usage_stat(rule_id);
+				changed = true;
+				continue;
+			}
 		}
 
 
@@ -7472,29 +7512,6 @@ C1_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 			}
 		}
 
-		/*rule_id++;
-		update_opt_rule_usage_stat(rule_id, true);
-		if((ao._op == L"LDW" || ao._op == L"LD") && ao._op == aon1._op && ao._args == aon1._args)
-		{
-			if(!ao._volatile)
-			{
-				_code_sec.erase(i);
-				i = next1;
-
-				update_opt_rule_usage_stat(rule_id);
-				changed = true;
-				continue;
-			}
-			else
-			if(!aon1._volatile)
-			{
-				_code_sec.erase(next1);
-
-				update_opt_rule_usage_stat(rule_id);
-				changed = true;
-				continue;
-			}
-		}*/
 
 		int i_size = 0;
 		bool i_arithm_op = is_arithm_op(ao, i_size);
@@ -7695,6 +7712,35 @@ C1_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
+		if ((ao._op == L"LDW" && ao._args[1] == L"X") &&
+			(aon1._op == L"LDW" && aon1._args[0] == L"X") &&
+			(!aon2._volatile && aon2._op == L"SUBW" && aon2._args[0] == L"X") &&
+			(ao._args[0] == aon2._args[1])
+			)
+		{
+			// LDW <smth>, X
+			// LDW X, <imm>
+			// SUBW X, <smth>
+			// ->
+			// LDW <smth>, X
+			// SUBW X, <imm>
+			// NEGW X
+			int32_t n;
+			if (Utils::str2int32(aon1._args[1], n) == B1_RES_OK)
+			{
+				aon1._data = L"SUBW X, " + aon1._args[1];
+				aon1._parsed = false;
+				aon2._data = L"NEGW X";
+				aon2._parsed = false;
+
+				update_opt_rule_usage_stat(rule_id);
+				changed = true;
+				continue;
+			}
+		}
+
+		rule_id++;
+		update_opt_rule_usage_stat(rule_id, true);
 		if (!ao._volatile &&
 			(((ao._op == L"LD" && aon1._op == L"LD") && (aon2._op == L"ADD" || aon2._op == L"AND" || aon2._op == L"OR" || aon2._op == L"XOR")) ||
 				((ao._op == L"LDW" && aon1._op == L"LDW") && (aon2._op == L"ADDW") &&
@@ -7870,59 +7916,36 @@ C1_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 			continue;
 		}
 
-		/*rule_id++;
+		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
-		if(
-			((ao._op == L"LD" && aon1._op == L"LD" && aon3._op == L"LD") && (aon2._op == L"ADD" || aon2._op == L"AND" || aon2._op == L"OR" || aon2._op == L"XOR")) &&
-			(ao._args[0].find(L",SP)") != std::wstring::npos) &&
-			((ao._args[1] == L"A" && aon1._args[0] == L"A" && aon2._args[0] == L"A" && aon3._args[1] == L"A") && ao._args[0] == aon2._args[1] && aon1._args[1] == aon3._args[0])
+		if (
+			((ao._op == L"CLRW" || ao._op == L"LDW") && ao._args[0] == L"X") &&
+			(aon1._op == L"LDW" && aon1._args[1] == L"X") &&
+			(aon2._op == L"SUBW" && aon2._args[0] == L"X") &&
+			(aon3._op == L"NEGW" && aon3._args[0] == L"X")
 			)
 		{
-			// LD (0x1, SP), A
-			// LD A, (0x2, SP)
-			// ADD/AND/OR/XOR A, (0x1, SP)
-			// LD (0x2, SP), A
+			// CLRW X or LDW X, <imm1>
+			// LDW <smth>, X
+			// SUBW X, <imm2>
+			// NEGW X
 			// ->
-			// LD (0x1, SP), A
-			// ADD/AND/OR/XOR A, (0x2, SP)
-			// LD (0x2, SP), A
+			// CLRW X or LDW X, <imm1>
+			// LDW <smth>, X
+			// LDW X, <imm2> - <imm1>
+			
+			int32_t n1 = 0, n2;
+			if((ao._op == L"CLRW" || Utils::str2int32(ao._args[1], n1) == B1_RES_OK) && (Utils::str2int32(aon2._args[1], n2) == B1_RES_OK))
+			{
+				aon2._data = L"LDW X, " + Utils::str_tohex16(n2 - n1);
+				aon2._parsed = false;
+				_code_sec.erase(next3);
 
-			aon1._data = aon2._op + L" A, " + aon1._args[1];
-			aon1._parsed = false;
-			_code_sec.erase(next2);
-
-			update_opt_rule_usage_stat(rule_id);
-			changed = true;
-			continue;
-		}*/
-
-		/*rule_id++;
-		update_opt_rule_usage_stat(rule_id, true);
-		if( !ao._volatile &&
-			(((ao._op == L"LD" && aon1._op == L"LD" && aon3._op == L"LD") && (aon2._op == L"ADD" || aon2._op == L"AND" || aon2._op == L"OR" || aon2._op == L"XOR")) ||
-			((ao._op == L"LDW" && aon1._op == L"LDW" && aon3._op == L"LDW") && (aon2._op == L"ADDW") &&
-				aon1._args[1] != L"(X)" && aon1._args[1] != L"(Y)" && aon1._args[1].front() != L'[' &&
-				aon1._args[1].find(L",X)") == std::wstring::npos && aon1._args[1].find(L",Y)") == std::wstring::npos)) &&
-			(ao._args[0] == aon2._args[1] && ao._args[0] == aon3._args[0])
-			)
-		{
-			// LD/LDW (0x1, SP), A/X
-			// LD/LDW A/X, <smth>
-			// ADD/AND/OR/XOR/ADDW A/X, (0x1, SP)
-			// LD/LDW (0x1, SP), A/X
-			// ->
-			// ADD/AND/OR/XOR/ADDW A/X, 100
-			// LDW (0x1, SP), A/X
-			aon2._data = aon2._op + L" " + aon2._args[0] + L", " + aon1._args[1];
-			aon2._parsed = false;
-			_code_sec.erase(i);
-			_code_sec.erase(next1);
-			i = next2;
-
-			update_opt_rule_usage_stat(rule_id);
-			changed = true;
-			continue;
-		}*/
+				update_opt_rule_usage_stat(rule_id);
+				changed = true;
+				continue;
+			}
+		}
 
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
@@ -8380,6 +8403,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 			continue;
 		}
 
+
 		auto next1 = std::next(i);
 		if(next1 == _code_sec.end())
 		{
@@ -8394,6 +8418,129 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 			continue;
 		}
 
+		bool i_arg0_SP_based = (ao._args.size() != 0 && ao._args[0].find(L",SP)") != std::wstring::npos);
+		bool i_arg1_SP_based = (ao._args.size() > 1 && ao._args[1].find(L",SP)") != std::wstring::npos);
+		rule_id++;
+		update_opt_rule_usage_stat(rule_id, true);
+		if(ao._op == L"LD" || ao._op == L"LDW")
+		{
+			// LD A, smth or LD smth, A
+			// [ADD/SUB SP, N]
+			// [JRXX]
+			// [CP/CPW]
+			// [PUSH/PUSHW]
+			// -LD smth, A or LD A, smth
+
+			bool proceed = false;
+			auto next = next1;
+			for (; next != _code_sec.end(); next++)
+			{
+				auto next_ao = static_cast<B1_ASM_OP_STM8 *>(next->get());
+				if(next_ao->_type == AOT::AOT_LABEL)
+				{
+					break;
+				}
+				if(next_ao->_is_inline || !next_ao->Parse())
+				{
+					break;
+				}
+
+				if(!i_arg0_SP_based && !i_arg1_SP_based && (((next_ao->_op == L"SUB" || next_ao->_op == L"SUBW" || next_ao->_op == L"ADD" || next_ao->_op == L"ADDW") && next_ao->_args[0] == L"SP") || (next_ao->_op == L"PUSH" || next_ao->_op == L"PUSHW")))
+				{
+					continue;
+				}
+				if(next_ao->_op.length() > 2 && next_ao->_op.substr(0, 2) == L"JR")
+				{
+					continue;
+				}
+				if(next_ao->_op == L"CP" || next_ao->_op == L"CPW" || next_ao->_op == L"TNZ" || next_ao->_op == L"TNZW")
+				{
+					continue;
+				}
+
+				if(!next_ao->_volatile && next_ao->_op == ao._op && ((next_ao->_args[0] == ao._args[1] && next_ao->_args[1] == ao._args[0]) || (next_ao->_args[0] == ao._args[0] && next_ao->_args[1] == ao._args[1])))
+				{
+					proceed = true;
+					break;
+				}
+
+				break;
+			}
+
+			if(proceed)
+			{
+				_code_sec.erase(next);
+
+				update_opt_rule_usage_stat(rule_id);
+				changed = true;
+				continue;
+			}
+		}
+
+		rule_id++;
+		update_opt_rule_usage_stat(rule_id, true);
+		if(ao._op == L"PUSHW" && ao._args[0] == L"X")
+		{
+			// PUSHW X
+			// ...       <- these ops should not use Y register and stack
+			// POPW Y
+			// ->
+			// LDW Y, X
+			// ...
+
+			bool proceed = false;
+			auto next = next1;
+			for (; next != _code_sec.end(); next++)
+			{
+				auto next_ao = static_cast<B1_ASM_OP_STM8 *>(next->get());
+				if(next_ao->_type == AOT::AOT_LABEL)
+				{
+					break;
+				}
+				if(next_ao->_is_inline || !next_ao->Parse())
+				{
+					break;
+				}
+
+				if(next_ao->_op == L"POPW" && next_ao->_args[0] == L"Y")
+				{
+					proceed = true;
+					break;
+				}
+
+				if(next_ao->_op == L"POPW" || next_ao->_op == L"POP" || next_ao->_op == L"PUSHW" || next_ao->_op == L"PUSH")
+				{
+					break;
+				}
+
+				int n_size = 0;
+				bool n_uses_SP = false;
+				is_arithm_op(*next_ao, n_size, &n_uses_SP);
+				if(n_uses_SP)
+				{
+					break;
+				}
+
+				bool write_op = false;
+				if(is_reg_used(*next_ao, L"Y", write_op) || write_op)
+				{
+					break;
+				}
+			}
+
+			if(proceed)
+			{
+				ao._data = L"LDW Y, X";
+				ao._parsed = false;
+				_code_sec.erase(next);
+
+				update_opt_rule_usage_stat(rule_id);
+				changed = true;
+				continue;
+			}
+		}
+
+
 		auto next2 = std::next(next1);
 		if(next2 == _code_sec.end())
 		{
@@ -8405,6 +8552,40 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 		if(aon2._is_inline || !aon2.Parse())
 		{
 			i++;
+			continue;
+		}
+
+		rule_id++;
+		update_opt_rule_usage_stat(rule_id, true);
+		if ((ao._op == L"LDW" && aon1._op == L"POPW" && aon2._op == L"POPW") &&
+			(ao._args[1] == aon1._args[0] && aon1._args[0] == aon2._args[0]) && ao._args[0] == L"(0x3,SP)")
+		{
+			// LDW (3, SP), X
+			// POPW X
+			// POPW X
+			// ->
+			// ADDW SP, 4
+			ao._data = L"ADDW SP, 4";
+			ao._parsed = false;
+			_code_sec.erase(next2);
+			_code_sec.erase(next1);
+
+			update_opt_rule_usage_stat(rule_id);
+			changed = true;
+			continue;
+		}
+
+		rule_id++;
+		update_opt_rule_usage_stat(rule_id, true);
+		if ((ao._op == L"CP" || ao._op == L"CPW") && (aon2._op == ao._op) && (ao._args == aon2._args) && (aon1._op.length() > 2 && aon1._op.substr(0, 2) == L"JR"))
+		{
+			// CPW X, <smth>
+			// JRXXX <label>
+			// -CPW X, <smth>
+			_code_sec.erase(next2);
+
+			update_opt_rule_usage_stat(rule_id);
+			changed = true;
 			continue;
 		}
 
@@ -8428,65 +8609,6 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 			update_opt_rule_usage_stat(rule_id);
 			changed = true;
 			continue;
-		}
-
-/////////////////////
-		/*rule_id++;
-		update_opt_rule_usage_stat(rule_id, true);
-		if (
-			((ao._op == L"PUSHW" && ao._args[0] == L"X") &&
-			(aon1._op == L"LDW" && aon1._args[0] == L"X") &&
-			(aon2._op == L"ADDW" && aon2._args[0] == L"X" && aon2._args[1] == L"(0x1,SP)")) ||
-
-			((ao._op == L"PUSH" && ao._args[0] == L"A") &&
-			(aon1._op == L"LD" && aon1._args[0] == L"A") &&
-			((aon2._op == L"ADD" || aon2._op == L"ADC" || aon2._op == L"OR" || aon2._op == L"AND" || aon2._op == L"XOR") && aon2._args[0] == L"A" && aon2._args[1] == L"(0x1,SP)"))
-			)
-		{
-			// PUSH A
-			// LD A, (0x3, SP)
-			// ADD A, (0x1, SP)
-			// ->
-			// PUSH A
-			// ADD A, (0x3, SP)
-
-			aon1._data = aon2._op + L" A, " + aon1._args[1];
-			aon1._parsed = false;
-			_code_sec.erase(next2);
-
-			update_opt_rule_usage_stat(rule_id);
-			changed = true;
-			continue;
-		}*/
-/////////////
-
-		bool i_arg0_SP_based = (ao._args.size() != 0 && ao._args[0].find(L",SP)") != std::wstring::npos);
-		rule_id++;
-		update_opt_rule_usage_stat(rule_id, true);
-
-		if (
-			(ao._op == L"LD" || ao._op == L"LDW") &&
-			(((aon1._op == L"SUB" || aon1._op == L"SUBW" || aon1._op == L"ADD" || aon1._op == L"ADDW") && (!i_arg0_SP_based && aon1._args[0] == L"SP")) ||
-				aon1._op == L"JREQ" || aon1._op == L"JRNE" || aon1._op == L"JRMI" || aon1._op == L"JRPL") &&
-			(!aon2._volatile && aon2._op == ao._op && ((aon2._args[0] == ao._args[1] && aon2._args[1] == ao._args[0]) || (aon2._args[0] == ao._args[0] && aon2._args[1] == ao._args[1])))
-			)
-		{
-			// LD A, smth or LD smth, A
-			// SUB SP, 2/JREQ/JRNE/JRMI/JRPL
-			// LD smth, A or LD A, smth
-			// ->
-			// LD A, smth
-			// SUB SP, 2/JREQ/JRNE/JRMI/JRPL
-			bool a0_is_reg = (ao._args[0] == L"X" || ao._args[0] == L"Y" || ao._args[0] == L"A" || ao._args[0] == L"SP");
-			bool a1_is_reg = (ao._args[1] == L"X" || ao._args[1] == L"Y" || ao._args[1] == L"A" || ao._args[1] == L"SP");
-			if(a0_is_reg ^ a1_is_reg)
-			{
-				_code_sec.erase(next2);
-
-				update_opt_rule_usage_stat(rule_id);
-				changed = true;
-				continue;
-			}
 		}
 
 
@@ -8526,34 +8648,6 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 				changed = true;
 				continue;
 			}
-		}
-
-		rule_id++;
-		update_opt_rule_usage_stat(rule_id, true);
-		if(
-			(ao._op == L"PUSH" && ao._args[0] == L"A") &&
-			(aon1._op == L"PUSH" && aon1._args[0] == L"0x0") &&
-			(aon2._op == L"LDW" && aon2._args[0] == L"X" && aon2._args[1] != L"Y" && aon2._args[1] != L"SP" && aon2._args[1].find(L",SP)") == std::wstring::npos) &&
-			(aon3._op == L"POPW" && aon3._args[0] == L"Y")
-			)
-		{
-			// PUSH A
-			// PUSH 0
-			// LDW X, smth not depending on Y or SP
-			// POPW Y
-			// ->
-			// CLRW Y
-			// LD YL, A
-			// LDW X, smth
-			ao._data = L"CLRW Y ";
-			ao._parsed = false;
-			aon1._data = L"LD YL, A";
-			aon1._parsed = false;
-			_code_sec.erase(next3);
-
-			update_opt_rule_usage_stat(rule_id);
-			changed = true;
-			continue;
 		}
 
 		rule_id++;

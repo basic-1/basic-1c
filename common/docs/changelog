@@ -1,3 +1,11 @@
+b1c (1.0.0-37) unstable; urgency=low
+
+  * changed font names (no need for _ST7565 suffix)
+  * added more fonts
+  * more optimizer rules
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Fri, 04 Oct 2024 20:51:41 +0300
+
 b1c (1.0.0-36) unstable; urgency=low
 
   * more ST7565 IOCTL commands added: COL, ROW, DRAWCHAR, etc.

@@ -8,7 +8,7 @@
 - command-line compiler built for Windows x86, Windows x64, Linux i386, Linux amd64, Linux armhf  
 - produces a kind of intermediate code that can be compiled into STM8 assembler code  
 - static and dynamic memory allocation (built-in simple dynamic memory manager)  
-- some essential peripherals support (GPIO, timer, UART, SPI)  
+- some essential peripherals support (GPIO, timer, UART, SPI, displays)  
 - interrupts handling  
 - includes STM8 assembler  
 - licensed under MIT license  
@@ -49,7 +49,7 @@ Supported STM8 microcontrollers list:
 - IOCTL  
 - LET  
 - NEXT  
-- OPTION BASE | EXPLICIT | NOCHECK  
+- OPTION BASE | EXPLICIT | NOCHECK | INPUTDEVICE | OUTPUTDEVICE  
 - PRINT  
 - PUT  
 - READ  

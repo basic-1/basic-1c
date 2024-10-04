@@ -144,48 +144,54 @@ SPI continuous transmission example (8 MHz, 100 bytes long array)
 - `IOCTL ST7565_SPI, DRAWCHAR, <numeric_value>` - draws a character with the code specified with the commnd argument at the current display position  
   
 Fonts included with the compiler:  
-`FONT_8X8_CP437_7BIT_ST7565` - 8x8 ASCII font (128 characters), CP437 code page  
-`FONT_8X8_CP437_FULL_ST7565` - 8x8 extended ASCII font (256 characters), CP437 code page  
-`FONT_8X8_CP437_EXT_ST7565` - 8x8 ASCII font (upper 128 characters), CP437 code page  
-`FONT_8X16_CP437_7BIT_ST7565` - 8x16 ASCII font (128 characters), CP437 code page  
-`FONT_8X16_CP437_FULL_ST7565` - 8x16 extended ASCII font (256 characters), CP437 code page  
-`FONT_8X16_CP437_EXT_ST7565` - 8x16 ASCII font (upper 128 characters), CP437 code page  
-`FONT_8X8T_CP437_7BIT_ST7565` - thin 8x8 ASCII font (128 characters), CP437 code page  
-`FONT_8X8T_CP437_FULL_ST7565` - thin 8x8 extended ASCII font (256 characters), CP437 code page  
-`FONT_8X8T_CP437_EXT_ST7565` - thin 8x8 ASCII font (upper 128 characters), CP437 code page  
-`FONT_8X16T_CP437_7BIT_ST7565` - thin 8x16 ASCII font (128 characters), CP437 code page  
-`FONT_8X16T_CP437_FULL_ST7565` - thin 8x16 extended ASCII font (256 characters), CP437 code page  
-`FONT_8X16T_CP437_EXT_ST7565` - thin 8x16 ASCII font (upper 128 characters), CP437 code page  
-`FONT_8X8_CP850_7BIT_ST7565` - 8x8 ASCII font (128 characters), CP850 code page  
-`FONT_8X8_CP850_FULL_ST7565` - 8x8 extended ASCII font (256 characters), CP850 code page  
-`FONT_8X8_CP850_EXT_ST7565` - 8x8 ASCII font (upper 128 characters), CP850 code page  
-`FONT_8X16_CP850_7BIT_ST7565` - 8x16 ASCII font (128 characters), CP850 code page  
-`FONT_8X16_CP850_FULL_ST7565` - 8x16 extended ASCII font (256 characters), CP850 code page  
-`FONT_8X16_CP850_EXT_ST7565` - 8x16 ASCII font (upper 128 characters), CP850 code page  
-`FONT_8X8_CP866_7BIT_ST7565` - 8x8 ASCII font (128 characters), CP866 code page  
-`FONT_8X8_CP866_FULL_ST7565` - 8x8 extended ASCII font (256 characters), CP866 code page  
-`FONT_8X8_CP866_EXT_ST7565` - 8x8 ASCII font (upper 128 characters), CP866 code page  
-`FONT_8X16_CP866_7BIT_ST7565` - 8x16 ASCII font (128 characters), CP866 code page  
-`FONT_8X16_CP866_FULL_ST7565` - 8x16 extended ASCII font (256 characters), CP866 code page  
-`FONT_8X16_CP866_EXT_ST7565` - 8x16 ASCII font (upper 128 characters), CP866 code page  
-`FONT_8X8_ISO8859_1_7BIT_ST7565` - 8x8 ASCII font (128 characters), ISO8859-1 code page  
-`FONT_8X8_ISO8859_1_FULL_ST7565` - 8x8 extended ASCII font (256 characters), ISO8859-1 code page  
-`FONT_8X8_ISO8859_1_EXT_ST7565` - 8x8 ASCII font (upper 128 characters), ISO8859-1 code page  
-`FONT_8X16_ISO8859_1_7BIT_ST7565` - 8x16 ASCII font (128 characters), ISO8859-1 code page  
-`FONT_8X16_ISO8859_1_FULL_ST7565` - 8x16 extended ASCII font (256 characters), ISO8859-1 code page  
-`FONT_8X16_ISO8859_1_EXT_ST7565` - 8x16 ASCII font (upper 128 characters), ISO8859-1 code page  
-`FONT_8X8_ISO8859_5_7BIT_ST7565` - 8x8 ASCII font (128 characters), ISO8859-5 code page  
-`FONT_8X8_ISO8859_5_FULL_ST7565` - 8x8 extended ASCII font (256 characters), ISO8859-5 code page  
-`FONT_8X8_ISO8859_5_EXT_ST7565` - 8x8 ASCII font (upper 128 characters), ISO8859-5 code page  
-`FONT_8X16_ISO8859_5_7BIT_ST7565` - 8x16 ASCII font (128 characters), ISO8859-5 code page  
-`FONT_8X16_ISO8859_5_FULL_ST7565` - 8x16 extended ASCII font (256 characters), ISO8859-5 code page  
-`FONT_8X16_ISO8859_5_EXT_ST7565` - 8x16 ASCII font (upper 128 characters), ISO8859-5 code page  
+`FONT_8X8_CP437_7BIT` - 8x8 ASCII font (128 characters), CP437 code page  
+`FONT_8X8_CP437_FULL` - 8x8 extended ASCII font (256 characters), CP437 code page  
+`FONT_8X8_CP437_EXT` - 8x8 ASCII font (upper 128 characters), CP437 code page  
+`FONT_8X16_CP437_7BIT` - 8x16 ASCII font (128 characters), CP437 code page  
+`FONT_8X16_CP437_FULL` - 8x16 extended ASCII font (256 characters), CP437 code page  
+`FONT_8X16_CP437_EXT` - 8x16 ASCII font (upper 128 characters), CP437 code page  
+`FONT_8X8T_CP437_7BIT` - thin 8x8 ASCII font (128 characters), CP437 code page  
+`FONT_8X8T_CP437_FULL` - thin 8x8 extended ASCII font (256 characters), CP437 code page  
+`FONT_8X8T_CP437_EXT` - thin 8x8 ASCII font (upper 128 characters), CP437 code page  
+`FONT_8X16T_CP437_7BIT` - thin 8x16 ASCII font (128 characters), CP437 code page  
+`FONT_8X16T_CP437_FULL` - thin 8x16 extended ASCII font (256 characters), CP437 code page  
+`FONT_8X16T_CP437_EXT` - thin 8x16 ASCII font (upper 128 characters), CP437 code page  
+`FONT_8X8_CP850_7BIT` - 8x8 ASCII font (128 characters), CP850 code page  
+`FONT_8X8_CP850_FULL` - 8x8 extended ASCII font (256 characters), CP850 code page  
+`FONT_8X8_CP850_EXT` - 8x8 ASCII font (upper 128 characters), CP850 code page  
+`FONT_8X16_CP850_7BIT` - 8x16 ASCII font (128 characters), CP850 code page  
+`FONT_8X16_CP850_FULL` - 8x16 extended ASCII font (256 characters), CP850 code page  
+`FONT_8X16_CP850_EXT` - 8x16 ASCII font (upper 128 characters), CP850 code page  
+`FONT_8X8_CP866_7BIT` - 8x8 ASCII font (128 characters), CP866 code page  
+`FONT_8X8_CP866_FULL` - 8x8 extended ASCII font (256 characters), CP866 code page  
+`FONT_8X8_CP866_EXT` - 8x8 ASCII font (upper 128 characters), CP866 code page  
+`FONT_8X16_CP866_7BIT` - 8x16 ASCII font (128 characters), CP866 code page  
+`FONT_8X16_CP866_FULL` - 8x16 extended ASCII font (256 characters), CP866 code page  
+`FONT_8X16_CP866_EXT` - 8x16 ASCII font (upper 128 characters), CP866 code page  
+`FONT_8X8T_CP866_7BIT` - thin 8x8 ASCII font (128 characters), CP866 code page  
+`FONT_8X8T_CP866_FULL` - thin 8x8 extended ASCII font (256 characters), CP866 code page  
+`FONT_8X8T_CP866_EXT` - thin 8x8 ASCII font (upper 128 characters), CP866 code page  
+`FONT_8X16T_CP866_7BIT` - thin 8x16 ASCII font (128 characters), CP866 code page  
+`FONT_8X16T_CP866_FULL` - thin 8x16 extended ASCII font (256 characters), CP866 code page  
+`FONT_8X16T_CP866_EXT` - thin 8x16 ASCII font (upper 128 characters), CP866 code page  
+`FONT_8X8_ISO8859_1_7BIT` - 8x8 ASCII font (128 characters), ISO8859-1 code page  
+`FONT_8X8_ISO8859_1_FULL` - 8x8 extended ASCII font (256 characters), ISO8859-1 code page  
+`FONT_8X8_ISO8859_1_EXT` - 8x8 ASCII font (upper 128 characters), ISO8859-1 code page  
+`FONT_8X16_ISO8859_1_7BIT` - 8x16 ASCII font (128 characters), ISO8859-1 code page  
+`FONT_8X16_ISO8859_1_FULL` - 8x16 extended ASCII font (256 characters), ISO8859-1 code page  
+`FONT_8X16_ISO8859_1_EXT` - 8x16 ASCII font (upper 128 characters), ISO8859-1 code page  
+`FONT_8X8_ISO8859_5_7BIT` - 8x8 ASCII font (128 characters), ISO8859-5 code page  
+`FONT_8X8_ISO8859_5_FULL` - 8x8 extended ASCII font (256 characters), ISO8859-5 code page  
+`FONT_8X8_ISO8859_5_EXT` - 8x8 ASCII font (upper 128 characters), ISO8859-5 code page  
+`FONT_8X16_ISO8859_5_7BIT` - 8x16 ASCII font (128 characters), ISO8859-5 code page  
+`FONT_8X16_ISO8859_5_FULL` - 8x16 extended ASCII font (256 characters), ISO8859-5 code page  
+`FONT_8X16_ISO8859_5_EXT` - 8x16 ASCII font (upper 128 characters), ISO8859-5 code page  
   
 The library was tested with two Chinese displays marked "GM12864-01A" and "GMG12864-06D Ver:2.2", predefined configuration names for them are `DISP_GM12864_01A` and `DISP_GMG12864_06D_V2`.  
   
-![Tested displays, front](./images/dispfront.png "Tested displays, front")  
+![Tested displays, front](./images/dispfront.jpg "Tested displays, front")  
 Tested displays, front view  
-![Tested displays, back](./images/dispback.png "Tested displays, back")  
+![Tested displays, back](./images/dispback.jpg "Tested displays, back")  
 Tested displays, back view  
   
 **Example:**  
@@ -194,7 +200,7 @@ Tested displays, back view
 `IOCTL ST7565_SPI, DCPIN, PB3`  
 `IOCTL ST7565_SPI, CFGPINS`  
 `IOCTL ST7565_SPI, INIT, DISP_GM12864_01A`  
-`IOCTL ST7565_SPI, FONT, FONT_8X16_CP437_7BIT_ST7565` 'select `FONT_8X16_CP437_7BIT_ST7565` font  
+`IOCTL ST7565_SPI, FONT, FONT_8X16_CP437_7BIT` 'select `FONT_8X16_CP437_7BIT` font  
 `IOCTL ST7565_SPI, START`  
 `PRINT #ST7565_SPI, "Hello world!"`  
   
