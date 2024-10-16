@@ -79,7 +79,8 @@ private:
 	std::map<std::wstring, std::pair<std::wstring, std::vector<iterator>>> _var_refs;
 
 
-	B1C_T_ERROR put_var_name(const std::wstring &name, const B1Types type, int dims, bool is_global, bool is_volatile, bool is_mem_var, bool is_static, bool is_const, const std::vector<std::wstring> &const_init);
+	B1C_T_ERROR put_var_name(const std::wstring &name, const B1Types type, int dims, bool is_global, bool is_volatile, bool is_mem_var, bool is_static, bool is_const);
+	B1C_T_ERROR put_const_var_init_values(const std::wstring &name, const std::vector<std::wstring> &const_init);
 	std::wstring get_var_name(const std::wstring &name, bool &expl) const;
 	bool is_mem_var_name(const std::wstring &name) const;
 	bool is_volatile_var(const std::wstring &name) const;
@@ -124,7 +125,8 @@ private:
 	B1_T_ERROR st_if_end();
 	B1_T_ERROR st_for();
 	B1_T_ERROR st_next();
-	B1_T_ERROR st_data_read_data(const B1_T_CHAR **value_separators, const B1_T_CHAR **stop_tokens, const std::vector<B1Types> *types, std::vector<B1_TYPED_VALUE> &args);
+	B1_T_ERROR st_read_data(const B1_T_CHAR **value_separators, const B1_T_CHAR **stop_tokens, const std::vector<B1Types> *types, std::vector<B1_TYPED_VALUE> &args);
+	B1_T_ERROR st_data_change_const_names(std::vector<B1_TYPED_VALUE>& args);
 	B1_T_ERROR st_data();
 	B1_T_ERROR st_read();
 	B1_T_ERROR st_restore();
@@ -167,13 +169,14 @@ private:
 	bool get_LA_LF(iterator s, iterator e, iterator &la, iterator &lf);
 	B1C_T_ERROR reuse_locals(bool &changed);
 	B1C_T_ERROR reuse_vars(bool &changed);
-	void correct_int_value(int32_t &n, const B1Types type);
 	bool eval_imm_fn_arg(B1_CMP_ARG &a);
 	B1C_T_ERROR eval_imm_exps(bool &changed);
 	B1C_T_ERROR check_MA_stmts();
 	B1C_T_ERROR remove_DAT_stmts();
 	B1C_T_ERROR remove_unused_vars(B1_CMP_ARG &a, bool &changed, bool subs_and_args_only = false);
 	B1C_T_ERROR remove_unused_vars(bool &changed);
+	B1C_T_ERROR get_const_var_value(const std::wstring &var_name, bool &var_found, std::wstring &value);
+	B1C_T_ERROR eval_const_vars_values_1_iter(bool &changed, bool &all_resolved);
 	B1C_T_ERROR calc_vars_usage(B1_TYPED_VALUE &v, bool read);
 	B1C_T_ERROR calc_vars_usage(B1_CMP_ARG &a, bool read);
 	B1C_T_ERROR optimize_GA_GF(bool &changed);
@@ -278,7 +281,7 @@ protected:
 	mutable std::string _curr_file_name;
 
 
-	B1C_T_ERROR put_global_var_name(const std::wstring &name, const B1Types type, int dims, bool is_volatile, bool is_mem_var, bool is_static, bool is_const, const std::vector<std::wstring> &const_init);
+	B1C_T_ERROR put_global_var_name(const std::wstring &name, const B1Types type, int dims, bool is_volatile, bool is_mem_var, bool is_static, bool is_const);
 	bool global_var_check(bool is_global, bool is_mem_var, bool is_static, bool is_const, const std::wstring &name) const;
 	std::wstring get_global_var_name(const std::wstring &name) const;
 	bool is_global_mem_var_name(const std::wstring &name) const;
@@ -293,6 +296,9 @@ protected:
 	const B1_CMP_FN *get_global_ufn(const B1_TYPED_VALUE &val);
 	const B1_CMP_FN *get_global_ufn(const B1_CMP_ARG &arg);
 	std::wstring get_global_ufn_int_name(const std::wstring &name);
+	B1C_T_ERROR get_global_const_var_value(const std::wstring &var_name, bool &var_found, std::wstring &value);
+	B1C_T_ERROR get_const_var_value(const std::wstring &var_name, std::wstring &value);
+	B1C_T_ERROR eval_const_vars_values();
 	void change_global_ufn_names();
 
 	void mark_var_used(const std::wstring &name, bool for_read);

@@ -1,0 +1,190 @@
+' Simple menu example, changing menu language (for STM8S105K4T6 MCU)
+' Display model: GM12864-01A
+' Uses FONT_8X16T_CP437_FULL font for English, German and French languages
+' and FONT_8X16T_CP866_EXT font for Russian
+' Connect display's DC pin to PB3, display's RST to PF4, up button - PD3, down button - PD2, OK button - PD4
+' Display's SCL pin must be connected to MCU's SPI SCK one (PC5), SDA - to SPI MOSI pin (PC6),
+' CS - to SPI NSS pin (PE5)
+
+10  DIM CONST KEY_DOWN AS BYTE = 1
+20  DIM CONST KEY_UP AS BYTE = 2
+30  DIM CONST KEY_OK AS BYTE = 4
+40  DIM KEYS AS BYTE, KEYREAD AS BYTE
+
+50  DIM LANG AS BYTE
+
+60  DIM CONST MENU_MAIN AS BYTE = 0 ' main menu
+70  DIM CONST MENU_LANG AS BYTE = 1 ' language selection menu
+80  DIM MENU AS BYTE
+
+90  DIM CONST MITEM_LANG AS BYTE = 3 ' number of "Language" item of the main menu
+
+100 DIM FONT AS BYTE ' current font
+
+110 DIM CONST MITEMSMAX AS BYTE = 6 ' max. menu items number
+120 DIM CONST MROW AS BYTE = 0, CONST MCOL AS BYTE = 0 ' starting row and column to display menu at
+130 DIM CONST MROWS AS BYTE = 4, CONST MCOLS AS BYTE = 16 ' menu size (4 rows for 8x16 font and 64 lines display resolution)
+140 DIM MITNUM AS BYTE ' current menu items count
+150 DIM STATIC MITEMS$(0 TO MITEMSMAX - 1) ' current menu items
+160 DIM STATIC MITEMFNT(0 TO MITEMSMAX - 1) AS BYTE ' font ids of the current menu items
+170 DIM MFSTITEM AS BYTE ' number of the first visible menu item
+180 DIM MSELITEM AS BYTE ' number of the selected menu item
+190 DIM SAVED_MFSTITEM AS BYTE
+200 DIM SAVED_MSELITEM AS BYTE
+
+210 DIM TMPKEYS AS BYTE, PREVKEYS AS BYTE, KEYSCNT AS BYTE ' variables for timer interrupt handler
+
+220 DIM I AS BYTE, I1 AS BYTE ' an auxiliary index variables
+
+' ST7565 SPI display initialization
+300 IOCTL ST7565_SPI, ENABLE
+310 IOCTL ST7565_SPI, RSTPIN, PF4
+320 IOCTL ST7565_SPI, DCPIN, PB3
+330 IOCTL ST7565_SPI, CFGPINS
+340 IOCTL ST7565_SPI, INIT, DISP_GM12864_01A
+350 IOCTL ST7565_SPI, FONT, FONT_8X16T_CP437_FULL
+360 IOCTL ST7565_SPI, START
+
+' GPIO pins for UP/DOWN/OK buttons
+400 IOCTL PD, ENABLE
+410 IOCTL PD, CFGPIN2, IN_PULLUP_NOEXTI
+420 IOCTL PD, CFGPIN3, IN_PULLUP_NOEXTI
+430 IOCTL PD, CFGPIN4, IN_PULLUP_NOEXTI
+
+' timer for reading buttons state
+500 IOCTL CPU, INTERRUPTS, ON
+510 IOCTL TIMER, ENABLE
+520 IOCTL TIMER, PERIODMS, 10 ' set 10 ms time interval
+530 IOCTL TIMER, ONUPDOVF, 1000
+540 IOCTL TIMER, INTERRUPT, ENABLE
+550 IOCTL TIMER, START
+
+600 GOSUB 2000 ' load menu items corresponding to the current menu and language
+610 GOSUB 10000 ' draw the menu
+
+' the main lopp
+620 WHILE 1 < 2
+630 IOCTL CPU, WAIT, INTERRUPT
+640 KEYREAD = KEYS
+650 KEYS = 0
+660 IF KEYREAD = KEY_DOWN THEN GOSUB 5000 ' DOWN is pressed, go one item down and redraw menu
+670 IF KEYREAD = KEY_UP THEN GOSUB 6000 ' UP is pressed, go one item up and redraw menu
+680 IF KEYREAD <> KEY_OK THEN CONTINUE ' no one button is pressed (or several buttons at once)
+
+' OK is pressed
+690 IOCTL ST7565_SPI, CLR
+
+700 IF MENU = MENU_MAIN THEN GOTO 800
+
+' change language and return to main menu
+710 MENU = MENU_MAIN
+720 LANG = MSELITEM
+730 MFSTITEM = SAVED_MFSTITEM
+740 MSELITEM = SAVED_MSELITEM
+750 GOSUB 2000
+760 GOSUB 10000
+770 CONTINUE
+
+800 IF MSELITEM <> MITEM_LANG THEN GOTO 900
+' Language item of the main menu is selected: show language selection menu
+810 MENU = MENU_LANG
+820 SAVED_MFSTITEM = MFSTITEM
+830 SAVED_MSELITEM = MSELITEM
+840 MFSTITEM = 0
+850 MSELITEM = LANG
+860 IF MSELITEM >= MROWS THEN MFSTITEM = MSELITEM - MROWS + 1
+870 GOSUB 2000
+880 GOSUB 10000
+890 CONTINUE
+
+' another item of the main menu is selected: just print it
+900 FONT = MITEMFNT(MSELITEM)
+910 GOSUB 3000 ' load item's font
+920 IOCTL ST7565_SPI, ROW, 0
+930 IOCTL ST7565_SPI, COL, 0
+940 PRINT #ST7565_SPI, MITEMS$(MSELITEM);
+
+980 WEND
+
+990 END
+
+' timer interupt handler for STM8S105K4T6
+1000 TMPKEYS = (PD_IDR >> 2) AND 7
+' check if at least one of the keys is pressed
+1010 IF TMPKEYS = 0x7 THEN GOTO 1140
+1020 IF KEYSCNT = 0 THEN GOTO 1100
+1030 IF PREVKEYS <> TMPKEYS THEN GOTO 1140
+1100 PREVKEYS = TMPKEYS
+1110 KEYSCNT = KEYSCNT + 1
+1120 IF KEYSCNT <> 12 THEN RETURN
+1130 KEYS = (NOT PREVKEYS) AND 7
+1140 PREVKEYS = 0
+1150 KEYSCNT = 0
+1160 RETURN
+
+' menu strings selection
+2000 IF MENU = MENU_MAIN THEN GOTO 2100
+2010 MITNUM = LANG_MENU_IT_NUM ' load language menu
+2020 FOR I = 0 TO LANG_MENU_IT_NUM - 1
+2030 MITEMS$(I) = LANG_MENU$(I)
+2040 MITEMFNT(I) = LANG_MENUF(I)
+2050 NEXT I
+2060 RETURN
+2100 MITNUM = MAIN_MENU_IT_NUM * LANG ' load main menu
+2110 FOR I = 0 TO MAIN_MENU_IT_NUM - 1
+2120 MITEMS$(I) = MAIN_MENU$(MITNUM)
+2130 MITEMFNT(I) = MAIN_MENUF(MITNUM)
+2140 MITNUM = MITNUM + 1
+2150 NEXT I
+2160 MITNUM = MAIN_MENU_IT_NUM
+2170 RETURN
+
+' font selection
+3000 IF FONT = FONT_437 THEN IOCTL ST7565_SPI, FONT, FONT_8X16T_CP437_FULL
+3010 ELSE IOCTL ST7565_SPI, FONT, FONT_8X16T_CP866_EXT
+3020 RETURN
+
+' go one item down and redraw menu
+5000 GOSUB 11000
+5010 GOSUB 10000
+5020 RETURN
+
+' go one item up and redraw menu
+6000 GOSUB 12000
+6010 GOSUB 10000
+6020 RETURN
+
+' variables and constants used by the subroutines below
+' MROW, MCOL, MROWS, MCOLS - menu position and size
+' MITEMS$ - array with items
+' MITEMFNT - font ids for menu items
+' MITNUM - items number
+' MFSTITEM - first displayed item
+' MSELITEM - selected item
+
+' draw menu
+10000 FOR I = 0 TO IIF(MITNUM < MROWS, MITNUM, MROWS) - 1
+10010 IOCTL ST7565_SPI, ROW, MROW + I ' set position to draw menu item at
+10020 IOCTL ST7565_SPI, COL, MCOL
+10030 I1 = MFSTITEM + I ' number of menu item to draw
+10040 IF I1 = MSELITEM THEN IOCTL ST7565_SPI, INVERT ' draw the active menu item with inverted colors
+10050 IF MITEMFNT(I1) = FONT THEN 10200
+10060 FONT = MITEMFNT(I1)
+10070 GOSUB 3000 ' load font
+10200 S$ = MITEMS$(I1)
+10210 PRINT #ST7565_SPI, S$; SPC(MCOLS - LEN(S$));
+10220 IOCTL ST7565_SPI, INVERT, OFF
+10230 NEXT I
+10240 RETURN
+
+' go one item down
+11000 IF MSELITEM + 1 = MITNUM THEN GOTO 11100
+11010 MSELITEM = MSELITEM + 1
+11020 IF MSELITEM = MFSTITEM + MROWS THEN MFSTITEM = MFSTITEM + 1
+11100 RETURN
+
+' go one item up
+12000 IF MSELITEM = 0 THEN GOTO 12100
+12010 MSELITEM = MSELITEM - 1
+12020 IF MSELITEM < MFSTITEM THEN MFSTITEM = MFSTITEM - 1
+12100 RETURN

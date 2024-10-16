@@ -549,6 +549,24 @@ B1Types Utils::get_const_type(const std::wstring &const_name)
 	return type;
 }
 
+void Utils::correct_int_value(int32_t &n, const B1Types type)
+{
+	if(type == B1Types::B1T_INT)
+	{
+		n = (int16_t)n;
+	}
+	else
+	if(type == B1Types::B1T_BYTE)
+	{
+		n &= 0xFF;
+	}
+	else
+	if(type == B1Types::B1T_WORD)
+	{
+		n &= 0xFFFF;
+	}
+}
+
 
 B1_T_ERROR Settings::Read(const std::string &file_name)
 {

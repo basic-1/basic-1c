@@ -124,6 +124,8 @@ public:
 	static bool check_const_name(const std::wstring &const_name);
 	[[nodiscard]]
 	static B1Types get_const_type(const std::wstring &const_name);
+
+	static void correct_int_value(int32_t &n, const B1Types type);
 };
 
 

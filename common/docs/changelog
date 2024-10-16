@@ -1,3 +1,10 @@
+b1c (1.0.0-38) unstable; urgency=low
+
+  * new ST7565 display sample added
+  * more optimizer rules
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Wed, 16 Oct 2024 18:09:24 +0300
+
 b1c (1.0.0-37) unstable; urgency=low
 
   * changed font names (no need for _ST7565 suffix)
