@@ -12,15 +12,6 @@
 #include "../../common/source/c1.h"
 
 
-class STM8Settings: public Settings
-{
-public:
-	STM8Settings()
-	: Settings()
-	{
-	}
-};
-
 class B1_ASM_OP_STM8: public B1_ASM_OP
 {
 public:
@@ -79,7 +70,7 @@ protected:
 
 	C1_T_ERROR process_asm_cmd(const std::wstring &line) override;
 
-	B1_ASM_OPS::const_iterator create_asm_op(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, AOT type, const std::wstring &lbl, bool is_volatile, bool is_inline) override;
+	B1_ASM_OPS::iterator create_asm_op(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, AOT type, const std::wstring &lbl, bool is_volatile, bool is_inline) override;
 
 	C1_T_ERROR stm8_calc_array_size(const B1_CMP_VAR &var, int32_t size1);
 	C1_T_ERROR stm8_st_gf(const B1_CMP_VAR &var, bool is_ma);
@@ -106,7 +97,7 @@ protected:
 	C1_T_ERROR stm8_num_cmp_op(const B1_CMP_CMD &cmd);
 	C1_T_ERROR stm8_str_cmp_op(const B1_CMP_CMD &cmd);
 	C1_T_ERROR stm8_load_ptr(const B1_CMP_ARG &first, const B1_CMP_ARG &count);
-	C1_T_ERROR stm8_write_ioctl(std::list<B1_CMP_CMD>::const_iterator &cmd_it);
+	C1_T_ERROR stm8_write_ioctl(std::list<B1_CMP_CMD>::iterator &cmd_it);
 
 	C1_T_ERROR write_data_sec(bool code_init) override;
 	C1_T_ERROR write_code_sec(bool code_init) override;
@@ -114,7 +105,7 @@ protected:
 	std::wstring correct_SP_offset(const std::wstring &arg, int32_t op_size, bool &no_SP_off, int32_t *offset = nullptr) const;
 	bool is_arithm_op(const B1_ASM_OP_STM8 &ao, int32_t &size, bool *uses_SP = nullptr) const;
 	bool is_reg_used(const B1_ASM_OP_STM8 &ao, const std::wstring &reg_name, bool &reg_write_op) const;
-	bool is_reg_used_after(B1_ASM_OPS::const_iterator i, const std::wstring &reg_name, bool branch = false) const;
+	bool is_reg_used_after(B1_ASM_OPS::const_iterator start, B1_ASM_OPS::const_iterator end, const std::wstring &reg_name, bool branch = false) const;
 
 
 public:

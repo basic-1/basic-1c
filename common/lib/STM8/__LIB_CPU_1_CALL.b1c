@@ -1,5 +1,5 @@
 ; CPU CLOCKSOURCE HSI/LSI/HSE8/HSE16
-; X - predefied value specific to clock source
+; X - predefined value specific to clock source
 INI,__LIB_CPU_OPT
 
 :__LIB_CPU_1_CALL

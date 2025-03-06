@@ -1,3 +1,5 @@
+REM Prints heap memory structure for STM8
+
 DIM VOLATILE HEAP(0 TO 0) AS BYTE AT __HEAP_START
 
 DIM B0 AS BYTE, B1 AS BYTE
@@ -60,7 +62,6 @@ PRINT
 ' correct index variable
 I = I + SIZE + 2 - 1
 NEXT I
-
 
 INPUT S$
 WEND

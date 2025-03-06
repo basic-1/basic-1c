@@ -549,8 +549,8 @@ A1_T_ERROR SrcFile::GetNextToken(Token &token)
 
 		if(tt == TokType::TT_OPER)
 		{
-			// read shift, NOT and comparison operators
-			if(c == L'>' || c == L'<' || c == L'=' || c == L'!')
+			// read shift, NOT, comparison and exponentiation operators
+			if(c == L'>' || c == L'<' || c == L'=' || c == L'!' || c == L'*')
 			{
 				wchar_t c1;
 
@@ -590,6 +590,19 @@ A1_T_ERROR SrcFile::GetNextToken(Token &token)
 				if(c == L'>' || c == L'<')
 				{
 					if(c == c1 || c1 == L'=')
+					{
+						tok += c1;
+					}
+					else
+					{
+						_saved_chr = c1;
+					}
+				}
+				else
+				// multiplication and exponentiation operators
+				if(c == L'*')
+				{
+					if(c1 == L'*')
 					{
 						tok += c1;
 					}
@@ -758,12 +771,12 @@ EVal::EVal(int32_t val, USGN usgn /*= USGN::US_NONE*/)
 : _resolved(true)
 , _usgn(usgn)
 {
-	if(_usgn == USGN::US_MINUS)
+	if(_usgn & USGN::US_MINUS)
 	{
 		_val = -val;
 	}
 	else
-	if(_usgn == USGN::US_NOT)
+	if(_usgn & USGN::US_NOT)
 	{
 		_val = ~val;
 	}
@@ -801,7 +814,7 @@ A1_T_ERROR EVal::Resolve(const std::map<std::wstring, MemRef> &symbols /*= std::
 
 	// process -2147483648 separately, because Utils::str2int32() function returns error on attempt
 	// to parse positive "2147483648" string (numeric overflow)
-	if(_usgn == EVal::USGN::US_MINUS && (_symbol == L"2147483648" || Utils::str_toupper(_symbol) == L"0X80000000") && _postfix.empty())
+	if((_usgn & USGN::US_MINUS) && (_symbol == L"2147483648" || Utils::str_toupper(_symbol) == L"0X80000000") && _postfix.empty())
 	{
 		_val = INT32_MIN;
 		_resolved = true;
@@ -828,12 +841,12 @@ A1_T_ERROR EVal::Resolve(const std::map<std::wstring, MemRef> &symbols /*= std::
 		n = ref->second.GetAddress();
 	}
 
-	if(_usgn == USGN::US_MINUS)
+	if(_usgn & USGN::US_MINUS)
 	{
 		n = -n;
 	}
 	else
-	if(_usgn == USGN::US_NOT)
+	if(_usgn & USGN::US_NOT)
 	{
 		n = ~n;
 	}
@@ -854,7 +867,7 @@ A1_T_ERROR EVal::Resolve(const std::map<std::wstring, MemRef> &symbols /*= std::
 A1_T_ERROR Exp::BuildExp(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, Exp &exp, const std::vector<Token> &terms /*= std::vector<Token>()*/)
 {
 	bool is_val = true;
-	EVal::USGN usgn = EVal::USGN::US_NONE;
+	USGN usgn = USGN::US_NONE;
 
 	for(; start != end; start++)
 	{
@@ -865,18 +878,26 @@ A1_T_ERROR Exp::BuildExp(std::vector<Token>::const_iterator &start, const std::v
 
 		if(is_val)
 		{
-			usgn = EVal::USGN::US_NONE;
+			usgn = USGN::US_NONE;
 
-			if(start->GetType() == TokType::TT_OPER)
+			while(start->GetType() == TokType::TT_OPER && start != end)
 			{
 				if(start->GetToken() == L"-")
 				{
-					usgn = EVal::USGN::US_MINUS;
+					if(usgn == USGN::US_MINUS)
+					{
+						return A1_T_ERROR::A1_RES_ESYNTAX;
+					}
+					usgn |= USGN::US_MINUS;
 				}
 				else
 				if(start->GetToken() == L"!")
 				{
-					usgn = EVal::USGN::US_NOT;
+					if(usgn != USGN::US_NONE)
+					{
+						return A1_T_ERROR::A1_RES_ESYNTAX;
+					}
+					usgn |= USGN::US_NOT;
 				}
 				else
 				{
@@ -918,7 +939,7 @@ A1_T_ERROR Exp::BuildExp(std::vector<Token>::const_iterator &start, const std::v
 						}
 						else
 						{
-							if(usgn == EVal::USGN::US_MINUS && n == INT32_MIN)
+							if((usgn & USGN::US_MINUS) && n == INT32_MIN)
 							{
 								return A1_T_ERROR::A1_RES_ENUMOVF;
 							}
@@ -961,7 +982,7 @@ A1_T_ERROR Exp::BuildExp(std::vector<Token>::const_iterator &start, const std::v
 
 			auto tok = start->GetToken();
 
-			if(tok != L"+" && tok != L"-" && tok != L"*" && tok != L"/" && tok != L"%" && tok != L">>" && tok != L"<<" && tok != L"&" && tok != L"^" && tok != L"|")
+			if(tok != L"+" && tok != L"-" && tok != L"*" && tok != L"/" && tok != L"%" && tok != L">>" && tok != L"<<" && tok != L"&" && tok != L"^" && tok != L"|" && tok != L"**")
 			{
 				return A1_T_ERROR::A1_RES_ESYNTAX;
 			}
@@ -1018,8 +1039,33 @@ A1_T_ERROR Exp::Eval(int32_t &res, const std::map<std::wstring, MemRef> &symbols
 		}
 	}
 
-	// multiplicative operations
+	// exponentiation operator (right associative)
 	bool stop = false;
+	while(!stop && ops.size() > 0)
+	{
+		stop = true;
+		for(auto o = std::prev(ops.end()); ; o--)
+		{
+			if(*o == L"**")
+			{
+				auto i = o - ops.begin();
+				vals[i] = Utils::int32power(vals[i].GetValue(), vals[i + 1].GetValue());
+				vals.erase(vals.begin() + i + 1);
+				ops.erase(o);
+
+				stop = false;
+				break;
+			}
+
+			if(o == ops.begin())
+			{
+				break;
+			}
+		}
+	}
+
+	// multiplicative operations
+	stop = false;
 	while(!stop && ops.size() > 0)
 	{
 		stop = true;
@@ -1377,9 +1423,8 @@ void Inst::Init(const wchar_t *code, int speed, const ArgType &arg1type, const A
 	}
 }
 
-Inst::Inst(int inst_id, const wchar_t *code, const ArgType &arg1type /*= ArgType::AT_NONE*/, const ArgType &arg2type /*= ArgType::AT_NONE*/, const ArgType &arg3type /*= ArgType::AT_NONE*/)
-: _inst_id(inst_id)
-, _size(0)
+Inst::Inst(const wchar_t *code, const ArgType &arg1type /*= ArgType::AT_NONE*/, const ArgType &arg2type /*= ArgType::AT_NONE*/, const ArgType &arg3type /*= ArgType::AT_NONE*/)
+: _size(0)
 , _speed(0)
 , _argnum(0)
 , _argtypes({ arg1type, arg2type, arg3type })
@@ -1387,9 +1432,8 @@ Inst::Inst(int inst_id, const wchar_t *code, const ArgType &arg1type /*= ArgType
 	Init(code, 0, arg1type, arg2type, arg2type);
 }
 
-Inst::Inst(int inst_id, const wchar_t *code, int speed, const ArgType &arg1type /*= ArgType::AT_NONE*/, const ArgType &arg2type /*= ArgType::AT_NONE*/, const ArgType &arg3type /*= ArgType::AT_NONE*/)
-: _inst_id(inst_id)
-, _size(0)
+Inst::Inst(const wchar_t *code, int speed, const ArgType &arg1type /*= ArgType::AT_NONE*/, const ArgType &arg2type /*= ArgType::AT_NONE*/, const ArgType &arg3type /*= ArgType::AT_NONE*/)
+: _size(0)
 , _speed(0)
 , _argnum(0)
 , _argtypes({ arg1type, arg2type, arg3type })
@@ -1704,36 +1748,6 @@ A1_T_ERROR ConstStmt::Write(IhxWriter *writer, const std::map<std::wstring, MemR
 	return A1_T_ERROR::A1_RES_OK;
 }
 
-A1_T_ERROR CodeStmt::GetRefValue(const std::pair<std::reference_wrapper<const ArgType>, Exp> &ref, const std::map<std::wstring, MemRef> &memrefs, uint32_t &value, int &size)
-{
-	int32_t addr = 0;
-
-	auto err = ref.second.Eval(addr, memrefs);
-	if(err != A1_T_ERROR::A1_RES_OK)
-	{
-		return err;
-	}
-
-	if(ref.first.get() == ArgType::AT_1BYTE_OFF)
-	{
-		addr = addr - _address - _size;
-	}
-
-	size = ref.first.get()._size;
-	if(!ref.first.get().IsValidValue(addr))
-	{
-		if(ref.first.get() == ArgType::AT_1BYTE_OFF)
-		{
-			return A1_T_ERROR::A1_RES_ERELOUTRANGE;
-		}
-		_warnings.push_back(A1_T_WARNING::A1_WRN_WINTOUTRANGE);
-	}
-
-	value = addr;
-
-	return A1_T_ERROR::A1_RES_OK;
-}
-
 A1_T_ERROR CodeStmt::ReadInstArg(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, std::wstring &argsign)
 {
 	std::wstring tok;
@@ -1814,30 +1828,9 @@ A1_T_ERROR CodeStmt::ReadInstArg(std::vector<Token>::const_iterator &start, cons
 	return A1_T_ERROR::A1_RES_OK;
 }
 
-A1_T_ERROR CodeStmt::Read(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, const std::map<std::wstring, MemRef> &memrefs, const std::string &file_name)
+A1_T_ERROR CodeStmt::GetSignature(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, std::wstring &signature)
 {
-	if(start == end)
-	{
-		return A1_T_ERROR::A1_RES_ESYNTAX;
-	}
-
-	if(start->GetType() != TokType::TT_STRING)
-	{
-		return A1_T_ERROR::A1_RES_ESYNTAX;
-	}
-
-	_refs.clear();
-
-	if(IsDataStmt(*start))
-	{
-		return ConstStmt::Read(start, end, memrefs, file_name);
-	}
-
-	const auto op_name = start->GetToken();
-	auto line_num = start->GetLineNum();
-
-	// read instruction
-	auto signature = op_name;
+	signature = start->GetToken();
 
 	for(int arg_num = 0; arg_num < A1_MAX_INST_ARGS_NUM; arg_num++)
 	{
@@ -1873,134 +1866,44 @@ A1_T_ERROR CodeStmt::Read(std::vector<Token>::const_iterator &start, const std::
 		return A1_T_ERROR::A1_RES_ESYNTAX;
 	}
 
-	while(true)
+	return A1_T_ERROR::A1_RES_OK;
+}
+
+A1_T_ERROR CodeStmt::Read(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, const std::map<std::wstring, MemRef> &memrefs, const std::string &file_name)
+{
+	if(start == end)
 	{
-		std::vector<const Inst *> insts;
-		auto err = _global_settings.GetInstructions(op_name, signature, insts, line_num, file_name);
-		if(err != A1_T_ERROR::A1_RES_OK)
-		{
-			return err;
-		}
+		return A1_T_ERROR::A1_RES_ESYNTAX;
+	}
 
-		// sort the instructions by speed and size in ascending order
-		for(auto i = 0; i < insts.size(); i++)
-		{
-			auto imin = i;
-			auto min = insts[i]->_speed * 256 + insts[i]->_size;
-			auto min_nxt = 0;
-			for(auto j = i + 1; j < insts.size(); j++)
-			{
-				min_nxt = insts[j]->_speed * 256 + insts[j]->_size;
-				if(min_nxt < min)
-				{
-					imin = j;
-					min = min_nxt;
-				}
-			}
-			if(imin != i)
-			{
-				std::swap(insts[i], insts[imin]);
-			}
-		}
+	if(start->GetType() != TokType::TT_STRING)
+	{
+		return A1_T_ERROR::A1_RES_ESYNTAX;
+	}
 
-		_inst = nullptr;
-		auto valid_inst = _inst;
-		auto vi_refs = _refs;
+	_inst = nullptr;
+	_refs.clear();
+	_is_inst = false;
 
-		// inst_found is set to true if all arguments are evaluated (symbols are resolved) and their values passed the validity check
-		bool inst_found = false;
-		int32_t args[A1_MAX_INST_ARGS_NUM] = { 0 };
+	if(IsDataStmt(*start))
+	{
+		return ConstStmt::Read(start, end, memrefs, file_name);
+	}
 
-		for(auto i: insts)
-		{
-			// validity check passed for all arguments that could be evaluated on this stage
-			bool valid_passed = true;
+	auto line_num = start->GetLineNum();
+	
+	std::wstring signature;
+	auto err = GetSignature(start, end, signature);
+	if(err != A1_T_ERROR::A1_RES_OK)
+	{
+		return err;
+	}
 
-			inst_found = true;
-			_inst = i;
-			_size = i->_size;
-
-			for(auto a = 0; a < i->_argnum; a++)
-			{
-				int32_t val = -1;
-
-				_refs[a].first = i->_argtypes[a];
-
-				if(_refs[a].first.get().IsRelOffset())
-				{
-					inst_found = false;
-					continue;
-				}
-
-				if(_refs[a].first.get() == ArgType::AT_SPEC_TYPE)
-				{
-					auto err = i->GetSpecArg(a, _refs[a], val);
-					if(err != A1_T_ERROR::A1_RES_OK)
-					{
-						return err;
-					}
-				}
-				else
-				{
-					auto err = _refs[a].second.Eval(val, memrefs);
-					if(err == A1_T_ERROR::A1_RES_OK)
-					{
-						if(!_refs[a].first.get().IsValidValue(val))
-						{
-							inst_found = false;
-							valid_passed = false;
-						}
-					}
-					else
-					{
-						inst_found = false;
-					}
-				}
-
-				args[a] = val;
-			}
-
-			if(valid_passed)
-			{
-				valid_inst = _inst;
-				vi_refs = _refs;
-			}
-
-			if(!inst_found)
-			{
-				continue;
-			}
-
-			if(!_inst->CheckArgs(args[0], args[1], args[2]))
-			{
-				inst_found = false;
-				valid_inst = nullptr;
-			}
-
-			if(inst_found)
-			{
-				break;
-			}
-		}
-
-		if(inst_found)
-		{
-			break;
-		}
-		else
-		if(valid_inst != nullptr)
-		{
-			_inst = valid_inst;
-			_refs = vi_refs;
-			break;
-		}
-
-		auto inst_id = _inst->GetId();
-		if(inst_id < 0)
-		{
-			break;
-		}
-		_global_settings.AddInstToReplace(line_num, file_name, inst_id);
+	// sets _inst, _refs and _size member variables
+	err = GetInstruction(signature, memrefs, line_num, file_name);
+	if(err != A1_T_ERROR::A1_RES_OK)
+	{
+		return err;
 	}
 
 	_is_inst = true;
@@ -3307,7 +3210,7 @@ A1_T_ERROR Sections::ReadSections()
 #ifndef A1_CONST_AFTER_CODE
 	// read .CONST sections
 	err = ReadConstSections();
-	if (err != A1_T_ERROR::A1_RES_OK)
+	if(err != A1_T_ERROR::A1_RES_OK)
 	{
 		return err;
 	}
@@ -3386,12 +3289,14 @@ A1_T_ERROR Sections::Write(const std::string &file_name)
 
 				if(err != A1_T_ERROR::A1_RES_OK)
 				{
-					if(_global_settings.GetFixAddresses() && err == A1_T_ERROR::A1_RES_ERELOUTRANGE)
+					auto stmt = dynamic_cast<const CodeStmt *>(i);
+
+					if(_global_settings.GetFixAddresses() && err == A1_T_ERROR::A1_RES_ERELOUTRANGE && stmt != nullptr)
 					{
 						rel_out_range = true;
 						ror_line_num = i->GetLineNum();
 						ror_file_name = _curr_file_name;
-						_global_settings.AddInstToReplace(ror_line_num, _curr_file_name, i->GetId());
+						_global_settings.AddInstToReplace(ror_line_num, _curr_file_name, stmt->GetInst());
 					}
 					else
 					{

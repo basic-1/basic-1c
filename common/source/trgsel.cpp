@@ -1,6 +1,6 @@
 /*
  BASIC1 compiler
- Copyright (c) 2021-2024 Nikolay Pletnev
+ Copyright (c) 2021-2025 Nikolay Pletnev
  MIT license
 
  trgsel.cpp: target selection
@@ -18,6 +18,18 @@ std::vector<B1_CMP_FN> B1_CMP_FNS::_fns =
 };
 #endif
 
+
+std::string get_c1_compiler_name(const Settings &settings)
+{
+#if defined(B1_TARGET_STM8) || defined(B1_TARGET_ALL)
+	if(settings.GetTargetName() == "STM8")
+	{
+		return "c1stm8";
+	}
+#endif
+
+	return std::string();
+}
 
 bool select_target(Settings &settings)
 {
@@ -98,6 +110,7 @@ bool select_target(Settings &settings)
 		return true;
 	}
 #endif
+
 
 	return false;
 }

@@ -65,7 +65,7 @@ static std::wstring get_size_kB(int64_t size)
 
 static std::multimap<std::wstring, std::unique_ptr<Inst>> _instructions;
 
-#define ADD_INST(SIGN, OPCODE, ...) _instructions.emplace(SIGN, new Inst(-1, (OPCODE), ##__VA_ARGS__))
+#define ADD_INST(SIGN, OPCODE, ...) _instructions.emplace(SIGN, new Inst((OPCODE), ##__VA_ARGS__))
 
 static void load_all_instructions()
 {
@@ -832,7 +832,7 @@ static void load_all_instructions()
 
 static std::multimap<std::wstring, std::unique_ptr<Inst>> _instructions_ex;
 
-#define ADD_INST_EX(SIGN, OPCODE, ...) _instructions_ex.emplace(SIGN, new Inst(-1, (OPCODE), ##__VA_ARGS__))
+#define ADD_INST_EX(SIGN, OPCODE, ...) _instructions_ex.emplace(SIGN, new Inst((OPCODE), ##__VA_ARGS__))
 
 // CALLR -> CALL (if necessary), JRX -> JP (if necessary)
 static void load_extra_instructions_small()
@@ -914,22 +914,23 @@ static void load_extra_instructions_large()
 }
 
 
-class A1STM8Settings: public A1Settings
+class A1STM8Settings: public STM8Settings, public A1Settings
 {
 public:
 	A1STM8Settings()
-	: A1Settings()
+	: STM8Settings()
+	, A1Settings()
 	{
 	}
 
-	A1_T_ERROR GetInstructions(const std::wstring &inst_name, const std::wstring &inst_sign, std::vector<const Inst *> &insts, int line_num, const std::string &file_name) const override
+	A1_T_ERROR GetInstructions(const std::wstring &inst_sign, std::vector<const Inst *> &insts, int line_num, const std::string &file_name) const override
 	{
 		bool use_ex_opcodes = false;
 
 		// replace JP -> JPF, CALL and CALLR -> CALLF, RET -> RETF
 		if(GetFixAddresses() && GetMemModelLarge())
 		{
-			if(inst_name == L"JP" || inst_name == L"CALL" || inst_name == L"CALLR" || inst_name == L"RET")
+			if(inst_sign == L"JPV" || inst_sign == L"JP(V)" || inst_sign == L"CALLV" || inst_sign == L"CALL(V)" || inst_sign == L"CALLRV" || inst_sign == L"CALLR(V)" || inst_sign == L"RET")
 			{
 				use_ex_opcodes = true;
 			}
@@ -950,6 +951,27 @@ public:
 			return A1_T_ERROR::A1_RES_EINVINST;
 		}
 
+		// sort the instructions by speed and size in ascending order
+		for(auto i = 0; i < insts.size(); i++)
+		{
+			auto imin = i;
+			auto min = insts[i]->_speed * 256 + insts[i]->_size;
+			auto min_nxt = 0;
+			for(auto j = i + 1; j < insts.size(); j++)
+			{
+				min_nxt = insts[j]->_speed * 256 + insts[j]->_size;
+				if(min_nxt < min)
+				{
+					imin = j;
+					min = min_nxt;
+				}
+			}
+			if(imin != i)
+			{
+				std::swap(insts[i], insts[imin]);
+			}
+		}
+
 		auto mi = ginsts.equal_range(inst_sign);
 		for(auto inst = mi.first; inst != mi.second; inst++)
 		{
@@ -968,7 +990,7 @@ A1Settings &_global_settings = global_settings;
 class CodeStmtSTM8: public CodeStmt
 {
 protected:
-	A1_T_ERROR GetExpressionSignature(Exp &exp, std::wstring &sign) override
+	A1_T_ERROR GetExpressionSignature(Exp &exp, std::wstring &sign) const override
 	{
 		static const std::vector<const wchar_t *> _regs = { L"A", L"X", L"XL", L"XH", L"Y", L"YL", L"YH", L"SP", L"CC" };
 
@@ -998,6 +1020,91 @@ protected:
 		return A1_T_ERROR::A1_RES_OK;
 	}
 
+	A1_T_ERROR GetInstruction(const std::wstring &signature, const std::map<std::wstring, MemRef> &memrefs, int line_num, const std::string &file_name) override
+	{
+		std::vector<const Inst *> insts;
+		auto err = _global_settings.GetInstructions(signature, insts, line_num, file_name);
+		if(err != A1_T_ERROR::A1_RES_OK)
+		{
+			return err;
+		}
+
+		_inst = nullptr;
+
+		int32_t args[A1_MAX_INST_ARGS_NUM] = { 0 };
+
+		for(auto i: insts)
+		{
+			bool inst_found = true;
+
+			_size = i->_size;
+			_inst = i;
+
+			for(auto a = 0; a < i->_argnum; a++)
+			{
+				int32_t val = -1;
+
+				_refs[a].first = i->_argtypes[a];
+
+				if(_refs[a].first.get().IsRelOffset())
+				{
+					continue;
+				}
+
+				auto err = _refs[a].second.Eval(val, memrefs);
+				if(err == A1_T_ERROR::A1_RES_OK)
+				{
+					if(!_refs[a].first.get().IsValidValue(val))
+					{
+						inst_found = false;
+					}
+				}
+				else
+				{
+					inst_found = false;
+				}
+
+				args[a] = val;
+			}
+
+			if(inst_found)
+			{
+				break;
+			}
+		}
+
+		return A1_T_ERROR::A1_RES_OK;
+	}
+
+	A1_T_ERROR GetRefValue(const std::pair<std::reference_wrapper<const ArgType>, Exp> &ref, const std::map<std::wstring, MemRef> &memrefs, uint32_t &value, int &size) override
+	{
+		int32_t addr = 0;
+
+		auto err = ref.second.Eval(addr, memrefs);
+		if(err != A1_T_ERROR::A1_RES_OK)
+		{
+			return err;
+		}
+
+		if(ref.first.get() == ArgType::AT_1BYTE_OFF)
+		{
+			addr = addr - _address - _size;
+		}
+
+		size = ref.first.get()._size;
+		if(!ref.first.get().IsValidValue(addr))
+		{
+			if(ref.first.get() == ArgType::AT_1BYTE_OFF)
+			{
+				return A1_T_ERROR::A1_RES_ERELOUTRANGE;
+			}
+			_warnings.push_back(A1_T_WARNING::A1_WRN_WINTOUTRANGE);
+		}
+
+		value = addr;
+
+		return A1_T_ERROR::A1_RES_OK;
+	}
 
 public:
 	CodeStmtSTM8()

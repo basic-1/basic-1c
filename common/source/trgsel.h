@@ -1,6 +1,6 @@
 /*
  BASIC1 compiler
- Copyright (c) 2021-2024 Nikolay Pletnev
+ Copyright (c) 2021-2025 Nikolay Pletnev
  MIT license
 
  trgsel.h: select target
@@ -21,7 +21,18 @@
 
 #define STM8_RET_ADDR_SIZE_MM_SMALL 2
 #define STM8_RET_ADDR_SIZE_MM_LARGE 3
+
+
+class STM8Settings: virtual public Settings
+{
+public:
+	STM8Settings()
+	: Settings()
+	{
+	}
+};
 #endif
 
 
 extern bool select_target(Settings &settings);
+extern std::string get_c1_compiler_name(const Settings &settings);

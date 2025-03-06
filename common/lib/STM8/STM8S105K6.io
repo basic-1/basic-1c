@@ -1,5 +1,5 @@
 [UART2]
-; name         id  call_type placement file_name mask accept_data  data_type  arg_data   predef_only  val_num  val0_name,val0_value...                                                                    def_val
+; name         id  call_type placement file_name mask accept_data  data_type  extra_data predef_only  val_num  val0_name,val0_value...                                                                    def_val
 INPUTECHO,     0,  INL,      ,         ,         2,   TRUE,        BYTE,      ,          TRUE,        4,       ON,2,         OFF,0,         ENABLE,2,      DISABLE,0
 TRANSMODE,     0,  INL,      ,         ,         16,  TRUE,        BYTE,      ,          TRUE,        2,       DUPLEX,0,     SIMPLEX,16
 CFGPINS,       0,  INL,      ,         ,         64,  TRUE,        BYTE,      ,          TRUE,        4,       ON,64,        OFF,0,         ENABLE,64,     DISABLE,0,                                     ON
@@ -31,7 +31,7 @@ DISABLE,       8,  INL,      ,         ,         ,    FALSE
 ONUPDOVF,      9,  INL,      END,      ,         ,    TRUE,        LABEL,     ,          FALSE
 
 [PA,PB,PC,PD,PE,PF]
-; name         id  call_type placement file_name            mask       accept_data  data_type  arg_data   predef_only  val_num  val0_name,val0_value...
+; name         id  call_type placement file_name            mask       accept_data  data_type  extra_data predef_only  val_num  val0_name,val0_value...
 CFGPIN0,       0,  INL,      ,         __LIB_GPIO_CFG_INL,  0x010101,  TRUE,        LONG,      ,          TRUE,        8,       IN_FLOAT_NOEXTI,0, IN_FLOAT_EXTI,1, IN_PULLUP_NOEXTI,0x100, IN_PULLUP_EXTI,0x101, OUT_OPENDRAIN_SLOW,0x10000, OUT_OPENDRAIN_FAST,0x10001, OUT_PUSHPULL_SLOW,0x10100, OUT_PUSHPULL_FAST,0x10101
 CFGPIN1,       0,  INL,      ,         __LIB_GPIO_CFG_INL,  0x020202,  TRUE,        LONG,      ,          TRUE,        8,       IN_FLOAT_NOEXTI,0, IN_FLOAT_EXTI,2, IN_PULLUP_NOEXTI,0x200, IN_PULLUP_EXTI,0x202, OUT_OPENDRAIN_SLOW,0x20000, OUT_OPENDRAIN_FAST,0x20002, OUT_PUSHPULL_SLOW,0x20200, OUT_PUSHPULL_FAST,0x20202
 CFGPIN2,       0,  INL,      ,         __LIB_GPIO_CFG_INL,  0x040404,  TRUE,        LONG,      ,          TRUE,        8,       IN_FLOAT_NOEXTI,0, IN_FLOAT_EXTI,4, IN_PULLUP_NOEXTI,0x400, IN_PULLUP_EXTI,0x404, OUT_OPENDRAIN_SLOW,0x40000, OUT_OPENDRAIN_FAST,0x40004, OUT_PUSHPULL_SLOW,0x40400, OUT_PUSHPULL_FAST,0x40404
@@ -68,7 +68,7 @@ INVPIN6,       5,  INL,      ,         __LIB_GPIO_INV_INL,  ,          FALSE
 INVPIN7,       5,  INL,      ,         __LIB_GPIO_INV_INL,  ,          FALSE
 
 [SPI]
-; name         id  call_type placement file_name            mask       accept_data  data_type  arg_data   predef_only  val_num  val0_name,val0_value...                                                                   def_val
+; name         id  call_type placement file_name            mask       accept_data  data_type  extra_data predef_only  val_num  val0_name,val0_value...                                                                   def_val
 MODE,          0,  INL,      ,         ,                    3,         TRUE,        BYTE,      ,          TRUE,        12,      MODE0,0, MODE1,1, MODE2,2, MODE3,3, M0,0, M1,1, M2,2, M3,3, 0,0, 1,1, 2,2, 3,3
 MASTER,        0,  INL,      ,         ,                    4,         TRUE,        BYTE,      ,          TRUE,        4,       ON,4, OFF,0, ENABLE,4, DISABLE,0,                                                         ON
 PRESCALER,     0,  INL,      ,         ,                    0x38,      TRUE,        BYTE,      ,          TRUE,        8,       DIV2,0, DIV4,8, DIV8,0x10, DIV16,0x18, DIV32,0x20, DIV64,0x28, DIV128,0x30, DIV256,0x38
@@ -83,7 +83,7 @@ ENABLE,        7,  INL,      ,         ,                    ,          FALSE
 DISABLE,       8,  INL,      ,         ,                    ,          FALSE
 
 [ST7565_SPI]
-; name         id  call_type placement file_name            mask       accept_data  data_type  arg_data   predef_only  val_num  val0_name,val0_value...                                                                   def_val
+; name         id  call_type placement file_name            mask       accept_data  data_type  extra_data predef_only  val_num  val0_name,val0_value...                                                                   def_val
 RSTPIN,        0,  INL,      ,         ,                    ,          TRUE,        TEXT,      ,          FALSE,       1,       NONE,NONE
 DCPIN,         1,  INL,      ,         ,                    ,          TRUE,        TEXT,      ,          FALSE
 CFGPINS,       2,  INL,      ,         ,                    ,          TRUE,        BYTE,      ,          TRUE,        4,       ON,1, OFF,0, ENABLE,1, DISABLE,0,                                                         ON

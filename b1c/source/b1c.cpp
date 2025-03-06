@@ -1534,7 +1534,7 @@ B1C_T_ERROR B1FileCompiler::st_ioctl()
 						return err1;
 					}
 
-					const auto lbl_name = is_numeric ? (get_name_space_prefix() + L"__ULB_" + data) : (data + cmd.suffix);
+					const auto lbl_name = is_numeric ? (get_name_space_prefix() + L"__ULB_" + data) : (data + cmd.extra_data);
 					_req_labels.insert(lbl_name);
 					emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + lbl_name + L"\"", B1Types::B1T_STRING) }));
 				}
@@ -1547,7 +1547,7 @@ B1C_T_ERROR B1FileCompiler::st_ioctl()
 						return err1;
 					}
 
-					data += cmd.suffix;
+					data += cmd.extra_data;
 
 					emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(data, B1Types::B1T_VARREF) }));
 
@@ -1571,7 +1571,7 @@ B1C_T_ERROR B1FileCompiler::st_ioctl()
 						return err1;
 					}
 
-					data += cmd.suffix;
+					data += cmd.extra_data;
 
 					emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + data + L"\"", B1Types::B1T_STRING) }));
 				}
@@ -11541,7 +11541,6 @@ int main(int argc, char **argv)
 			{
 				i++;
 				target_name = Utils::str_toupper(Utils::str_trim(argv[i]));
-				// now the only supported target is STM8
 				if(target_name.empty())
 				{
 					args_error = true;
@@ -11845,8 +11844,7 @@ int main(int argc, char **argv)
 				cwd.clear();
 			}
 
-			// now the only supported target is STM8
-			int sc = std::system((cwd + "c1stm8 -fr" + args + " " + ofn).c_str());
+			int sc = std::system((cwd + get_c1_compiler_name(_global_settings) + " -fr" + args + " " + ofn).c_str());
 			if(sc == -1)
 			{
 				std::perror("fail");

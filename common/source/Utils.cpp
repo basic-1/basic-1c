@@ -567,6 +567,40 @@ void Utils::correct_int_value(int32_t &n, const B1Types type)
 	}
 }
 
+int32_t Utils::int32power(int32_t base, uint32_t exp)
+{
+	if(exp == 0)
+	{
+		return 1;
+	}
+
+	if(base == 0)
+	{
+		return 0;
+	}
+
+	if(base == 1)
+	{
+		return 1;
+	}
+
+	if(exp == 1)
+	{
+		return base;
+	}
+
+	int32_t h = int32power(base, exp / 2);
+
+	h *= h;
+
+	if(exp % 2 == 0)
+	{
+		return h;
+	}
+	
+	return h * base;
+}
+
 
 B1_T_ERROR Settings::Read(const std::string &file_name)
 {
@@ -822,6 +856,7 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 	while(!is_eof)
 	{
 		std::wstring line;
+		std::vector<std::wstring> values;
 
 		auto err = Utils::read_line(fp, line);
 		if(err == B1_RES_EEOF)
@@ -959,10 +994,26 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 		}
 		if(!value.empty())
 		{
-			err = Utils::str2int32(value, cmd.mask);
+			values.clear();
+			Utils::str_split(value, L"+", values);
+
+			err = Utils::str2int32(values[0], cmd.mask);
 			if(err != B1_RES_OK)
 			{
 				return err;
+			}
+
+			for(auto v = std::next(values.cbegin()); v != values.cend(); v++)
+			{
+				int32_t n = -1;
+
+				err = Utils::str2int32(*v, n);
+				if(err != B1_RES_OK)
+				{
+					return err;
+				}
+
+				cmd.more_masks.push_back(std::make_pair(B1Types::B1T_UNKNOWN, n));
 			}
 		}
 
@@ -993,25 +1044,41 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 		{
 			return B1_RES_ESYNTAX;
 		}
-		cmd.data_type = Utils::get_type_by_name(value);
 
-		// acceptable argument types
-		if(!get_field(line, true, value))
+		values.clear();
+		cmd.data_type = B1Types::B1T_UNKNOWN;
+
+		Utils::str_split(value, L"+", values);
+		if(cmd.more_masks.size() > values.size())
 		{
 			return B1_RES_ESYNTAX;
 		}
 
-		if(cmd.data_type == B1Types::B1T_VARREF || cmd.data_type == B1Types::B1T_LABEL || cmd.data_type == B1Types::B1T_TEXT)
+		if(values.size() > 0)
 		{
-			cmd.suffix = value;
+			cmd.data_type = Utils::get_type_by_name(values[0]);
+
+			for(auto i = 1; i < values.size(); i++)
+			{
+				auto type = Utils::get_type_by_name(values[i]);
+
+				if((i - 1) < cmd.more_masks.size())
+				{
+					cmd.more_masks[i - 1].first = type;
+				}
+				else
+				{
+					cmd.more_masks.push_back(std::make_pair(type, 0));
+				}
+			}
 		}
-		else
+
+		// extra data (acceptable arg. types, source file name suffix, etc.)
+		if(!get_field(line, true, value))
 		{
-			cmd.arg_types = (value.find(L"I") == std::wstring::npos ? LVT::LVT_NONE : LVT::LVT_IMMVAL) |
-				(value.find(L"M") == std::wstring::npos ? LVT::LVT_NONE : LVT::LVT_MEMREF) |
-				(value.find(L"S") == std::wstring::npos ? LVT::LVT_NONE : LVT::LVT_STKREF) |
-				(value.find(L"R") == std::wstring::npos ? LVT::LVT_NONE : LVT::LVT_REG);
+			return B1_RES_ESYNTAX;
 		}
+		cmd.extra_data = value;
 
 		// predefined values only
 		if(!get_field(line, true, value))
@@ -1033,15 +1100,6 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 			{
 				return B1_RES_ESYNTAX;
 			}
-		}
-
-		if(cmd.call_type == IoCmd::IoCmdCallType::CT_INL && cmd.accepts_data && !cmd.predef_only)
-		{
-			cmd.arg_types |= LVT::LVT_REG;
-		}
-		else
-		{
-			cmd.arg_types = LVT::LVT_NONE;
 		}
 
 		// values number

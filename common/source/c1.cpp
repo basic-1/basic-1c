@@ -8,10 +8,10 @@
 
 
 #include <cwctype>
-#include <cstring>
 #include <iterator>
 #include <algorithm>
 #include <filesystem>
+#include <array>
 
 #include "moresym.h"
 
@@ -382,7 +382,7 @@ C1_T_ERROR C1Compiler::replace_inline(std::wstring &line, const std::map<std::ws
 	return C1_T_ERROR::C1_RES_OK;
 }
 
-C1_T_ERROR C1Compiler::load_inline(size_t offset, const std::wstring &line, const_iterator pos, const std::map<std::wstring, std::wstring> &inl_params)
+C1_T_ERROR C1Compiler::load_inline(size_t offset, const std::wstring &line, iterator pos, const std::map<std::wstring, std::wstring> &inl_params)
 {
 	B1_TYPED_VALUE tv;
 
@@ -422,6 +422,8 @@ C1_T_ERROR C1Compiler::load_inline(size_t offset, const std::wstring &line, cons
 	_last_dat_namespace.clear();
 
 	std::wstring inl_line;
+
+	auto start = empty() ? end() : std::prev(pos);
 
 	while(true)
 	{
@@ -469,6 +471,37 @@ C1_T_ERROR C1Compiler::load_inline(size_t offset, const std::wstring &line, cons
 	}
 
 	_inline_code.erase(file_name);
+
+	if(err != C1_T_ERROR::C1_RES_OK)
+	{
+		return err;
+	}
+
+	start = (start == end()) ? begin() : std::next(start);
+
+	err = read_ufns(start, pos);
+	if(err != C1_T_ERROR::C1_RES_OK)
+	{
+		return err;
+	}
+
+	err = read_and_check_locals(start, pos);
+	if(err != C1_T_ERROR::C1_RES_OK)
+	{
+		return err;
+	}
+
+	err = read_and_check_vars(start, pos, true);
+	if(err != C1_T_ERROR::C1_RES_OK)
+	{
+		return err;
+	}
+
+	err = process_imm_str_values(start, pos);
+	if(err != C1_T_ERROR::C1_RES_OK)
+	{
+		return err;
+	}
 
 	return err;
 }
@@ -1069,7 +1102,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			args.push_back(arg);
 		}
 		else
-		if(cmd == L"JMP" || cmd == L"JF" || cmd == L"JT" || cmd == L"CALL" || cmd == L"GF" || cmd == L"LF" || cmd == L"IMP" || cmd == L"INI" || cmd == L"INL" || cmd == L"INT")
+		if(cmd == L"JMP" || cmd == L"JF" || cmd == L"JT" || cmd == L"CALL" || cmd == L"GF" || cmd == L"LF" || cmd == L"IMP" || cmd == L"INI" || cmd == L"INL" || cmd == L"INT" || cmd == L"USES")
 		{
 			// read label name
 			err = get_simple_arg(tmpline, tv, offset);
@@ -1077,7 +1110,8 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			{
 				return err;
 			}
-			if(!check_label_name(tv.value))
+
+			if(cmd != L"USES" && !check_label_name(tv.value))
 			{
 				return C1_T_ERROR::C1_RES_EINVLBNAME;
 			}
@@ -1105,11 +1139,6 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			args.push_back(tv.value);
 		}
 		else
-		/*if(cmd == L"INL")
-		{
-			return load_inline(offset, tmpline, pos);
-		}
-		else*/
 		if(cmd == L"ERR")
 		{
 			// read error code (can be absent)
@@ -1524,12 +1553,12 @@ C1_T_ERROR C1Compiler::check_arg(B1_CMP_ARG &arg)
 	return C1_T_ERROR::C1_RES_OK;
 }
 
-C1_T_ERROR C1Compiler::read_ufns()
+C1_T_ERROR C1Compiler::read_ufns(const_iterator begin, const_iterator end)
 {
-	_ufns.clear();
-
-	for(const auto &cmd: *this)
+	for(auto it = begin; it != end; it++)
 	{
+		auto &cmd = *it;
+
 		_curr_src_file_id = cmd.src_file_id;
 		_curr_line_cnt = cmd.line_cnt;
 
@@ -1566,12 +1595,12 @@ C1_T_ERROR C1Compiler::read_ufns()
 	return C1_T_ERROR::C1_RES_OK;
 }
 
-C1_T_ERROR C1Compiler::read_and_check_locals()
+C1_T_ERROR C1Compiler::read_and_check_locals(const_iterator begin, const_iterator end)
 {
-	_locals.clear();
-
-	for(const auto &cmd: *this)
+	for(auto it = begin; it != end; it++)
 	{
+		auto &cmd = *it;
+
 		_curr_src_file_id = cmd.src_file_id;
 		_curr_line_cnt = cmd.line_cnt;
 
@@ -1595,20 +1624,12 @@ C1_T_ERROR C1Compiler::read_and_check_locals()
 }
 
 // check variables types and sizes, set values of optional function arguments, build variable list
-C1_T_ERROR C1Compiler::read_and_check_vars()
+C1_T_ERROR C1Compiler::read_and_check_vars(iterator begin, iterator end, bool inline_code)
 {
 	//       name                    GAs number  imm. sizes
 	std::map<std::wstring, std::pair<int32_t,    bool>> exp_alloc;
-	std::map<std::wstring, std::tuple<int32_t, int32_t, bool>> arr_ranges;
 
-	_vars.clear();
-	_vars_order.clear();
-	_vars_order_set.clear();
-	_mem_areas.clear();
-	_data_stmts.clear();
-	_vars_stats.clear();
-
-	for(auto ci = begin(); ci != end(); ci++)
+	for(auto ci = begin; ci != end; ci++)
 	{
 		auto &cmd = *ci;
 
@@ -1620,14 +1641,24 @@ C1_T_ERROR C1Compiler::read_and_check_vars()
 			continue;
 		}
 
+		if(inline_code && (cmd.cmd == L"GA" || cmd.cmd == L"GF" || cmd.cmd == L"MA" || cmd.cmd == L"DAT" || cmd.cmd == L"READ" || cmd.cmd == L"RST"))
+		{
+			return C1_T_ERROR::C1_RES_ENOTIMP;
+		}
+
 		if(	cmd.cmd == L"LA" || cmd.cmd == L"LF" || cmd.cmd == L"NS" || cmd.cmd == L"JMP" || cmd.cmd == L"JF" || cmd.cmd == L"JT" ||
 			cmd.cmd == L"CALL" || cmd.cmd == L"RET" || cmd.cmd == L"DAT" || cmd.cmd == L"RST" || cmd.cmd == L"END" || cmd.cmd == L"DEF" ||
-			cmd.cmd == L"ERR" || cmd.cmd == L"IMP" || cmd.cmd == L"INI" || cmd.cmd == L"INT" || cmd.cmd == L"INL")
+			cmd.cmd == L"ERR" || cmd.cmd == L"IMP" || cmd.cmd == L"INI" || cmd.cmd == L"INT" || cmd.cmd == L"INL" || cmd.cmd == L"USES")
 		{
 			if(cmd.cmd == L"DAT")
 			{
 				_data_stmts[cmd.args[0][0].value].push_back(ci);
 				_data_stmts_init.insert(cmd.args[0][0].value);
+			}
+			else
+			if(cmd.cmd == L"CALL")
+			{
+				_sub_entry_labels.insert(cmd.args[0][0].value);
 			}
 
 			continue;
@@ -1999,82 +2030,33 @@ C1_T_ERROR C1Compiler::read_and_check_vars()
 			}
 			_vars_order_set.erase(ma.first);
 		}
-
-		auto ar = arr_ranges.find(ma.first);
-		if(ar != arr_ranges.cend())
-		{
-			if(ma.second.type != B1Types::B1T_BYTE || ma.second.dim_num != 1)
-			{
-				_curr_src_file_id = std::get<0>(ar->second);
-				_curr_line_cnt = std::get<1>(ar->second);
-
-				return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
-			}
-
-			if(ma.second.is_const && !std::get<2>(ar->second))
-			{
-				_curr_src_file_id = std::get<0>(ar->second);
-				_curr_line_cnt = std::get<1>(ar->second);
-
-				return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
-			}
-
-			arr_ranges.erase(ar);
-		}
 	}
 
-	for(auto &var: _vars)
+	// implicitly allocated variables are not allowed in inline code
+	if(!inline_code)
 	{
-		auto ea = exp_alloc.find(var.first);
-
-		var.second.fixed_size = (ea == exp_alloc.cend());
-
-		// implicitly allocated variables
-		if(var.second.fixed_size)
+		for(auto &var: _vars)
 		{
-			for(int d = 0; d < var.second.dim_num; d++)
+			auto ea = exp_alloc.find(var.first);
+
+			var.second.fixed_size = (ea == exp_alloc.cend());
+
+			// implicitly allocated variables
+			if(var.second.fixed_size)
 			{
-				var.second.dims.push_back(b1_opt_base_val);
-				var.second.dims.push_back(10);
+				for(int d = 0; d < var.second.dim_num; d++)
+				{
+					var.second.dims.push_back(b1_opt_base_val);
+					var.second.dims.push_back(10);
+				}
+			}
+			else
+			// OPTION EXPLICIT and single GA (DIM) with fixed sizes
+			if(b1_opt_explicit_val != 0 && ea->second.first == 1 && ea->second.second)
+			{
+				var.second.fixed_size = true;
 			}
 		}
-		else
-		// OPTION EXPLICIT and single GA (DIM) with fixed sizes
-		if(b1_opt_explicit_val != 0 && ea->second.first == 1 && ea->second.second)
-		{
-			var.second.fixed_size = true;
-		}
-
-		auto ar = arr_ranges.find(var.first);
-		if(ar != arr_ranges.cend())
-		{
-			if(var.second.type != B1Types::B1T_BYTE || var.second.dim_num != 1)
-			{
-				_curr_src_file_id = std::get<0>(ar->second);
-				_curr_line_cnt = std::get<1>(ar->second);
-
-				return static_cast<C1_T_ERROR>(B1_RES_ETYPMISM);
-			}
-
-			if(var.second.is_const && !std::get<2>(ar->second))
-			{
-				_curr_src_file_id = std::get<0>(ar->second);
-				_curr_line_cnt = std::get<1>(ar->second);
-
-				return static_cast<C1_T_ERROR>(B1_RES_ETYPMISM);
-			}
-
-			arr_ranges.erase(ar);
-		}
-	}
-
-	if(!arr_ranges.empty())
-	{
-		auto ar = arr_ranges.cbegin();
-		_curr_src_file_id = std::get<0>(ar->second);
-		_curr_line_cnt = std::get<1>(ar->second);
-
-		return static_cast<C1_T_ERROR>(B1_RES_ETYPMISM);
 	}
 
 	return C1_T_ERROR::C1_RES_OK;
@@ -2099,10 +2081,12 @@ C1_T_ERROR C1Compiler::process_imm_str_value(const B1_CMP_ARG &arg)
 }
 
 // build label list for all imm. string values (__STR_XXX labels)
-C1_T_ERROR C1Compiler::process_imm_str_values()
+C1_T_ERROR C1Compiler::process_imm_str_values(const_iterator begin, const_iterator end)
 {
-	for(const auto &cmd: *this)
+	for(auto it = begin; it != end; it++)
 	{
+		auto &cmd = *it;
+
 		_curr_src_file_id = cmd.src_file_id;
 		_curr_line_cnt = cmd.line_cnt;
 
@@ -2238,7 +2222,7 @@ C1_T_ERROR C1Compiler::process_imm_str_values()
 	return C1_T_ERROR::C1_RES_OK;
 }
 
-B1_ASM_OPS::const_iterator C1Compiler::create_asm_op(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, AOT type, const std::wstring &lbl, bool is_volatile, bool is_inline)
+B1_ASM_OPS::iterator C1Compiler::create_asm_op(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, AOT type, const std::wstring &lbl, bool is_volatile, bool is_inline)
 {
 	return sec.emplace(where, new B1_ASM_OP(type, lbl, _comment, is_volatile, is_inline));
 }
@@ -2248,24 +2232,30 @@ std::wstring C1Compiler::ROM_string_representation(int32_t str_len, const std::w
 	return L"DB " + Utils::str_tohex32(str_len) + L", " + str;
 }
 
-B1_ASM_OPS::const_iterator C1Compiler::add_lbl(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, const std::wstring &lbl, bool is_volatile, bool is_inline /*= false*/)
+B1_ASM_OPS::iterator C1Compiler::add_lbl(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, const std::wstring &lbl, bool is_volatile, bool is_inline /*= false*/)
 {
 	auto it = create_asm_op(sec, where, AOT::AOT_LABEL, lbl, is_volatile, is_inline);
 	_comment.clear();
 	return it;
 }
 
-B1_ASM_OPS::const_iterator C1Compiler::add_data(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, const std::wstring &data, bool is_volatile, bool is_inline /*= false*/)
+B1_ASM_OPS::iterator C1Compiler::add_data(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, const std::wstring &data, bool is_volatile, bool is_inline /*= false*/)
 {
 	auto it = create_asm_op(sec, where, AOT::AOT_DATA, data, is_volatile, is_inline);
 	_comment.clear();
 	return it;
 }
 
-void C1Compiler::add_op(B1_ASM_OPS &sec, const std::wstring &op, bool is_volatile, bool is_inline /*= false*/)
+B1_ASM_OPS::iterator C1Compiler::add_op(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, const std::wstring &op, bool is_volatile, bool is_inline /*= false*/)
 {
-	create_asm_op(sec, sec.cend(), AOT::AOT_OP, op, is_volatile, is_inline);
+	auto it = create_asm_op(sec, where, AOT::AOT_OP, op, is_volatile, is_inline);
 	_comment.clear();
+	return it;
+}
+
+B1_ASM_OPS::iterator C1Compiler::add_op(B1_ASM_OPS &sec, const std::wstring &op, bool is_volatile, bool is_inline /*= false*/)
+{
+	return add_op(sec, sec.cend(), op, is_volatile, is_inline);
 }
 
 C1_T_ERROR C1Compiler::add_data_def(const std::wstring &name, const std::wstring &asmtype, int32_t rep, bool is_volatile)
@@ -2417,13 +2407,24 @@ C1_T_ERROR C1Compiler::write_const_sec()
 	std::wstring str_var_asm_type;
 	B1CUtils::get_asm_type(B1Types::B1T_STRING, &str_var_asm_type, &str_var_size);
 
+	_curr_const_sec = &_const_secs.emplace_back();
+
 	// DAT statements
 	if(!_data_stmts.empty())
 	{
+		std::array<B1_ASM_OPS::const_iterator, 6> insert_at = {
+			add_lbl(*_curr_const_sec, _curr_const_sec->cend(), L"LONG_TYPE_TMP", false),
+			add_lbl(*_curr_const_sec, _curr_const_sec->cend(), L"STRING_TYPE_TMP", false),
+			add_lbl(*_curr_const_sec, _curr_const_sec->cend(), L"INT_TYPE_TMP", false),
+			add_lbl(*_curr_const_sec, _curr_const_sec->cend(), L"WORD_TYPE_TMP", false),
+			add_lbl(*_curr_const_sec, _curr_const_sec->cend(), L"BYTE_TYPE_TMP", false),
+			_curr_const_sec->cend() };
+
 		for(auto const &dt: _data_stmts)
 		{
 			bool dat_start = true;
 			bool const_var_data = false;
+			auto where = _curr_const_sec->cend();
 
 			std::wstring name_space = dt.first;
 
@@ -2431,6 +2432,11 @@ C1_T_ERROR C1Compiler::write_const_sec()
 			if(ma != _mem_areas.cend())
 			{
 				const_var_data = true;
+				where = insert_at[ma->second.type == B1Types::B1T_LONG ? 0 :
+					ma->second.type == B1Types::B1T_STRING ? 1 :
+					ma->second.type == B1Types::B1T_INT ? 2 :
+					ma->second.type == B1Types::B1T_WORD ? 3 :
+					ma->second.type == B1Types::B1T_BYTE ? 4 : 5];
 			}
 			else
 			{
@@ -2455,12 +2461,12 @@ C1_T_ERROR C1Compiler::write_const_sec()
 				{
 					if(const_var_data)
 					{
-						add_lbl(_const_sec, _const_sec.cend(), name_space, false);
+						add_lbl(*_curr_const_sec, where, name_space, false);
 						_all_symbols.insert(name_space);
 					}
 					else
 					{
-						add_lbl(_const_sec, _const_sec.cend(), name_space + L"__DAT_START", false);
+						add_lbl(*_curr_const_sec, where, name_space + L"__DAT_START", false);
 						_all_symbols.insert(name_space + L"__DAT_START");
 					}
 					dat_start = false;
@@ -2476,7 +2482,7 @@ C1_T_ERROR C1Compiler::write_const_sec()
 						if(dat_label.empty())
 						{
 							dat_label = L"__DAT_" + std::to_wstring(_dat_rst_labels.size());
-							add_lbl(_const_sec, _const_sec.cend(), dat_label, false);
+							add_lbl(*_curr_const_sec, where, dat_label, false);
 							_all_symbols.insert(dat_label);
 						}
 						_dat_rst_labels[prev->cmd] = dat_label;
@@ -2505,7 +2511,7 @@ C1_T_ERROR C1Compiler::write_const_sec()
 					{
 						if(!values.empty())
 						{
-							add_data(_const_sec, _const_sec.cend(), val_type + L" " + values, false);
+							add_data(*_curr_const_sec, where, val_type + L" " + values, false);
 							val_type.clear();
 							values.clear();
 						}
@@ -2516,7 +2522,7 @@ C1_T_ERROR C1Compiler::write_const_sec()
 							return err;
 						}
 
-						add_data(_const_sec, _const_sec.cend(), str_var_asm_type + L" " + std::get<0>(_str_labels[a[0].value]), false);
+						add_data(*_curr_const_sec, where, str_var_asm_type + L" " + std::get<0>(_str_labels[a[0].value]), false);
 						_const_size += str_var_size;
 					}
 					else
@@ -2547,7 +2553,7 @@ C1_T_ERROR C1Compiler::write_const_sec()
 							}
 							else
 							{
-								add_data(_const_sec, _const_sec.cend(), val_type + L" " + values, false);
+								add_data(*_curr_const_sec, where, val_type + L" " + values, false);
 								val_type = asmtype;
 								values = a[0].value;
 							}
@@ -2561,7 +2567,7 @@ C1_T_ERROR C1Compiler::write_const_sec()
 
 				if(!values.empty())
 				{
-					add_data(_const_sec, _const_sec.cend(), val_type + L" " + values, false);
+					add_data(*_curr_const_sec, where, val_type + L" " + values, false);
 					val_type.clear();
 					values.clear();
 				}
@@ -2589,7 +2595,7 @@ C1_T_ERROR C1Compiler::write_const_sec()
 								return err;
 							}
 
-							add_data(_const_sec, _const_sec.cend(), str_var_asm_type + L" " + std::get<0>(_str_labels[L"\"\""]), false);
+							add_data(*_curr_const_sec, where, str_var_asm_type + L" " + std::get<0>(_str_labels[L"\"\""]), false);
 							_const_size += str_var_size;
 						}
 						else
@@ -2602,12 +2608,17 @@ C1_T_ERROR C1Compiler::write_const_sec()
 								return C1_T_ERROR::C1_RES_EINVTYPNAME;
 							}
 
-							add_data(_const_sec, _const_sec.cend(), asmtype + L" 0", false);
+							add_data(*_curr_const_sec, where, asmtype + L" 0", false);
 							_const_size += size;
 						}
 					}
 				}
 			}
+		}
+
+		for(auto i = 0; i < insert_at.size() - 1; i++)
+		{
+			_curr_const_sec->erase(insert_at[i]);
 		}
 	}
 
@@ -2636,11 +2647,11 @@ C1_T_ERROR C1Compiler::write_const_sec()
 				return static_cast<C1_T_ERROR>(B1_RES_ESTRLONG);
 			}
 
-			add_lbl(_const_sec, _const_sec.cend(), std::get<0>(sl.second), false);
+			add_lbl(*_curr_const_sec, _curr_const_sec->cend(), std::get<0>(sl.second), false);
 			std::get<1>(sl.second) = true;
 			_all_symbols.insert(std::get<0>(sl.second));
 
-			add_data(_const_sec, _const_sec.cend(), ROM_string_representation(sdata.length(), sl.first), false);
+			add_data(*_curr_const_sec, _curr_const_sec->cend(), ROM_string_representation(sdata.length(), sl.first), false);
 			_const_size += sdata.length();
 		}
 	}
@@ -2688,9 +2699,12 @@ C1Compiler::C1Compiler(bool out_src_lines, bool opt_nocheck)
 , _inline_asm(false)
 , _next_temp_namespace_id(32768)
 , _curr_code_sec(nullptr)
+, _curr_const_sec(nullptr)
 {
 	_call_stmt = L"CALL";
 	_ret_stmt = L"RET";
+	// create one .CODE section
+	_code_secs.emplace_back();
 }
 
 C1Compiler::~C1Compiler()
@@ -2803,25 +2817,33 @@ C1_T_ERROR C1Compiler::Compile()
 	_curr_src_file_id = -1;
 	_curr_line_cnt = 0;
 
-	auto err = read_ufns();
+	_ufns.clear();
+	auto err = read_ufns(cbegin(), cend());
 	if(err != C1_T_ERROR::C1_RES_OK)
 	{
 		return err;
 	}
 
-	err = read_and_check_locals();
+	_locals.clear();
+	err = read_and_check_locals(cbegin(), cend());
 	if(err != C1_T_ERROR::C1_RES_OK)
 	{
 		return err;
 	}
 
-	err = read_and_check_vars();
+	_vars.clear();
+	_vars_order.clear();
+	_vars_order_set.clear();
+	_mem_areas.clear();
+	_data_stmts.clear();
+	_vars_stats.clear();
+	err = read_and_check_vars(begin(), end(), false);
 	if(err != C1_T_ERROR::C1_RES_OK)
 	{
 		return err;
 	}
 
-	err = process_imm_str_values();
+	err = process_imm_str_values(cbegin(), cend());
 	if(err != C1_T_ERROR::C1_RES_OK)
 	{
 		return err;
@@ -2830,7 +2852,7 @@ C1_T_ERROR C1Compiler::Compile()
 	return C1_T_ERROR::C1_RES_OK;
 }
 
-C1_T_ERROR C1Compiler::WriteCode(bool code_init)
+C1_T_ERROR C1Compiler::WriteCode(bool code_init, int32_t code_sec_index)
 {
 	_curr_code_sec = nullptr;
 
@@ -2846,7 +2868,7 @@ C1_T_ERROR C1Compiler::WriteCode(bool code_init)
 		return err;
 	}
 
-	_curr_code_sec = code_init ? &_code_init_sec : &_code_sec;
+	_curr_code_sec = (code_sec_index < 0) ? &_code_init_sec : &*std::next(_code_secs.begin(), code_sec_index);
 
 	err = write_code_sec(code_init);
 	if(err != C1_T_ERROR::C1_RES_OK)
@@ -2909,24 +2931,33 @@ C1_T_ERROR C1Compiler::Save(const std::string &file_name, bool overwrite_existin
 	}
 
 #ifndef C1_SECT_CONST_AFTER_CODE
-	err = save_section(L".CONST", _const_sec, ofs);
-	if(err != C1_T_ERROR::C1_RES_OK)
+	for(const auto &s: _const_secs)
 	{
-		return err;
+		err = save_section(L".CONST", s, ofs);
+		if(err != C1_T_ERROR::C1_RES_OK)
+		{
+			return err;
+		}
 	}
 #endif
 
-	err = save_section(L".CODE", _code_sec, ofs);
-	if (err != C1_T_ERROR::C1_RES_OK)
+	for(const auto &s: _code_secs)
 	{
-		return err;
+		err = save_section(L".CODE", s, ofs);
+		if(err != C1_T_ERROR::C1_RES_OK)
+		{
+			return err;
+		}
 	}
 
 #ifdef C1_SECT_CONST_AFTER_CODE
-	err = save_section(L".CONST", _const_sec, ofs);
-	if (err != C1_T_ERROR::C1_RES_OK)
+	for(const auto &s: _const_secs)
 	{
-		return err;
+		err = save_section(L".CONST", s, ofs);
+		if (err != C1_T_ERROR::C1_RES_OK)
+		{
+			return err;
+		}
 	}
 #endif
 

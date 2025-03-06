@@ -98,6 +98,8 @@ protected:
 	std::map<std::wstring, std::wstring> _dat_rst_labels;
 	std::map<std::wstring, B1_CMP_FN> _ufns;
 
+	std::set<std::wstring> _sub_entry_labels;
+
 	int32_t _data_size;
 	int32_t _const_size;
 
@@ -131,11 +133,13 @@ protected:
 	std::wstring _comment;
 
 	B1_ASM_OPS _data_sec;
-	B1_ASM_OPS _const_sec;
+	// use list (not vector) because it does not require default copy constructor existence
+	std::list<B1_ASM_OPS> _const_secs;
 	B1_ASM_OPS _code_init_sec;
-	B1_ASM_OPS _code_sec;
+	std::list<B1_ASM_OPS> _code_secs;
 
 	B1_ASM_OPS *_curr_code_sec;
+	B1_ASM_OPS *_curr_const_sec;
 
 	std::vector<std::tuple<int32_t, std::string, C1_T_WARNING>> _warnings;
 
@@ -162,26 +166,27 @@ protected:
 	C1_T_ERROR get_arg(const std::wstring &str, B1_CMP_ARG &arg, size_t &next_off) const;
 	virtual C1_T_ERROR process_asm_cmd(const std::wstring &line) = 0;
 	C1_T_ERROR replace_inline(std::wstring &line, const std::map<std::wstring, std::wstring> &inl_params, bool &empty_val) const;
-	C1_T_ERROR load_inline(size_t offset, const std::wstring &line, const_iterator pos, const std::map<std::wstring, std::wstring> &inl_params = std::map<std::wstring, std::wstring>());
+	C1_T_ERROR load_inline(size_t offset, const std::wstring &line, iterator pos, const std::map<std::wstring, std::wstring> &inl_params = std::map<std::wstring, std::wstring>());
 	C1_T_ERROR load_next_command(const std::wstring &line, const_iterator pos);
 
 	const B1_CMP_FN *get_fn(const B1_TYPED_VALUE &val) const;
 	const B1_CMP_FN *get_fn(const B1_CMP_ARG &arg) const;
 	void update_vars_stats(const std::wstring &name, VST storage_type, B1Types data_type);
 	C1_T_ERROR check_arg(B1_CMP_ARG &arg);
-	C1_T_ERROR read_ufns();
-	C1_T_ERROR read_and_check_locals();
-	C1_T_ERROR read_and_check_vars();
+	C1_T_ERROR read_ufns(const_iterator begin, const_iterator end);
+	C1_T_ERROR read_and_check_locals(const_iterator begin, const_iterator end);
+	C1_T_ERROR read_and_check_vars(iterator begin, iterator end, bool inline_code);
 	C1_T_ERROR process_imm_str_value(const B1_CMP_ARG &arg);
-	C1_T_ERROR process_imm_str_values();
+	C1_T_ERROR process_imm_str_values(const_iterator begin, const_iterator end);
 
-	virtual B1_ASM_OPS::const_iterator create_asm_op(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, AOT type, const std::wstring &lbl, bool is_volatile, bool is_inline);
+	virtual B1_ASM_OPS::iterator create_asm_op(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, AOT type, const std::wstring &lbl, bool is_volatile, bool is_inline);
 
 	virtual std::wstring ROM_string_representation(int32_t str_len, const std::wstring &str) const;
 
-	B1_ASM_OPS::const_iterator add_lbl(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, const std::wstring &lbl, bool is_volatile, bool is_inline = false);
-	B1_ASM_OPS::const_iterator add_data(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, const std::wstring &data, bool is_volatile, bool is_inline = false);
-	void add_op(B1_ASM_OPS &sec, const std::wstring &op, bool is_volatile, bool is_inline = false);
+	B1_ASM_OPS::iterator add_lbl(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, const std::wstring &lbl, bool is_volatile, bool is_inline = false);
+	B1_ASM_OPS::iterator add_data(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, const std::wstring &data, bool is_volatile, bool is_inline = false);
+	B1_ASM_OPS::iterator add_op(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, const std::wstring &op, bool is_volatile, bool is_inline = false);
+	B1_ASM_OPS::iterator add_op(B1_ASM_OPS &sec, const std::wstring &op, bool is_volatile, bool is_inline = false);
 
 	virtual C1_T_ERROR add_data_def(const std::wstring &name, const std::wstring &asmtype, int32_t rep, bool is_volatile);
 	virtual C1_T_ERROR write_data_sec(bool code_init);
@@ -206,7 +211,9 @@ public:
 	// loads files with b1c instructions
 	C1_T_ERROR Load(const std::vector<std::string> &file_names);
 	C1_T_ERROR Compile();
-	C1_T_ERROR WriteCode(bool code_init);
+	// code_sec_index = -1: write _code_init_sec
+	// code_sec_index >= 0: write _code_init_sec[code_sec_index]
+	C1_T_ERROR WriteCode(bool code_init, int32_t code_sec_index);
 	virtual C1_T_ERROR Save(const std::string &file_name, bool overwrite_existing = true);
 
 	C1_T_ERROR GetUndefinedSymbols(std::set<std::wstring> &symbols) const;

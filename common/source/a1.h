@@ -25,24 +25,23 @@
 class Inst;
 
 
-class A1Settings : public Settings
+class A1Settings : virtual public Settings
 {
 private:
-	//                line num. file name     inst. id
-	std::map<std::pair<int32_t, std::string>, int> _instructions_to_replace;
+	//                line num. file name     inst
+	std::map<std::pair<int32_t, std::string>, const Inst *> _instructions_to_replace;
 
 public:
 	A1Settings()
-	: Settings()
 	{
 	}
 
-	void AddInstToReplace(int line_num, const std::string &file_name, int inst_id = -1)
+	void AddInstToReplace(int line_num, const std::string &file_name, const Inst *inst= nullptr)
 	{
-		_instructions_to_replace[std::make_pair(line_num, file_name)] = inst_id;
+		_instructions_to_replace[std::make_pair(line_num, file_name)] = inst;
 	}
 
-	bool IsInstToReplace(int line_num, const std::string &file_name, int *inst_id = nullptr) const
+	bool IsInstToReplace(int line_num, const std::string &file_name, const Inst **inst = nullptr) const
 	{
 		auto itr = _instructions_to_replace.find(std::make_pair(line_num, file_name));
 		
@@ -51,15 +50,15 @@ public:
 			return false;
 		}
 
-		if(inst_id != nullptr)
+		if(inst != nullptr)
 		{
-			*inst_id = itr->second;
+			*inst = itr->second;
 		}
 
 		return true;
 	}
 
-	virtual A1_T_ERROR GetInstructions(const std::wstring &inst_name, const std::wstring &inst_sign, std::vector<const Inst *> &insts, int line_num, const std::string &file_name) const = 0;
+	virtual A1_T_ERROR GetInstructions(const std::wstring &inst_sign, std::vector<const Inst *> &insts, int line_num, const std::string &file_name) const = 0;
 };
 
 
@@ -366,11 +365,6 @@ public:
 	{
 		return _warnings;
 	}
-
-	virtual int GetId() const
-	{
-		return -1;
-	}
 };
 
 
@@ -440,17 +434,35 @@ public:
 };
 
 
+enum class USGN
+{
+	US_NONE = 0,
+	US_MINUS = 1,
+	US_NOT = 2,
+};
+
+inline USGN operator |(USGN lhs, USGN rhs)
+{
+	using T = std::underlying_type_t<USGN>;
+	return static_cast<USGN>(static_cast<T>(lhs) | static_cast<T>(rhs));
+}
+
+inline USGN &operator |=(USGN &lhs, USGN rhs)
+{
+	lhs = lhs | rhs;
+	return lhs;
+}
+
+inline bool operator &(USGN lhs, USGN rhs)
+{
+	using T = std::underlying_type_t<USGN>;
+	auto bit_and = static_cast<T>(lhs) & static_cast<T>(rhs);
+	return (bit_and != 0);
+}
+
+
 class EVal
 {
-public:
-	enum class USGN
-	{
-		US_NONE,
-		US_MINUS,
-		US_NOT,
-	};
-
-
 protected:
 	int32_t _val;
 	bool _resolved;
@@ -484,7 +496,7 @@ public:
 
 	std::wstring GetFullSymbol() const
 	{
-		return (_usgn == USGN::US_MINUS ? L"-" : (_usgn == USGN::US_NOT ? L"!" : L"")) + _symbol + (_postfix.empty() ? L"" : (L"." + _postfix));
+		return std::wstring((_usgn & USGN::US_NOT) ? L"!" : L"") + ((_usgn & USGN::US_MINUS) ? L"-" : L"") + _symbol + (_postfix.empty() ? L"" : (L"." + _postfix));
 	}
 };
 
@@ -608,8 +620,6 @@ private:
 
 	void Init(const wchar_t *code, int speed, const ArgType &arg1type, const ArgType &arg2type, const ArgType &arg3type);
 public:
-	// some id
-	int _inst_id;
 	// instruction code size
 	int _size;
 	// instruction speed (in ticks)
@@ -622,8 +632,8 @@ public:
 	std::vector<std::tuple<bool,    bool,  uint32_t, int,  int, std::wstring>> _code;
 
 	Inst() = delete;
-	Inst(int inst_id, const wchar_t *code, const ArgType &arg1type = ArgType::AT_NONE, const ArgType &arg2type = ArgType::AT_NONE, const ArgType &arg3type = ArgType::AT_NONE);
-	Inst(int inst_id, const wchar_t *code, int speed, const ArgType &arg1type = ArgType::AT_NONE, const ArgType &arg2type = ArgType::AT_NONE, const ArgType &arg3type = ArgType::AT_NONE);
+	Inst(const wchar_t *code, const ArgType &arg1type = ArgType::AT_NONE, const ArgType &arg2type = ArgType::AT_NONE, const ArgType &arg3type = ArgType::AT_NONE);
+	Inst(const wchar_t *code, int speed, const ArgType &arg1type = ArgType::AT_NONE, const ArgType &arg2type = ArgType::AT_NONE, const ArgType &arg3type = ArgType::AT_NONE);
 
 	virtual bool CheckArgs(int32_t a1, int32_t a2, int32_t a3) const
 	{
@@ -633,11 +643,6 @@ public:
 	virtual A1_T_ERROR GetSpecArg(int arg_num, std::pair<std::reference_wrapper<const ArgType>, Exp> &ref, int32_t &val) const
 	{
 		return A1_T_ERROR::A1_RES_EINVINST;
-	}
-
-	int GetId() const
-	{
-		return _inst_id;
 	}
 };
 
@@ -746,13 +751,20 @@ protected:
 	std::vector<std::pair<std::reference_wrapper<const ArgType>, Exp>> _refs;
 	const Inst *_inst;
 
-	virtual A1_T_ERROR GetRefValue(const std::pair<std::reference_wrapper<const ArgType>, Exp> &ref, const std::map<std::wstring, MemRef> &memrefs, uint32_t &value, int &size);
-	A1_T_ERROR ReadInstArg(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, std::wstring &argsign);
-
 	// the function should return expression and signature for the specified expression, e.g.
 	// input: exp = 10 + 5, output: exp = 10 + 5, sign = "V"
 	// input: exp = "X", output: exp = <empty>, sign = "X" (here X is a register name)
-	virtual A1_T_ERROR GetExpressionSignature(Exp &exp, std::wstring &sign) = 0;
+	virtual A1_T_ERROR GetExpressionSignature(Exp &exp, std::wstring &sign) const = 0;
+
+	virtual A1_T_ERROR ReadInstArg(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, std::wstring &argsign);
+
+	virtual A1_T_ERROR GetSignature(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, std::wstring &signature);
+
+	// must initialize _inst, _size and _refs member variables
+	virtual A1_T_ERROR GetInstruction(const std::wstring &signature, const std::map<std::wstring, MemRef> &memrefs, int line_num, const std::string &file_name) = 0;
+
+	virtual A1_T_ERROR GetRefValue(const std::pair<std::reference_wrapper<const ArgType>, Exp> &ref, const std::map<std::wstring, MemRef> &memrefs, uint32_t &value, int &size) = 0;
+
 public:
 	CodeStmt()
 	: ConstStmt()
@@ -768,9 +780,9 @@ public:
 	A1_T_ERROR Read(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, const std::map<std::wstring, MemRef> &memrefs, const std::string &file_name) override;
 	A1_T_ERROR Write(IhxWriter *writer, const std::map<std::wstring, MemRef> &memrefs) override;
 
-	int GetId() const override
+	const Inst *GetInst() const
 	{
-		return _is_inst ? _inst->GetId() : -1;
+		return _inst;
 	}
 };
 

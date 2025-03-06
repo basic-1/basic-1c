@@ -89,6 +89,7 @@ static const std::string c1_err_msgs[] =
 	"wrong device type",
 	"",
 	"wrong optimization log file format",
+	"not implemented",
 
 	"the last message"
 };

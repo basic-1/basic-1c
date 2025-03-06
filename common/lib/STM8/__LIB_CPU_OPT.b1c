@@ -1,2 +1,2 @@
-; bits 0, 1 - fMASTER frequency: 0 - 16 MHz (default), 1 - 8 MHz, 3 - 128 kHz
+; bits 0..1 - fMASTER frequency: 0 - 16 MHz (default), 1 - 8 MHz, 3 - 128 kHz
 =,0<BYTE>,__LIB_CPU_OPT<BYTE>

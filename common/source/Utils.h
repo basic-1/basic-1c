@@ -126,6 +126,8 @@ public:
 	static B1Types get_const_type(const std::wstring &const_name);
 
 	static void correct_int_value(int32_t &n, const B1Types type);
+
+	static int32_t int32power(int32_t base, uint32_t exp);
 };
 
 
@@ -154,11 +156,11 @@ public:
 		int32_t mask;
 		bool accepts_data;
 		B1Types data_type;
-		LVT arg_types;
-		std::wstring suffix;
+		std::wstring extra_data;
 		bool predef_only;
 		std::map<std::wstring, std::wstring> values;
 		std::wstring def_val;
+		std::vector<std::pair<B1Types, int32_t>> more_masks;
 
 		IoCmd()
 		: id(-1)
@@ -167,7 +169,6 @@ public:
 		, mask(0)
 		, accepts_data(false)
 		, data_type(B1Types::B1T_UNKNOWN)
-		, arg_types(LVT::LVT_NONE)
 		, predef_only(true)
 		{
 		}
@@ -181,11 +182,11 @@ public:
 			mask = 0;
 			accepts_data = false;
 			data_type = B1Types::B1T_UNKNOWN;
-			arg_types = LVT::LVT_NONE;
-			suffix.clear();
+			extra_data.clear();
 			predef_only = true;
 			values.clear();
 			def_val.clear();
+			more_masks.clear();
 		}
 	};
 
