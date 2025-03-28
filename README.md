@@ -17,6 +17,7 @@
   
 Supported STM8 microcontrollers list:  
   
+- STM8S001J3M3  
 - STM8S003F3P6  
 - STM8S103F3P6  
 - STM8S105K4T6  
@@ -25,7 +26,7 @@ Supported STM8 microcontrollers list:
 # Data types  
   
 - STRING  
-- INT (16-bit integer)  
+- INT (16-bit signed integer)  
 - WORD (16-bit unsigned integer)  
 - BYTE (8-bit unsigned integer)  
 - LONG (32-bit signed integer)  

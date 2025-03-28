@@ -1,0 +1,57 @@
+REM display all font characters (print four pages with 4 sec. delay)
+REM PRINT statement is used so CR and LF characters cannot be rendered
+REM DC - PD6, RST - NONE (STM8S001J3M3)
+
+OPTION OUTPUTDEVICE #ST7565_SPI
+
+' 5 sec. delay at startup (SWIM is used as SPI MOSI)
+GOSUB 1000
+GOSUB 4000
+
+' no SS pin is used, display's CS pin is connected to ground
+IOCTL SPI, SSPIN, NONE
+
+' configure display
+IOCTL ST7565_SPI, ENABLE
+' display reset is not managed by MCU, implement reset circuit
+IOCTL ST7565_SPI, RSTPIN, NONE
+IOCTL ST7565_SPI, DCPIN, PD6
+IOCTL ST7565_SPI, CFGPINS
+IOCTL ST7565_SPI, INIT, DISP_GM12864_01A
+IOCTL ST7565_SPI, FONT, FONT_8X16T_CP437_FULL
+IOCTL ST7565_SPI, START
+
+DIM I AS BYTE, J AS BYTE, PAGE_OFF AS BYTE, C AS BYTE
+
+PAGE_OFF = 0
+
+WHILE 1 < 2
+FOR I = 0 TO 3
+FOR J = 0 TO 15
+C = I * 16 + J + PAGE_OFF
+' do not print CR and LF special characters
+IF C = 0xA THEN C = 0
+IF C = 0xD THEN C = 0
+PRINT CHR$(C);
+NEXT J
+NEXT I
+GOSUB 4000
+PAGE_OFF = PAGE_OFF + 64
+WEND
+
+END
+
+' one second delay subroutine
+1000
+FOR I = 0 TO 3
+IOCTL CPU, DELAYMS, 250
+NEXT
+RETURN
+
+' four second delay subroutine
+4000
+GOSUB 1000
+GOSUB 1000
+GOSUB 1000
+GOSUB 1000
+RETURN

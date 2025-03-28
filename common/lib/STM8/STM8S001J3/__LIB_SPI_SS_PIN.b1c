@@ -1,0 +1,3 @@
+; SPI slave select pin number mask (default is NSS pin of corresponding MCU)
+; NSS pin is PA3
+=,0x8<BYTE>,__LIB_SPI_SS_PIN<BYTE>

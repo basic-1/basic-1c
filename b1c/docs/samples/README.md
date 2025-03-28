@@ -22,6 +22,8 @@
 - `st7565.bsc` - "hello world" example for ST7565-based LCD display  
 - `st7565m105.bsc` - simple menu example for ST7565-based LCD display and STM8S105K4T6 MCU  
 - `st7565mdata.bsc` - textual data for `st7565m105.bs` example  
+- `st7565all.bsc` - prints all font characters with PRINT statement (example for STM8S001J3M3 MCU)  
+- `st7565all1.bsc` - prints all font characters using display's DRAWCHAR command (example for STM8S001J3M3 MCU)  
   
 # building the samples from command line  
 `b1c -d -s -m STM8S103F3 samples/blink.bsc`  
@@ -46,4 +48,6 @@ For interrupt handlers specify interrupt name before the source file name separa
 `b1c -d -s -m STM8S105K4 samples/const.bsc`  
 `b1c -d -s -m STM8S105K4 samples/st7565.bsc`  
 `b1c -d -s -m STM8S105K4 samples/st7565m105.bsc samples/st7565mdata.bsc`  
+`b1c -d -s -m STM8S001J3 samples/st7565all.bsc`  
+`b1c -d -s -m STM8S001J3 samples/st7565all1.bsc`  
   
