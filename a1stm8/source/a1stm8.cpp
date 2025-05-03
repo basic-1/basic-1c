@@ -1,6 +1,6 @@
 /*
  STM8 assembler
- Copyright (c) 2021-2024 Nikolay Pletnev
+ Copyright (c) 2021-2025 Nikolay Pletnev
  MIT license
 
  a1stm8.cpp: STM8 assembler
@@ -1610,6 +1610,11 @@ int main(int argc, char **argv)
 			load_extra_instructions_large();
 		}
 	}
+
+
+	_B1C_consts[L"__TARGET_NAME"].first = "STM8";
+	_B1C_consts[L"__MCU_NAME"].first = MCU_name;
+
 
 	STM8Sections secs;
 

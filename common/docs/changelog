@@ -1,3 +1,11 @@
+b1c (1.0.0-41) unstable; urgency=low
+
+  * STM8L MCU family initial support added
+  * better strings processing by a1stm8 preprocessor (+ new SUBSTR function)
+  * some fixes
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Sat, 03 May 2025 23:07:51 +0300
+
 b1c (1.0.0-40) unstable; urgency=low
 
   * STM8S001J3M3 MCU support added

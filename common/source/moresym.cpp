@@ -1,6 +1,6 @@
 /*
  BASIC1 compiler
- Copyright (c) 2021-2024 Nikolay Pletnev
+ Copyright (c) 2021-2025 Nikolay Pletnev
  MIT license
 
  moresym.cpp: common symbols and constants
@@ -9,10 +9,11 @@
 #include "moresym.h"
 
 
-// run-time errors
+// run-time errors (limited code-to-name map used by compiler)
 std::map<B1C_T_RTERROR, std::wstring> _RTE_error_names =
 {
 	{ B1C_T_RTERROR::B1C_RTE_OK, L"B1C_RTE_OK" },
+
 	{ B1C_T_RTERROR::B1C_RTE_ARR_ALLOC, L"B1C_RTE_ARR_ALLOC" },
 	{ B1C_T_RTERROR::B1C_RTE_STR_TOOLONG, L"B1C_RTE_STR_TOOLONG" },
 	{ B1C_T_RTERROR::B1C_RTE_MEM_NOT_ENOUGH, L"B1C_RTE_MEM_NOT_ENOUGH" },
@@ -26,6 +27,7 @@ std::map<B1C_T_RTERROR, std::wstring> _RTE_error_names =
 std::map<std::wstring, B1C_T_RTERROR> _RTE_errors =
 {
 	std::make_pair(L"B1C_RTE_OK", B1C_T_RTERROR::B1C_RTE_OK),
+
 	std::make_pair(L"B1C_RTE_ARR_ALLOC", B1C_T_RTERROR::B1C_RTE_ARR_ALLOC),
 	std::make_pair(L"B1C_RTE_STR_TOOLONG", B1C_T_RTERROR::B1C_RTE_STR_TOOLONG),
 	std::make_pair(L"B1C_RTE_MEM_NOT_ENOUGH", B1C_T_RTERROR::B1C_RTE_MEM_NOT_ENOUGH),
@@ -34,14 +36,20 @@ std::map<std::wstring, B1C_T_RTERROR> _RTE_errors =
 	std::make_pair(L"B1C_RTE_ARR_UNALLOC", B1C_T_RTERROR::B1C_RTE_ARR_UNALLOC),
 	std::make_pair(L"B1C_RTE_COM_WRONG_INDEX", B1C_T_RTERROR::B1C_RTE_COM_WRONG_INDEX),
 	std::make_pair(L"B1C_RTE_STR_INVALID", B1C_T_RTERROR::B1C_RTE_STR_INVALID),
+
+	std::make_pair(L"B1C_RTE_UART_INV_ARG", B1C_T_RTERROR::B1C_RTE_UART_INV_ARG),
+
+	std::make_pair(L"B1C_RTE_USART_INV_ARG", B1C_T_RTERROR::B1C_RTE_USART_INV_ARG),
 };
 
 
 // constants and limits
-std::map<std::wstring, std::pair<int32_t, B1Types>> _B1C_consts =
+std::map<std::wstring, std::pair<std::any, B1Types>> _B1C_consts =
 {
 	// max. string length
 	std::make_pair(L"B1C_MAX_STR_LEN", std::make_pair((int32_t)B1C_T_CONST::B1C_MAX_STR_LEN, B1Types::B1T_BYTE)),
+	std::make_pair(L"__TARGET_NAME", std::make_pair(std::wstring(), B1Types::B1T_STRING)),
+	std::make_pair(L"__MCU_NAME", std::make_pair(std::wstring(), B1Types::B1T_STRING)),
 };
 
 

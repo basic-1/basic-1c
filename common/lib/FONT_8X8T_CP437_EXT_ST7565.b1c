@@ -1,8 +1,8 @@
 ; Thin 8x8 CP437 font, upper 128 characters
 ; The font is based on Bm437_IBM_CGAthin.FON font from http://int10h.org/oldschool-pc-fonts/
 ; CC BY-SA 4.0 license
-GA,__VAR_FONT_8X8T_CP437_EXT_ST7565,BYTE(C),0<BYTE>,1024<WORD>
-DAT,__VAR_FONT_8X8T_CP437_EXT_ST7565,0x20<BYTE> ; 8x8, upper part of extended ASCII table (upper 128 characters)
+GA,FONT_8X8T_CP437_EXT_ST7565,BYTE(C),0<BYTE>,1024<WORD>
+DAT,FONT_8X8T_CP437_EXT_ST7565,0x20<BYTE> ; 8x8, upper part of extended ASCII table (upper 128 characters)
 DAT,*,0x00<BYTE>,0x0E<BYTE>,0x91<BYTE>,0x91<BYTE>,0xB1<BYTE>,0xB1<BYTE>,0x4A<BYTE>,0x00<BYTE>
 DAT,*,0x00<BYTE>,0x3A<BYTE>,0x40<BYTE>,0x40<BYTE>,0x40<BYTE>,0x7A<BYTE>,0x40<BYTE>,0x00<BYTE>
 DAT,*,0x00<BYTE>,0x38<BYTE>,0x54<BYTE>,0x54<BYTE>,0x55<BYTE>,0x55<BYTE>,0x18<BYTE>,0x00<BYTE>

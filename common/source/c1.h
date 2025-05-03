@@ -1,6 +1,6 @@
 /*
  Intermediate code compiler
- Copyright (c) 2021-2024 Nikolay Pletnev
+ Copyright (c) 2021-2025 Nikolay Pletnev
  MIT license
 
  c1.h: Intermediate code compiler classes declaration
@@ -166,7 +166,7 @@ protected:
 	C1_T_ERROR get_arg(const std::wstring &str, B1_CMP_ARG &arg, size_t &next_off) const;
 	virtual C1_T_ERROR process_asm_cmd(const std::wstring &line) = 0;
 	C1_T_ERROR replace_inline(std::wstring &line, const std::map<std::wstring, std::wstring> &inl_params, bool &empty_val) const;
-	C1_T_ERROR load_inline(size_t offset, const std::wstring &line, iterator pos, const std::map<std::wstring, std::wstring> &inl_params = std::map<std::wstring, std::wstring>());
+	C1_T_ERROR load_inline(size_t offset, const std::wstring &line, iterator load_at, const std::map<std::wstring, std::wstring> &inl_params = std::map<std::wstring, std::wstring>(), const B1_CMP_CMD *orig_cmd = nullptr);
 	C1_T_ERROR load_next_command(const std::wstring &line, const_iterator pos);
 
 	const B1_CMP_FN *get_fn(const B1_TYPED_VALUE &val) const;

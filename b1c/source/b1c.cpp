@@ -1,6 +1,6 @@
 /*
  BASIC1 compiler
- Copyright (c) 2021-2024 Nikolay Pletnev
+ Copyright (c) 2021-2025 Nikolay Pletnev
  MIT license
 
  b1c.cpp: BASIC1 compiler
@@ -99,7 +99,7 @@ B1C_T_ERROR B1FileCompiler::put_var_name(const std::wstring &name, const B1Types
 	else
 	if(!is_global)
 	{
-		auto gen_name = get_name_space_prefix() + (is_mem_var ? L"__MEM_" : L"__VAR_") + name;
+		auto gen_name = get_name_space_prefix() + (is_mem_var ? L"__MEM_" : (is_const ? L"__CONST_" : L"__VAR_")) + name;
 
 		_var_names[name] = gen_name;
 		_vars[gen_name] = std::make_tuple(type, dims, is_volatile, is_mem_var, is_static, is_const);
@@ -135,7 +135,7 @@ B1C_T_ERROR B1FileCompiler::put_const_var_init_values(const std::wstring &name, 
 }
 
 // expl stands for explicitly declared variable
-std::wstring B1FileCompiler::get_var_name(const std::wstring &name, bool &expl) const
+std::wstring B1FileCompiler::get_var_name(const std::wstring &name, bool &expl)
 {
 	std::wstring gen_name;
 
@@ -157,6 +157,7 @@ std::wstring B1FileCompiler::get_var_name(const std::wstring &name, bool &expl) 
 	{
 		expl = false;
 		gen_name = get_name_space_prefix() + L"__VAR_" + name;
+		_var_names.emplace(std::make_pair(name, gen_name));
 	}
 
 	return gen_name;
@@ -220,6 +221,21 @@ B1Types B1FileCompiler::get_var_type(const std::wstring &name) const
 	}
 
 	return _compiler.get_global_var_type(name);
+}
+
+B1C_T_ERROR B1FileCompiler::put_var_ref(const std::wstring &var_name, const std::wstring &extra_data, iterator cmd_it)
+{
+	auto vr = _var_refs.find(var_name);
+	if(vr == _var_refs.end())
+	{
+		_var_refs.insert(std::make_pair(var_name, std::make_pair(extra_data, std::vector<iterator>({ cmd_it }))));
+	}
+	else
+	{
+		vr->second.second.push_back(cmd_it);
+	}
+
+	return B1C_T_ERROR::B1C_RES_OK;
 }
 
 // check function existence by name (standard, local and global)
@@ -360,6 +376,43 @@ void B1FileCompiler::change_ufn_names()
 	for(auto &ufn: ufns)
 	{
 		_ufns.emplace(std::make_pair(ufn.name, B1_CMP_FN(ufn.name, ufn.rettype, ufn.args, ufn.iname, false)));
+	}
+}
+
+void B1FileCompiler::change_ref_names()
+{
+	for(auto &vr: _var_refs)
+	{
+		std::wstring name;
+
+		auto v = _var_names.find(vr.first);
+		if(v == _var_names.cend())
+		{
+			name = _compiler.get_global_var_name(vr.first);
+		}
+		else
+		{
+			name = v->second;
+		}
+
+		if(name.empty())
+		{
+			name = vr.first + vr.second.first;
+		}
+
+		for(auto &c: vr.second.second)
+		{
+			if(c->cmd == L"IOCTL")
+			{
+				for(auto &a: c->args)
+				{
+					if(a[0].type == B1Types::B1T_VARREF && a[0].value == vr.first)
+					{
+						a[0].value = name;
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -1527,7 +1580,7 @@ B1C_T_ERROR B1FileCompiler::st_ioctl()
 				if(cmd.data_type == B1Types::B1T_LABEL)
 				{
 					bool is_numeric = true;
-					// numeric labels are local and non-numeric ones are global and should be loaded only once
+					// numeric labels are local and non-numeric ones are global
 					err1 = st_ioctl_get_symbolic_value(data, &is_numeric);
 					if(err1 != B1C_T_ERROR::B1C_RES_OK)
 					{
@@ -1547,19 +1600,13 @@ B1C_T_ERROR B1FileCompiler::st_ioctl()
 						return err1;
 					}
 
-					data += cmd.extra_data;
-
 					emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(data, B1Types::B1T_VARREF) }));
 
 					// save iterator to the command to correct the reference name
-					auto vr = _var_refs.find(data);
-					if(vr == _var_refs.end())
+					err1 = put_var_ref(data, cmd.extra_data, std::prev(end()));
+					if(err1 != B1C_T_ERROR::B1C_RES_OK)
 					{
-						_var_refs.insert(std::make_pair(data, std::make_pair(L"__VAR_" + data, std::vector<iterator>({ std::prev(end()) }))));
-					}
-					else
-					{
-						vr->second.second.push_back(std::prev(end()));
+						return err1;
 					}
 				}
 				else					
@@ -4058,6 +4105,7 @@ B1C_T_ERROR B1FileCompiler::st_read_range(std::vector<std::pair<B1_CMP_ARG, B1_C
 
 	b1_curr_prog_line_offset++;
 
+	// implicitly declared arrays are not allowed with PUT/GET/TRANSFER statements because their type is INT
 	if(!expl || get_var_type(name) != B1Types::B1T_BYTE || get_var_dim(name) != 1)
 	{
 		return static_cast<B1C_T_ERROR>(B1_RES_ETYPMISM);
@@ -6391,7 +6439,7 @@ B1_T_ERROR B1FileCompiler::get_type(B1_TYPED_VALUE &v, bool read, std::map<std::
 			}
 			else
 			{
-				// internal variable IIF$ pseudo-function
+				// internal variable of IIF$ pseudo-function
 				_vars[v.value] = std::make_tuple(v.type, 0, false, false, false, false);
 			}
 		}
@@ -9887,30 +9935,6 @@ B1C_T_ERROR B1FileCompiler::PutTypesAndOptimize()
 		return err;
 	}
 
-	// set proper references' names
-	for(auto &vr: _var_refs)
-	{
-		auto v = _var_names.find(vr.first);
-		if(v != _var_names.cend())
-		{
-			vr.second.first = v->second;
-		}
-
-		for(auto &c: vr.second.second)
-		{
-			if(c->cmd == L"IOCTL")
-			{
-				for(auto &a: c->args)
-				{
-					if(a[0].type == B1Types::B1T_VARREF && a[0].value == vr.first)
-					{
-						a[0].value = vr.second.first;
-					}
-				}
-			}
-		}
-	}
-
 	stop = false;
 
 	while(!stop)
@@ -10507,7 +10531,7 @@ B1C_T_ERROR B1Compiler::put_global_var_name(const std::wstring &name, const B1Ty
 	}
 	else
 	{
-		auto gen_name = (is_mem_var ? L"__MEM_" : L"__VAR_") + name;
+		auto gen_name = (is_mem_var ? L"__MEM_" : (is_const ? L"__CONST_" : L"__VAR_")) + name;
 
 		_global_var_names[name] = gen_name;
 		_global_vars[gen_name] = std::make_tuple(type, dims, is_volatile, is_mem_var, is_static, is_const);
@@ -10985,6 +11009,14 @@ B1C_T_ERROR B1Compiler::Compile()
 			b1_curr_prog_line_cnt = fc._curr_line_cnt;
 			return err;
 		}
+	}
+
+	// set proper varref names
+	for(auto &fc: _file_compilers)
+	{
+		_curr_file_name = fc.GetFileName();
+
+		fc.change_ref_names();
 	}
 
 	if(!_no_opt)
@@ -11576,6 +11608,7 @@ int main(int argc, char **argv)
 		args_error_txt = "invalid target";
 	}
 
+
 	if((args_error || i == argc) && !(print_version || list_devs || list_cmds))
 	{
 		b1c_print_version(stderr);
@@ -11746,6 +11779,10 @@ int main(int argc, char **argv)
 		}
 		return 0;
 	}
+
+
+	_B1C_consts[L"__TARGET_NAME"].first = target_name;
+	_B1C_consts[L"__MCU_NAME"].first = MCU_name;
 
 
 	B1Compiler b1c(false, out_src_lines);

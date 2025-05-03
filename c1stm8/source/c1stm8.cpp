@@ -4395,6 +4395,30 @@ C1_T_ERROR C1STM8Compiler::stm8_write_ioctl(std::list<B1_CMP_CMD>::iterator &cmd
 		cmd_it++;
 	}
 
+	bool is_static = true;
+
+	if(data_type == B1Types::B1T_VARREF)
+	{
+		auto v = _mem_areas.find(str_value);
+		if(v == _mem_areas.cend())
+		{
+			v = _vars.find(str_value);
+			if(v != _vars.cend())
+			{
+				is_static = (v->second.dim_num == 0) || v->second.is_const;
+			}
+
+			_req_symbols.insert(str_value);
+		}
+		else
+		{
+			if(!v->second.use_symbol)
+			{
+				str_value = std::to_wstring(v->second.address);
+			}
+		}
+	}
+
 	if(call_type == Settings::IoCmd::IoCmdCallType::CT_CALL)
 	{
 		if(file_name.empty())
@@ -4446,7 +4470,14 @@ C1_T_ERROR C1STM8Compiler::stm8_write_ioctl(std::list<B1_CMP_CMD>::iterator &cmd
 		if(data_type == B1Types::B1T_VARREF)
 		{
 			// function call with an argument of B1T_VARREF type
-			add_op(*_curr_code_sec, L"LDW X, " + str_value, false);  //AE WORD_VALUE
+			if(is_static)
+			{
+				add_op(*_curr_code_sec, L"LDW X, " + str_value, false);  //AE WORD_VALUE
+			}
+			else
+			{
+				add_op(*_curr_code_sec, L"LDW X, (" + str_value + L")", false); //BE SHORT_ADDRESS, CE LONG_ADDRESS
+			}
 		}
 
 		add_op(*_curr_code_sec, _call_stmt + L" " + file_name, false);  //AD SIGNED_BYTE_OFFSET (CALLR)
@@ -4460,6 +4491,11 @@ C1_T_ERROR C1STM8Compiler::stm8_write_ioctl(std::list<B1_CMP_CMD>::iterator &cmd
 	}
 	else
 	{
+		if(data_type == B1Types::B1T_VARREF && !is_static)
+		{
+			return C1_T_ERROR::C1_RES_ENOTIMP;
+		}
+
 		if(file_name.empty())
 		{
 			file_name = L"__LIB_" + dev_name + L"_" + std::to_wstring(id) + L"_INL";
@@ -4490,7 +4526,7 @@ C1_T_ERROR C1STM8Compiler::stm8_write_ioctl(std::list<B1_CMP_CMD>::iterator &cmd
 		if(code_place == Settings::IoCmd::IoCmdCodePlacement::CP_CURR_POS)
 		{
 			auto saved_it = cmd_it++;
-			auto err = load_inline(0, file_name, cmd_it, params);
+			auto err = load_inline(0, file_name, cmd_it, params, &*saved_it);
 			if(err != C1_T_ERROR::C1_RES_OK)
 			{
 				return err;
@@ -4520,7 +4556,7 @@ C1_T_ERROR C1STM8Compiler::write_data_sec(bool code_init)
 		std::wstring type;
 
 		auto v = _mem_areas.find(vn);
-		if(v != _mem_areas.end())
+		if(v != _mem_areas.cend())
 		{
 			// constant variables are placed in .CONST section
 			if(v->second.is_const)
@@ -4533,7 +4569,7 @@ C1_T_ERROR C1STM8Compiler::write_data_sec(bool code_init)
 		else
 		{
 			v = _vars.find(vn);
-			if(v == _vars.end())
+			if(v == _vars.cend())
 			{
 				continue;
 			}
@@ -10424,6 +10460,11 @@ int main(int argc, char** argv)
 		tmp += ".asm";
 		ofn += tmp;
 	}
+
+
+	_B1C_consts[L"__TARGET_NAME"].first = "STM8";
+	_B1C_consts[L"__MCU_NAME"].first = MCU_name;
+
 
 	C1STM8Compiler c1stm8(out_src_lines, opt_nocheck);
 

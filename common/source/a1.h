@@ -1,6 +1,6 @@
 /*
  A1 assembler
- Copyright (c) 2021-2023 Nikolay Pletnev
+ Copyright (c) 2021-2025 Nikolay Pletnev
  MIT license
 
  a1.h: basic assembler classes
@@ -830,6 +830,10 @@ protected:
 	void Clear();
 
 	A1_T_ERROR ReadStmt(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end);
+	A1_T_ERROR check_if_defined(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, bool &res, bool &processed);
+	A1_T_ERROR check_if_getstr(const Token &token, std::wstring &res_str, bool &processed);
+	A1_T_ERROR check_if_substr(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, std::wstring &res_str);
+	A1_T_ERROR check_if_str_expression(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, bool &res, bool &processed);
 	A1_T_ERROR CheckIFDir(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, bool &res);
 	A1_T_ERROR ReadUntil(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, std::vector<std::reference_wrapper<const Token>>::const_iterator stop_dirs_start, std::vector<std::reference_wrapper<const Token>>::const_iterator stop_dirs_end);
 	A1_T_ERROR SkipUntil(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, std::vector<std::reference_wrapper<const Token>>::const_iterator stop_dirs_start, std::vector<std::reference_wrapper<const Token>>::const_iterator stop_dirs_end);

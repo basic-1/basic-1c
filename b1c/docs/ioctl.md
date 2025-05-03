@@ -13,7 +13,7 @@
 ### CPU  
   
 - `IOCTL CPU, INTERRUPTS, ON | OFF` - enable or disable interrupts, by default interrups are disabled.  
-- `IOCTL CPU, CLOCKSOURCE, HSI | HSI16 | LSI | HSE16 | HSE8` - select MCU clock source generator, default is `HSI`. `HSI` stands for the maximum possible frequence available with internal RC oscillator, `HSI16` - 16 MHz with internal oscillator, `HSE8` - 8 MHz with 8 MHz external crystal oscillator, `HSE16` - 16 MHz with 16 MHz external crystal oscillator.  
+- `IOCTL CPU, CLOCKSOURCE, HSI | HSI16 | LSI | HSE16 | HSE8 | LSE` - select MCU clock source generator, default is `HSI`. `HSI` stands for the maximum possible frequence available with internal RC oscillator, `HSI16` - 16 MHz with internal oscillator, `HSE8` - 8 MHz with 8 MHz external crystal oscillator, `HSE16` - 16 MHz with 16 MHz external crystal oscillator. `LSI` and `LSE` are internal RC low-speed oscillator and external low-speed oscillator (using external resonator or another clock source).  
 - `IOCTL CPU, WAIT, INTERRUPT` - wait for interrupt command  
 - `IOCTL CPU, DELAYMS, <numeric_value>` - pauses program execution for the specified amount of time (in milliseconds, acceptable range of the numeric argument is: 0 to 255 ms). The command is based on loops and cannot be used for precise delays generation (it should delay for not less than the specified amount of time).  
   
@@ -62,7 +62,7 @@ Here `PX` stands for GPIO port name (e.g. `PA` for port A) and command names sho
 - `IOCTL TIMER, PERIODMS, <numeric_value>` - set timer period in ms (tries setting prescaler and value automatically)  
 - `IOCTL TIMER, INTERRUPT, ON | OFF` - enable or disable timer update interrupt (disabled by default)  
 - `IOCTL TIMER, CLRINTFLAG` - clear update interrupt flag  
-- `IOCTL TIMER, ONUPDOVF, <line_number>` - use BASIC subroutine starting from the specifide line number as a handler for timer's update/overflow interrupt, the handler automatically clears update interrupt flag (see previous command description)  
+- `IOCTL TIMER, ONUPDOVF, <line_number>` - use BASIC subroutine starting from the specified line number as a handler for timer's update/overflow interrupt, the handler automatically clears update interrupt flag (see previous command description)  
 - `IOCTL TIMER, START` - start timer  
 - `IOCTL TIMER, STOP` - stop timer  
 - `IOCTL TIMER, ENABLE` - enable timer  
@@ -88,7 +88,7 @@ Here `PX` stands for GPIO port name (e.g. `PA` for port A) and command names sho
 - `IOCTL SPI, MASTER, ON | OFF` - set master or slave mode (default mode is master)  
 - `IOCTL SPI, PRESCALER, DIV2 | DIV4 | DIV8 | DIV16 | DIV32 | DIV64 | DIV128 | DIV256` - set SPI clock prescaler (frequency divisor, default is `DIV2`)  
 - `IOCTL SPI, FRAMEFMT, MSBFIRST | LSBFIRST` - data frame format (LSB-first or MSB-first, default is `MSBFIRST`)  
-- `IOCTL SPI, TRANSMODE, DUPLEX | HALFDUPLEX | SIMPLEX` - SPI transmission mode (default is `DUPLEX`)  
+- `IOCTL SPI, TRANSMODE, DUPLEX | HALFDUPLEX | SIMPLEX` - SPI transmission mode (default is `SIMPLEX`)  
 - `IOCTL SPI, SSPIN, <pin_name> | NONE` - specify slave select pin, `<pin_name>` format is `<port_name><pin_number>`, e.g.: `PA3`, `PE5`, etc. A special keyword `NONE` specified instead of the pin name disables automatic SS pin management. Default value corresponds to default NSS pin of the selected MCU.  
 - `IOCTL SPI, CFGPINS, ON | OFF` - configure GPIO pins when starting communication (enabled by default)  
 - `IOCTL SPI, WAIT, RXNE | TXE | NOTBSY` - wait for the specified event: `RXNE` stands for "RX buffer is not empty" (a byte is read into external MCU buffer and can be extracted with `GET` statement), `TXE` - "TX buffer is empty" (the next byte can be written with `PUT` statement), `NOTBSY` - "SPI transmission is complete" (all data is transferred, SPI device can be released).  

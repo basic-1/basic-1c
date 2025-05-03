@@ -1,6 +1,6 @@
 /*
  BASIC1 compiler
- Copyright (c) 2021-2024 Nikolay Pletnev
+ Copyright (c) 2021-2025 Nikolay Pletnev
  MIT license
 
  b1c.h: BASIC1 compiler classes declaration
@@ -81,12 +81,14 @@ private:
 
 	B1C_T_ERROR put_var_name(const std::wstring &name, const B1Types type, int dims, bool is_global, bool is_volatile, bool is_mem_var, bool is_static, bool is_const);
 	B1C_T_ERROR put_const_var_init_values(const std::wstring &name, const std::vector<std::wstring> &const_init);
-	std::wstring get_var_name(const std::wstring &name, bool &expl) const;
+	std::wstring get_var_name(const std::wstring &name, bool &expl);
 	bool is_mem_var_name(const std::wstring &name) const;
 	bool is_volatile_var(const std::wstring &name) const;
 	bool is_const_var(const std::wstring &name) const;
 	int get_var_dim(const std::wstring &name) const;
 	B1Types get_var_type(const std::wstring &name) const;
+
+	B1C_T_ERROR put_var_ref(const std::wstring &var_name, const std::wstring &extra_data, iterator cmd_it);
 
 	bool fn_exists(const std::wstring &name);
 	bool add_ufn(bool global, const std::wstring &nm, const B1Types rt, const std::vector<B1Types> &arglist);
@@ -95,6 +97,7 @@ private:
 	const B1_CMP_FN *get_fn(const B1_CMP_ARG &arg);
 	std::wstring get_fn_int_name(const std::wstring &name);
 	void change_ufn_names();
+	void change_ref_names();
 
 	bool correct_rpn(B1_CMP_EXP_TYPE &res_type, B1_CMP_ARG &res, bool get_ref);
 	B1_T_ERROR process_expression(iterator pos, B1_CMP_EXP_TYPE &res_type, B1_CMP_ARG &res, bool get_ref = false);

@@ -1,6 +1,6 @@
 /*
  BASIC1 compiler
- Copyright (c) 2021-2024 Nikolay Pletnev
+ Copyright (c) 2021-2025 Nikolay Pletnev
  MIT license
 
  Utils.cpp: BASIC1 compiler utility classes
@@ -601,6 +601,27 @@ int32_t Utils::int32power(int32_t base, uint32_t exp)
 	return h * base;
 }
 
+std::wstring Utils::any2wstr(const std::any &any_val)
+{
+	if(auto str = std::any_cast<const char *>(&any_val))
+	{
+		return Utils::str2wstr(*str);
+	}
+	if(auto str = std::any_cast<const wchar_t *>(&any_val))
+	{
+		return *str;
+	}
+	if(auto str = std::any_cast<std::string>(&any_val))
+	{
+		return Utils::str2wstr(*str);
+	}
+	if(auto str = std::any_cast<std::wstring>(&any_val))
+	{
+		return *str;
+	}
+	return std::wstring();
+}
+
 
 B1_T_ERROR Settings::Read(const std::string &file_name)
 {
@@ -798,16 +819,6 @@ std::string Settings::GetLibFileName(const std::string &file_name, const std::st
 		{
 			std::fclose(fp);
 			return *dir + file_name + ext;
-		}
-
-		if(file_name.find("__VAR_") == 0)
-		{
-			fp = std::fopen((*dir + file_name.substr(6) + ext).c_str(), "r");
-			if(fp != nullptr)
-			{
-				std::fclose(fp);
-				return *dir + file_name.substr(6) + ext;
-			}
 		}
 	}
 

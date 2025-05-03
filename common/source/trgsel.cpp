@@ -111,6 +111,5 @@ bool select_target(Settings &settings)
 	}
 #endif
 
-
 	return false;
 }

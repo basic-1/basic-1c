@@ -1,6 +1,6 @@
 /*
  BASIC1 compiler
- Copyright (c) 2021-2023 Nikolay Pletnev
+ Copyright (c) 2021-2025 Nikolay Pletnev
  MIT license
 
  Utils.h: BASIC1 compiler utility classes declaration
@@ -18,6 +18,7 @@ extern "C"
 #include <vector>
 #include <map>
 #include <set>
+#include <any>
 
 
 enum class B1Types
@@ -127,7 +128,11 @@ public:
 
 	static void correct_int_value(int32_t &n, const B1Types type);
 
+
 	static int32_t int32power(int32_t base, uint32_t exp);
+
+	[[nodiscard]]
+	static std::wstring any2wstr(const std::any &any_val);
 };
 
 

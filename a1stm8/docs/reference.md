@@ -31,7 +31,7 @@ Multiple `.STACK` sections are not combined into one, assembler uses the largest
 `.CONST` addresses range 0x8000..0xFFFF  
 `.CODE` addresses range 0x8000..0x27FFF  
   
-### Predefined symbolic constants computed at assembly time  
+### Predefined symbolic constants  
   
 `__DATA_START` - `.DATA` sections starting address  
 `__DATA_SIZE` - overall size of all `.DATA` sections  
@@ -48,6 +48,8 @@ Multiple `.STACK` sections are not combined into one, assembler uses the largest
 `__CODE_SIZE` - code sections size  
 `__CODE_TOTAL_SIZE` - total ROM sections size (`__INIT_SIZE` + `__CONST_SIZE` + `__CODE_SIZE`)  
 `__RET_ADDR_SIZE` - return address size for the current memory model (2 or 3)  
+`__TARGET_NAME` - a string constant, assembler's target architecture name (e.g. `STM8`)  
+`__MCU_NAME` - a string constant, MCU name specified in the command line (e.g. `STM8S103F3`)  
   
 ## Comments  
   
@@ -163,11 +165,20 @@ The next comparison operators can be used in the condition expressions:
 - `>=` - greater than or equal check  
 - `<=` - less than equal check  
   
+Non-numeric values can be compared using `==` and `!=` operators only. Non-numeric immediate values can be enclosed in double quotes. Use two double quote characters to escape a double quote character inside a string. `SUBSTR` function can be used to extract a substring from non-numeric value.  
+`SUBSTR` function syntax: `SUBSTR(<value>, <start>, <count>)`, starting position is zero-based. If starting position is omitted, zero value is used, if `<count>` argument is omitted - `SUBSTR` function copies characters to the end of the string.  
+  
 **Examples:**  
 `.IF __RET_ADDR_SIZE == 2`  
 `RET`  
 `.ELSE`  
 `RETF`  
+`.ENDIF`  
+  
+`.IF SUBSTR(__MCU_NAME,0,5) == STM8S`  
+`CP A, (CLK_CMSR)`  
+`.ELSE`  
+`CP A, (CLK_SCSR)`  
 `.ENDIF`  
   
 Expressions on the left and right sides of the comparison operators can be simple expressions (without parentheses) described [here](#CPU-instructions). Another type of condition is `DEFINED()` function, which returns true if its argument is an existing symbolic constant. The function can be used with `NOT` operator to negate its result.  

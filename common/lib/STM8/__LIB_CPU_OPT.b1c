@@ -1,2 +1,2 @@
-; bits 0..1 - fMASTER frequency: 0 - 16 MHz (default), 1 - 8 MHz, 3 - 128 kHz
+; bits 0..1 - fCPU = fMASTER frequency: 0 - 16 MHz (default), 1 - 8 MHz, 2 - 32.768 kHz, 3 - 128 kHz or 38 kHz (depending on STM8 MCU family)
 =,0<BYTE>,__LIB_CPU_OPT<BYTE>

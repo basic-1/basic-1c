@@ -8,10 +8,8 @@ INI,__LIB_UART2_OPT
 ; bits 4, 5, 6, 7 - reserved
 ASM
 ; MODE
-PUSH {VALUE} & {MASK}
 LD A, !{MASK}.ll
 AND A, (__LIB_UART2_OPT)
-OR A, (1, SP)
+OR A, {VALUE} & {MASK}
 LD (__LIB_UART2_OPT), A
-POP A
 ENDASM

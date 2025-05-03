@@ -1,6 +1,6 @@
 /*
  A1 assembler
- Copyright (c) 2021-2024 Nikolay Pletnev
+ Copyright (c) 2021-2025 Nikolay Pletnev
  MIT license
 
  a1.cpp: basic assembler classes
@@ -957,7 +957,13 @@ A1_T_ERROR Exp::BuildExp(std::vector<Token>::const_iterator &start, const std::v
 					if(_B1C_consts.find(tok) != _B1C_consts.end())
 					{
 						const auto &c = _B1C_consts[tok];
-						n = c.first;
+						
+						if(c.second == B1Types::B1T_STRING)
+						{
+							return static_cast<A1_T_ERROR>(B1_RES_ETYPMISM);
+						}
+						
+						n = std::any_cast<int32_t>(c.first);
 						exp.AddVal(EVal(n, usgn));
 					}
 					else
@@ -2116,12 +2122,11 @@ A1_T_ERROR Sections::ReadStmt(std::vector<Token>::const_iterator &start, const s
 	return A1_T_ERROR::A1_RES_OK;
 }
 
-A1_T_ERROR Sections::CheckIFDir(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, bool &res)
+A1_T_ERROR Sections::check_if_defined(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, bool &res, bool &processed)
 {
-	int32_t resl = 0, resr = 0;
 	bool not_def = false;
 
-	start++;
+	processed = false;
 
 	if(start != end && start->IsString() && start->GetToken() == L"NOT")
 	{
@@ -2134,13 +2139,13 @@ A1_T_ERROR Sections::CheckIFDir(std::vector<Token>::const_iterator &start, const
 		start++;
 		if(start == end || *start != Token(TokType::TT_OPER, L"(", -1))
 		{
-			A1_T_ERROR::A1_RES_ESYNTAX;
+			return A1_T_ERROR::A1_RES_ESYNTAX;
 		}
 
 		start++;
 		if(start == end || !start->IsString())
 		{
-			A1_T_ERROR::A1_RES_ESYNTAX;
+			return A1_T_ERROR::A1_RES_ESYNTAX;
 		}
 
 		const auto symbol = start->GetToken();
@@ -2148,13 +2153,13 @@ A1_T_ERROR Sections::CheckIFDir(std::vector<Token>::const_iterator &start, const
 		start++;
 		if(start == end || *start != Token(TokType::TT_OPER, L")", -1))
 		{
-			A1_T_ERROR::A1_RES_ESYNTAX;
+			return A1_T_ERROR::A1_RES_ESYNTAX;
 		}
 
 		start++;
 		if(start != end && !start->IsEOL())
 		{
-			A1_T_ERROR::A1_RES_ESYNTAX;
+			return A1_T_ERROR::A1_RES_ESYNTAX;
 		}
 
 		res = (_memrefs.find(symbol) != _memrefs.cend());
@@ -2164,16 +2169,298 @@ A1_T_ERROR Sections::CheckIFDir(std::vector<Token>::const_iterator &start, const
 			res = !res;
 		}
 
+		processed = true;
+
 		return A1_T_ERROR::A1_RES_OK;
 	}
 
 	if(not_def)
 	{
-		A1_T_ERROR::A1_RES_ESYNTAX;
+		return A1_T_ERROR::A1_RES_ESYNTAX;
 	}
 
+	return A1_T_ERROR::A1_RES_OK;
+}
+
+A1_T_ERROR Sections::check_if_getstr(const Token &token, std::wstring &res_str, bool &processed)
+{
+	processed = false;
+
+	if(token.IsString() || token.GetType() == TokType::TT_QSTRING)
+	{
+		if(token.IsString())
+		{
+			res_str = token.GetToken();
+			auto c = _B1C_consts.find(res_str);
+			if(c != _B1C_consts.cend())
+			{
+				if(c->second.second == B1Types::B1T_STRING)
+				{
+					res_str = Utils::any2wstr(c->second.first);
+				}
+				else
+				{
+					return A1_T_ERROR::A1_RES_OK;
+				}
+			}
+		}
+		else
+		{
+			auto err = Token::QStringToString(token.GetToken(), res_str);
+			if(err != A1_T_ERROR::A1_RES_OK)
+			{
+				return err;
+			}
+		}
+
+		processed = true;
+	}
+
+	return A1_T_ERROR::A1_RES_OK;
+}
+
+A1_T_ERROR Sections::check_if_substr(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, std::wstring &res_str)
+{
+	std::wstring val;
+	int32_t sstart = 0, slen = -1;
+
+	if(start == end || *start != Token(TokType::TT_OPER, L"(", -1))
+	{
+		return A1_T_ERROR::A1_RES_ESYNTAX;
+	}
+
+	start++;
+	if(start == end)
+	{
+		return A1_T_ERROR::A1_RES_ESYNTAX;
+	}
+
+	bool processed = false;
+	auto err = check_if_getstr(*start, val, processed);
+	if(err != A1_T_ERROR::A1_RES_OK)
+	{
+		return err;
+	}
+	if(!processed)
+	{
+		return A1_T_ERROR::A1_RES_ESYNTAX;
+	}
+
+	start++;
+	if(start == end || start->GetType() != TokType::TT_OPER || start->GetToken() != L",")
+	{
+		return A1_T_ERROR::A1_RES_ESYNTAX;
+	}
+
+	start++;
+	if(start == end)
+	{
+		return A1_T_ERROR::A1_RES_ESYNTAX;
+	}
+
+	if(start->GetType() == TokType::TT_OPER && start->GetToken() == L",")
+	{
+		// start is omitted
+	}
+	else
+	if(start->GetType() == TokType::TT_NUMBER)
+	{
+		// read start
+		auto err = Utils::str2int32(start->GetToken(), sstart);
+		if(err != B1_RES_OK)
+		{
+			return static_cast<A1_T_ERROR>(err);
+		}
+		start++;
+	}
+	else
+	{
+		return A1_T_ERROR::A1_RES_ESYNTAX;
+	}
+
+	if(start == end || start->GetType() != TokType::TT_OPER || start->GetToken() != L",")
+	{
+		return A1_T_ERROR::A1_RES_ESYNTAX;
+	}
+
+	start++;
+	if(start == end)
+	{
+		return A1_T_ERROR::A1_RES_ESYNTAX;
+	}
+
+	if(start->GetType() == TokType::TT_OPER && start->GetToken() == L")")
+	{
+		// length is omitted
+	}
+	else
+	if(start->GetType() == TokType::TT_NUMBER)
+	{
+		// read length
+		auto err = Utils::str2int32(start->GetToken(), slen);
+		if(err != B1_RES_OK)
+		{
+			return static_cast<A1_T_ERROR>(err);
+		}
+		start++;
+	}
+	else
+	{
+		return A1_T_ERROR::A1_RES_ESYNTAX;
+	}
+
+	if(start == end || start->GetType() != TokType::TT_OPER || start->GetToken() != L")")
+	{
+		return A1_T_ERROR::A1_RES_ESYNTAX;
+	}
+
+	start++;
+
+	if(slen == 0 || sstart < 0 || sstart >= val.length())
+	{
+		res_str.clear();
+	}
+	else
+	{
+		res_str = val.substr(sstart, (slen < 0) ? std::wstring::npos : slen);
+	}
+
+	return A1_T_ERROR::A1_RES_OK;
+}
+
+A1_T_ERROR Sections::check_if_str_expression(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, bool &res, bool &processed)
+{
+	auto start1 = start;
+	std::wstring lval, rval;
+	bool issub = false;
+
+	processed = false;
+
+	if(start1 == end)
+	{
+		return A1_T_ERROR::A1_RES_ESYNTAX;
+	}
+
+	if(start1->IsString() && start1->GetToken() == L"SUBSTR")
+	{
+		start1++;
+		auto err = check_if_substr(start1, end, lval);
+		if(err != A1_T_ERROR::A1_RES_OK)
+		{
+			start = start1;
+			return err;
+		}
+		issub = true;
+	}
+	else
+	{
+		bool processed1 = false;
+		auto err = check_if_getstr(*start1, lval, processed1);
+		if(err != A1_T_ERROR::A1_RES_OK)
+		{
+			return err;
+		}
+		if(!processed1)
+		{
+			return A1_T_ERROR::A1_RES_OK;
+		}
+
+		start1++;
+	}
+
+	if(start1 == end)
+	{
+		start = start1;
+		return A1_T_ERROR::A1_RES_ESYNTAX;
+	}
+
+	if(start1->GetType() != TokType::TT_OPER || !(start1->GetToken() == L"==" || start1->GetToken() == L"!="))
+	{
+		if(issub)
+		{
+			start = start1;
+			return A1_T_ERROR::A1_RES_ESYNTAX;
+		}
+		else
+		{
+			return A1_T_ERROR::A1_RES_OK;
+		}
+	}
+
+	bool eq = (start1->GetToken() == L"==");
+
+	start1++;
+	if(start1 == end)
+	{
+		start = start1;
+		return A1_T_ERROR::A1_RES_ESYNTAX;
+	}
+
+	if(start1->IsString() && start1->GetToken() == L"SUBSTR")
+	{
+		start1++;
+		auto err = check_if_substr(start1, end, rval);
+		if(err != A1_T_ERROR::A1_RES_OK)
+		{
+			start = start1;
+			return err;
+		}
+	}
+	else
+	{
+		bool processed1 = false;
+		auto err = check_if_getstr(*start1, rval, processed1);
+		if(err != A1_T_ERROR::A1_RES_OK)
+		{
+			return err;
+		}
+		if(!processed1)
+		{
+			if(issub)
+			{
+				start = start1;
+				return A1_T_ERROR::A1_RES_ESYNTAX;
+			}
+			else
+			{
+				return A1_T_ERROR::A1_RES_OK;
+			}
+		}
+
+		start1++;
+	}
+
+	if(start1 != end && !start1->IsEOL())
+	{
+		start = start1;
+		return A1_T_ERROR::A1_RES_ESYNTAX;
+	}
+
+	processed = true;
+	res = (lval == rval) ? eq : (!eq);
+	start = start1;
+	return A1_T_ERROR::A1_RES_OK;
+}
+
+A1_T_ERROR Sections::CheckIFDir(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, bool &res)
+{
+	start++;
+
+	bool processed = false;
+	auto err = check_if_defined(start, end, res, processed);
+	if(err != A1_T_ERROR::A1_RES_OK || processed)
+	{
+		return err;
+	}
+
+	err = check_if_str_expression(start, end, res, processed);
+	if(err != A1_T_ERROR::A1_RES_OK || processed)
+	{
+		return err;
+	}
+
+	int32_t resl = 0, resr = 0;
 	Exp exp_l, exp_r;
-	std::wstring sval_l, sval_r;
 	std::vector<Token> terms;
 
 	terms.push_back(Token(TokType::TT_OPER, L"==", -1));
@@ -2183,7 +2470,7 @@ A1_T_ERROR Sections::CheckIFDir(std::vector<Token>::const_iterator &start, const
 	terms.push_back(Token(TokType::TT_OPER, L">=", -1));
 	terms.push_back(Token(TokType::TT_OPER, L"<=", -1));
 
-	auto err = Exp::BuildExp(start, end, exp_l, terms);
+	err = Exp::BuildExp(start, end, exp_l, terms);
 	if(err != A1_T_ERROR::A1_RES_OK)
 	{
 		return err;
@@ -2192,15 +2479,7 @@ A1_T_ERROR Sections::CheckIFDir(std::vector<Token>::const_iterator &start, const
 	err = exp_l.Eval(resl, _memrefs);
 	if(err != A1_T_ERROR::A1_RES_OK)
 	{
-		// allow simple expressions like ".IF SOMETEXT == SOMETEXT"
-		if(err != A1_T_ERROR::A1_RES_EUNRESSYMB || !exp_l.GetSimpleValue(sval_l))
-		{
-			return err;
-		}
-		if(sval_l.empty())
-		{
-			return A1_T_ERROR::A1_RES_EUNRESSYMB;
-		}
+		return err;
 	}
 
 	const auto &cmp_op = *start;
@@ -2218,35 +2497,9 @@ A1_T_ERROR Sections::CheckIFDir(std::vector<Token>::const_iterator &start, const
 	err = exp_r.Eval(resr, _memrefs);
 	if(err != A1_T_ERROR::A1_RES_OK)
 	{
-		// allow simple expressions like ".IF SOMETEXT == SOMETEXT"
-		if(err != A1_T_ERROR::A1_RES_EUNRESSYMB || !exp_r.GetSimpleValue(sval_r))
-		{
-			return err;
-		}
-		if(sval_r.empty())
-		{
-			return A1_T_ERROR::A1_RES_EUNRESSYMB;
-		}
+		return err;
 	}
 
-	// allow simple expressions like ".IF SOMETEXT == SOMETEXT"
-	if(!sval_l.empty())
-	{
-		if(cmp_op.GetToken() == L"==")
-		{
-			res = (sval_l == sval_r);
-		}
-		else
-		if(cmp_op.GetToken() == L"!=")
-		{
-			res = (sval_l != sval_r);
-		}
-		else
-		{
-			return A1_T_ERROR::A1_RES_ESYNTAX;
-		}
-	}
-	else
 	if(cmp_op.GetToken() == L"==")
 	{
 		res = (resl == resr);

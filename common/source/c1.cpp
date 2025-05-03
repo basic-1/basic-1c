@@ -1,6 +1,6 @@
 /*
  Intermediate code compiler
- Copyright (c) 2021-2024 Nikolay Pletnev
+ Copyright (c) 2021-2025 Nikolay Pletnev
  MIT license
 
  c1.cpp: Intermediate code compiler
@@ -382,7 +382,7 @@ C1_T_ERROR C1Compiler::replace_inline(std::wstring &line, const std::map<std::ws
 	return C1_T_ERROR::C1_RES_OK;
 }
 
-C1_T_ERROR C1Compiler::load_inline(size_t offset, const std::wstring &line, iterator pos, const std::map<std::wstring, std::wstring> &inl_params)
+C1_T_ERROR C1Compiler::load_inline(size_t offset, const std::wstring &line, iterator load_at, const std::map<std::wstring, std::wstring> &inl_params, const B1_CMP_CMD *orig_cmd)
 {
 	B1_TYPED_VALUE tv;
 
@@ -423,7 +423,20 @@ C1_T_ERROR C1Compiler::load_inline(size_t offset, const std::wstring &line, iter
 
 	std::wstring inl_line;
 
-	auto start = empty() ? end() : std::prev(pos);
+	auto start = empty() ? end() : std::prev(load_at);
+
+	auto saved_curr_line_cnt = _curr_line_cnt;
+	auto saved_curr_line_num = _curr_line_num;
+	auto saved_curr_src_file_id = _curr_src_file_id;
+	auto saved_curr_src_line_id = _curr_src_line_id;
+
+	if(orig_cmd != nullptr)
+	{
+		_curr_line_cnt = orig_cmd->line_cnt;
+		_curr_line_num = orig_cmd->line_num;
+		_curr_src_file_id = orig_cmd->src_file_id;
+		_curr_src_line_id = orig_cmd->src_line_id;
+	}
 
 	while(true)
 	{
@@ -454,12 +467,17 @@ C1_T_ERROR C1Compiler::load_inline(size_t offset, const std::wstring &line, iter
 			continue;
 		}
 
-		err = load_next_command(inl_line, pos);
+		err = load_next_command(inl_line, load_at);
 		if(err != C1_T_ERROR::C1_RES_OK)
 		{
 			break;
 		}
 	}
+
+	_curr_line_cnt = saved_curr_line_cnt;
+	_curr_line_num = saved_curr_line_num;
+	_curr_src_file_id = saved_curr_src_file_id;
+	_curr_src_line_id = saved_curr_src_line_id;
 
 	_curr_name_space = saved_ns;
 
@@ -479,25 +497,25 @@ C1_T_ERROR C1Compiler::load_inline(size_t offset, const std::wstring &line, iter
 
 	start = (start == end()) ? begin() : std::next(start);
 
-	err = read_ufns(start, pos);
+	err = read_ufns(start, load_at);
 	if(err != C1_T_ERROR::C1_RES_OK)
 	{
 		return err;
 	}
 
-	err = read_and_check_locals(start, pos);
+	err = read_and_check_locals(start, load_at);
 	if(err != C1_T_ERROR::C1_RES_OK)
 	{
 		return err;
 	}
 
-	err = read_and_check_vars(start, pos, true);
+	err = read_and_check_vars(start, load_at, true);
 	if(err != C1_T_ERROR::C1_RES_OK)
 	{
 		return err;
 	}
 
-	err = process_imm_str_values(start, pos);
+	err = process_imm_str_values(start, load_at);
 	if(err != C1_T_ERROR::C1_RES_OK)
 	{
 		return err;
@@ -545,7 +563,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			{
 				return C1_T_ERROR::C1_RES_EINVLBNAME;
 			}
-			lname = add_namespace(lname);
+			lname = add_namespace(Utils::str_toupper(lname));
 			
 			if(_inline_asm)
 			{
@@ -973,7 +991,9 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 					if(iocmd.data_type == B1Types::B1T_VARREF)
 					{
 						const auto varname = (arg[0].value.length() >= 3 && arg[0].value[0] == L'\"') ? arg[0].value.substr(1, arg[0].value.length() - 2) : arg[0].value;
-						_req_symbols.insert(varname);
+						// the symbol can be either variable reference or a memref (mem. refrences should not be added to _req_symbols)
+						// in case of variable it is added to _req_symbols by corresponding C1Compiler::write_ioctl function
+						//_req_symbols.insert(varname);
 						arg[0].value = varname;
 						arg[0].type = B1Types::B1T_VARREF;
 					}

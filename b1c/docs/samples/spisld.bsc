@@ -9,6 +9,7 @@ IOCTL UART, START
 ' configure and enable SPI (MOSI, MISO, CLK and NSS pins have to be connected)
 IOCTL SPI, MODE, M0
 IOCTL SPI, MASTER, OFF
+IOCTL SPI, TRANSMODE, DUPLEX
 IOCTL SPI, ENABLE
 
 WHILE 1 > 0

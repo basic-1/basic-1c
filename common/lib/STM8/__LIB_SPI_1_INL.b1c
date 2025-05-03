@@ -1,8 +1,8 @@
 INI,__LIB_SPI_OPT1
 
 ; more SPI options (TRANSMODE, CFGPINS)
-; bit 0 - bi-directional mode (half-duplex, 0 by default, default mode is duplex)
-; bit 1 - simplex (0 by default, default mode is duplex)
+; bit 0 - bi-directional mode (half-duplex, 0 by default - default mode is simplex)
+; bit 1 - simplex (1 by default, default mode is simplex)
 ; bit 2 - configure SPI pins (1 by default)
 ; bit 3 - master half-duplex RX or master simplex RX-only mode (managed by START)
 ; bit 4 - TX mode (managed by START)

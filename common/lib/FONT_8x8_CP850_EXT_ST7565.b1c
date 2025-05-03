@@ -2,8 +2,8 @@
 ; The font is based on cp850-8x8.psf font from Debian console data package
 ; https://packages.debian.org/buster/utils/console-data
 ; GNU GPL 2 license
-GA,__VAR_FONT_8X8_CP850_EXT_ST7565,BYTE(C),0<BYTE>,1024<WORD>
-DAT,__VAR_FONT_8X8_CP850_EXT_ST7565,0x20<BYTE> ; 8x8, upper part of extended ASCII table (upper 128 characters)
+GA,FONT_8X8_CP850_EXT_ST7565,BYTE(C),0<BYTE>,1024<WORD>
+DAT,FONT_8X8_CP850_EXT_ST7565,0x20<BYTE> ; 8x8, upper part of extended ASCII table (upper 128 characters)
 DAT,*,0x1E<BYTE>,0xBF<BYTE>,0xA1<BYTE>,0xA1<BYTE>,0xE1<BYTE>,0x73<BYTE>,0x12<BYTE>,0x00<BYTE>
 DAT,*,0x3D<BYTE>,0x7D<BYTE>,0x40<BYTE>,0x40<BYTE>,0x3D<BYTE>,0x7D<BYTE>,0x40<BYTE>,0x00<BYTE>
 DAT,*,0x38<BYTE>,0x7C<BYTE>,0x54<BYTE>,0x56<BYTE>,0x57<BYTE>,0x5D<BYTE>,0x18<BYTE>,0x00<BYTE>
