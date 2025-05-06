@@ -1,3 +1,10 @@
+b1c (1.0.0-42) unstable; urgency=low
+
+  * files for STM8L151K4T6/STM8L151K6T6 MCUs added
+  * a bug fixed
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Tue, 06 May 2025 18:26:38 +0300
+
 b1c (1.0.0-41) unstable; urgency=low
 
   * STM8L MCU family initial support added

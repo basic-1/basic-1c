@@ -7521,9 +7521,9 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 			!ao._volatile && !ao._is_inline && ao._op == L"LD" && ao._args[0] == L"A" &&
 			(
 				// imm. value
-				(ao._args[0][0] != L'[' && ao._args[0][0] != L'(' && ao._args[0] != L"XL" && ao._args[0] != L"XH" && ao._args[0] != L"YL" && ao._args[0] != L"YH") ||
+				(ao._args[1][0] != L'[' && ao._args[1][0] != L'(' && ao._args[1] != L"XL" && ao._args[1] != L"XH" && ao._args[1] != L"YL" && ao._args[1] != L"YH") ||
 				// direct addressing
-				(ao._args[0][0] == L'(' && ao._args[0] != L"(X)" && ao._args[0] != L"(Y)" && ao._args[0].find(L",X)") == std::wstring::npos && ao._args[0].find(L",Y)") == std::wstring::npos && ao._args[0].find(L",SP)") == std::wstring::npos)
+				(ao._args[1][0] == L'(' && ao._args[1] != L"(X)" && ao._args[1] != L"(Y)" && ao._args[1].find(L",X)") == std::wstring::npos && ao._args[1].find(L",Y)") == std::wstring::npos && ao._args[1].find(L",SP)") == std::wstring::npos)
 			) &&
 			aon1._op == L"CLRW" && aon1._args[0] == L"X" &&
 			aon2._op == L"LD" && aon2._args[0] == L"XL" &&
