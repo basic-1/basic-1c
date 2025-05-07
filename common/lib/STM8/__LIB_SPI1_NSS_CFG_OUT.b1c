@@ -1,0 +1,22 @@
+INI,__LIB_SPI1_SS_PIN
+INI,__LIB_SPI1_SS_PORT
+
+; configure NSS pin (master, output)
+:__LIB_SPI1_NSS_CFG_OUT
+ASM
+LDW X, (__LIB_SPI1_SS_PORT)
+INCW X
+INCW X
+LD A, (__LIB_SPI1_SS_PIN)
+OR A, (X) ; Px_DDR
+LD (X), A
+INCW X
+LD A, (__LIB_SPI1_SS_PIN)
+OR A, (X) ; Px_CR1
+LD (X), A
+INCW X
+LD A, (__LIB_SPI1_SS_PIN)
+OR A, (X) ; Px_CR2
+LD (X), A
+RET
+ENDASM

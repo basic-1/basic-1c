@@ -6604,7 +6604,7 @@ bool C1STM8Compiler::is_arithm_op(const B1_ASM_OP_STM8 &ao, int32_t &size, bool 
 	auto &op = ao._op;
 
 	if(op == L"LDW" || op == L"ADDW" || op == L"SUBW" || op == L"MUL" || op == L"DIV" || op == L"DIVW" || op == L"INCW" || op == L"DECW" || op == L"NEGW" || op == L"CPLW" || op == L"CLRW" ||
-		op == L"SLLW" || op == L"SLAW" || op == L"SRLW" || op == L"SRAW")
+		op == L"SLLW" || op == L"SLAW" || op == L"SRLW" || op == L"SRAW" || op == L"RLWA" || op == L"RRWA")
 	{
 		size = 2;
 		res = true;
@@ -6943,11 +6943,13 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 		if(
 			(ao._op == L"ADDW" || ao._op == L"SUBW" || ao._op == L"ADD" || ao._op == L"SUB" || ao._op == L"OR" || ao._op == L"AND" || ao._op == L"XOR") &&
 			(ao._args[0] == L"A" || ao._args[0] == L"X" || ao._args[0] == L"Y" || ao._args[0] == L"SP") &&
-			(ao._args[1] == L"0x1" || ao._args[1] == L"0x0" || (ao._args[1] == L"-0x1" || Utils::str_toupper(ao._args[1]) == L"0XFFFF" || Utils::str_toupper(ao._args[1]) == L"0XFFFFFFFF"))
+			(ao._args[1] == L"0x1" || ao._args[1] == L"0x0" || (ao._args[1] == L"-0x1" || Utils::str_toupper(ao._args[1]) == L"0XFFFF" || Utils::str_toupper(ao._args[1]) == L"0XFFFFFFFF" || (Utils::str_toupper(ao._args[1]) == L"0XFF" && ao._args[0] == L"A")))
 			)
 		{
 			// -ADD/ADDW/SUB/SUBW/OR A/X/Y/SP, 0
-			// ADD/ADDW A/X/Y, 1 - INC/INCW A/X/Y
+			// AND A, 0 -> CLR A
+			// -AND A, 0xFF
+			// ADD/ADDW A/X/Y, 1 -> INC/INCW A/X/Y
 			// SUB/SUBW A/X/Y, 1 -> INC/DECW A/X/Y
 			if(ao._args[1] == L"0x0" || ao._op == L"AND")
 			{
@@ -6956,6 +6958,16 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 					auto next = std::next(i);
 					cs.erase(i);
 					i = next;
+
+					update_opt_rule_usage_stat(rule_id);
+					changed = true;
+					continue;
+				}
+				else
+				if(ao._op == L"AND" && ao._args[1] == L"0x0")
+				{
+					ao._data = L"CLR A";
+					ao._parsed = false;
 
 					update_opt_rule_usage_stat(rule_id);
 					changed = true;
@@ -7416,6 +7428,49 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 			aon2._parsed = false;
 			aon1._data = L"LDW " + aon2._args[0] + L", X";
 			aon1._parsed = false;
+
+			update_opt_rule_usage_stat(rule_id);
+			changed = true;
+			continue;
+		}
+
+		rule_id++;
+		update_opt_rule_usage_stat(rule_id, true);
+		if (ao._op == L"RLWA" && ao._args[0] == L"X" &&
+			(
+				((aon1._op == L"OR" || aon1._op == L"AND" || aon1._op == L"XOR") && aon1._args[0] == L"A" &&
+				aon2._op == L"RLWA" && aon2._args[0] == L"X") ||
+				((aon2._op == L"OR" || aon2._op == L"AND" || aon2._op == L"XOR") && aon2._args[0] == L"A" &&
+				aon1._op == L"RLWA" && aon1._args[0] == L"X")
+			) &&
+			aon3._op == L"RLWA" && aon3._args[0] == L"X"
+			)
+		{
+			// RLWA X
+			// OR/AND/XOR A, 0X2000.lh
+			// RLWA X
+			// RLWA X
+			// ->
+			// LD A, XH
+			// OR/AND/XOR A, 0X2000.lh
+			// LD XH, A
+			cs.erase(next3);
+			if(aon2._op == L"RLWA")
+			{
+				ao._data = L"LD A, XH";
+				ao._parsed = false;
+				aon2._data = L"LD XH, A";
+				aon2._parsed = false;
+			}
+			else
+			{
+				ao._data = L"LD A, XL";
+				ao._parsed = false;
+				aon1._data = aon2._data;
+				aon1._parsed = false;
+				aon2._data = L"LD XL, A";
+				aon2._parsed = false;
+			}
 
 			update_opt_rule_usage_stat(rule_id);
 			changed = true;

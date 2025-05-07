@@ -1,0 +1,111 @@
+INI,__LIB_SPI1_OPT
+INI,__LIB_SPI1_OPT1
+INI,__LIB_SPI1_SS_PIN
+IMP,__LIB_SPI1_NSS_CFG_IN
+IMP,__LIB_SPI1_NSS_CFG_OUT
+IMP,__LIB_SPI1_NSS_HI
+
+; __LIB_SPI1_OPT1
+; bit 0 - bi-directional mode (half-duplex, 0 by default - default mode is simplex)
+; bit 1 - simplex (1 by default, default mode is simplex)
+; bit 2 - configure SPI1 pins (1 by default)
+; bit 3 - master half-duplex RX or master simplex RX-only mode (managed by START)
+; bit 4 - TX mode (managed by START)
+
+:__LIB_SPI1_CFG_PINS_ENA
+ASM
+LD A, (__LIB_SPI1_OPT1)
+BTJF (__LIB_SPI1_OPT), 2, ::__LBL_SLAVE
+;master
+BCP A, 2
+JREQ ::__LBL_MOSI_OUT ;duplex or half-duplex
+BCP A, 0x10
+JREQ ::__LBL_CFG_MISO ;simplex RX, MOSI is not used
+
+:::__LBL_MOSI_OUT
+ENDASM
+
+; congigure MOSI
+INL,__LIB_SPI1_CFG_MOSI_OUT
+
+ASM
+:::__LBL_CFG_MISO
+LD A, (__LIB_SPI1_OPT1)
+SRL A
+JRC ::__LBL_CFG_NSS ;half-duplex
+SRL A
+JRNC ::__LBL_MISO_IN ;duplex
+;simplex
+BCP A, 4
+JRNE ::__LBL_CFG_NSS ;simplex TX, MISO is not used
+
+:::__LBL_MISO_IN
+ENDASM
+
+;MISO
+INL,__LIB_SPI1_CFG_MISO_IN
+
+ASM
+:::__LBL_CFG_NSS
+;NSS
+TNZ (__LIB_SPI1_SS_PIN)
+JREQ ::__LBL_NO_NSS_1
+; set NSS pin high (disable slave device)
+CALLR __LIB_SPI1_NSS_HI
+CALLR __LIB_SPI1_NSS_CFG_OUT
+
+:::__LBL_NO_NSS_1
+ENDASM
+
+;CLK
+INL,__LIB_SPI1_CFG_CLK_OUT
+
+ASM
+RET
+
+:::__LBL_SLAVE
+;slave
+BCP A, 2
+JREQ ::__LBL_MOSI_IN_SL ;duplex or half-duplex
+BCP A, 0x10
+JRNE ::__LBL_CFG_MISO_SL ;simplex TX, MOSI is not used
+
+:::__LBL_MOSI_IN_SL
+ENDASM
+
+; congigure MOSI
+INL,__LIB_SPI1_CFG_MOSI_IN
+
+ASM
+:::__LBL_CFG_MISO_SL
+LD A, (__LIB_SPI1_OPT1)
+SRL A
+JRC ::__LBL_CFG_NSS_SL ;half-duplex
+SRL A
+JRNC ::__LBL_MISO_OUT_SL ;duplex
+;simplex
+BCP A, 4
+JREQ ::__LBL_CFG_NSS_SL ;simplex RX, MISO is not used
+
+:::__LBL_MISO_OUT_SL
+ENDASM
+
+;MISO
+INL,__LIB_SPI1_CFG_MISO_OUT
+
+ASM
+:::__LBL_CFG_NSS_SL
+;NSS
+TNZ (__LIB_SPI1_SS_PIN)
+JREQ ::__LBL_NO_NSS_2
+CALLR __LIB_SPI1_NSS_CFG_IN
+
+:::__LBL_NO_NSS_2
+ENDASM
+
+;CLK
+INL,__LIB_SPI1_CFG_CLK_IN
+
+ASM
+RET
+ENDASM

@@ -1,0 +1,94 @@
+INI,__LIB_SPI1_OPT
+INI,__LIB_SPI1_OPT1
+INI,__LIB_SPI1_SS_PIN
+IMP,__LIB_SPI1_CFG_PINS_ENA
+IMP,__LIB_SPI1_NSS_LO
+
+; start SPI1 (START)
+;  A - RX/TX mode in case of simplex or half-duplex transmisson mode (RX: A = 0, TX: A = 1)
+:__LIB_SPI1_5_CALL
+ASM
+; set SPI1 enable bit (value for SPI1_CR1 register)
+BSET (__LIB_SPI1_OPT), SPI1_CR1_SPE_POS
+
+; configure TX mode bit
+NEG A
+BCCM (__LIB_SPI1_OPT1), 4
+
+; configure SPI1 GPIO pins if necessary
+BTJF (__LIB_SPI1_OPT1), 2, ::__LBL_CFG_SPI1
+CALLR __LIB_SPI1_CFG_PINS_ENA
+
+:::__LBL_CFG_SPI1
+; __LIB_SPI1_OPT1
+; xxxxxx00 full-duplex (BDM = 0 and RXONLY = 0)
+; xxxxxx01 half-duplex (RX: BDM = 1 and BDOE = 0, TX: BDM = 1 and BDOE = 1)
+; xxxxxx10 simplex (RX: BDM = 0 and RXONLY = 1, TX: BDM = 0 and RXONLY = 0)
+
+; configure master half-duplex RX or master simplex RX-only mode bit
+BRES (__LIB_SPI1_OPT1), 3
+LD A, (__LIB_SPI1_OPT1)
+BCP A, 3
+JREQ ::__LBL_DUPLEX
+BTJF (__LIB_SPI1_OPT), 2, ::__LBL_SLAVE_OR_TX
+BCP A, 0x10
+JRNE ::__LBL_SLAVE_OR_TX
+OR A, 8 ; set bit 3
+LD (__LIB_SPI1_OPT1), A
+; do not enable SPI1 in case of master simplex RX-only or master half-duplex RX
+BRES (__LIB_SPI1_OPT), SPI1_CR1_SPE_POS
+
+:::__LBL_SLAVE_OR_TX
+SRL A ; bit 4 -> bit 3, bit 0 -> carry flag
+JRC ::__LBL_HALF_DUPLEX
+
+
+; simplex
+SWAP A ; bit 3 (ex-bit 4) -> bit 7
+SLL A ; bit 7 -> carry flag
+CLR A
+JRC ::__LBL_SET_CR2_1 ; simplex TX
+LD A, SPI1_CR2_RXONLY
+JRA ::__LBL_SET_CR2_1 ; simplex RX-only
+
+
+:::__LBL_HALF_DUPLEX
+SWAP A ; bit 3 (ex-bit 4) -> bit 7
+SLL A ; bit 7 -> carry flag
+LD A, SPI1_CR2_BDM
+JRNC ::__LBL_SET_CR2_1 ; half-duplex RX
+LD A, SPI1_CR2_BDM + SPI1_CR2_BDOE
+JRA ::__LBL_SET_CR2_1 ; half-duplex TX
+
+
+:::__LBL_DUPLEX
+CLR A
+
+:::__LBL_SET_CR2_1
+; set software NSS management for master mode or slave if no NSS pin is specified
+BTJT (__LIB_SPI1_OPT), 2, ::__LBL_SET_CR2_MASTER
+TNZ (__LIB_SPI1_SS_PIN)
+JRNE ::__LBL_SET_CR2_2
+; no NSS pin
+OR A, SPI1_CR2_SSM
+JRA ::__LBL_SET_CR2_2
+
+:::__LBL_SET_CR2_MASTER
+OR A, SPI1_CR2_SSM + SPI1_CR2_SSI
+; set NSS pin low (enable slave device)
+TNZ (__LIB_SPI1_SS_PIN)
+JREQ ::__LBL_SET_CR2_2
+PUSH A
+CALLR __LIB_SPI1_NSS_LO
+POP A
+
+:::__LBL_SET_CR2_2
+LD (SPI1_CR2), A
+
+; no interrupts
+CLR (SPI1_ICR)
+
+; configure CR1 and enable SPI1
+MOV (SPI1_CR1), (__LIB_SPI1_OPT)
+RET
+ENDASM

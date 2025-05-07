@@ -39,7 +39,7 @@ Here `PX` stands for GPIO port name (e.g. `PA` for port A) and command names sho
 - `IOCTL UART, INPUTECHO, ON | OFF` - enable or disable input echo (enabled by default)  
 - `IOCTL UART, TRANSMODE, DUPLEX | SIMPLEX` - transmission mode (default is `DUPLEX`)  
 - `IOCTL UART, CFGPINS, ON | OFF` - configure GPIO pins before starting communication (enabled by default)  
-- `IOCTL UART, SPEED, 9600 | 14400 | 19200 | 38400 | 57600 | 115200` - set UART baud rate (default is `9600`)  
+- `IOCTL UART, SPEED, 1200 | 9600 | 14400 | 19200 | 38400 | 57600 | 115200` - set UART baud rate (default is `9600`, `1200` baud speed is the only speed available when using `LSI` or `LSE` as MCU clock source)  
 - `IOCTL UART, NEWLINE, <string_value>` - set new-line sequence (default is CRLF)  
 - `IOCTL UART, MARGIN, <numeric_value>` - set margin (print area width, default is 80 characters)  
 - `IOCTL UART, ZONEWIDTH, <numeric_value>` - set print zone width (default is 10 characters)  

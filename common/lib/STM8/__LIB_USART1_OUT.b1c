@@ -1,0 +1,35 @@
+IMP,__LIB_USART1_OUT_CHR
+IMP,__LIB_STR_RLS
+
+; writes the specified string value to USART1
+; X - string to write
+:__LIB_USART1_OUT
+ASM
+PUSHW X
+TNZW X
+JREQ ::__LBL_EXIT
+JRMI ::__LBL_ROM_STR
+INCW X ; skip usage counter
+
+:::__LBL_ROM_STR
+; get characters (bytes) count
+LD A, (X)
+JREQ ::__LBL_EXIT
+
+:::__LBL_NEXT
+PUSH A
+INCW X
+PUSHW X
+LD A, (X)
+CALLR __LIB_USART1_OUT_CHR
+POPW X
+POP A
+
+DEC A
+JRNE ::__LBL_NEXT
+
+:::__LBL_EXIT
+POPW X ; restore string address to release the string
+CALLR __LIB_STR_RLS
+RET
+ENDASM

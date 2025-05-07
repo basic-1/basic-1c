@@ -1,0 +1,21 @@
+' 5 second delay before disabling SWIM (uncomment the line below if using STM8L050J3M3 MCU)
+'GOSUB 5000
+
+' disable SWIM (STM8L050J3M3 MCU has the same pin for both OSC32 and SWIM)
+' uncomment two lines below if using STM8L050J3M3 MCU 
+'CFG_GCR = 1
+'IOCTL PA, CFGPIN0, IN_FLOAT_NOEXTI
+
+' enable LSE and select it as system clock
+IOCTL CPU, CLOCKSOURCE, LSE
+
+WHILE 1 > 0
+WEND
+
+END
+
+5000
+FOR I = 1 TO 20
+IOCTL CPU, DELAYMS, 250
+NEXT
+RETURN

@@ -24,6 +24,8 @@
 - `st7565mdata.bsc` - textual data for `st7565m105.bs` example  
 - `st7565all.bsc` - prints all font characters with PRINT statement (example for STM8S001J3M3 MCU)  
 - `st7565all1.bsc` - prints all font characters using display's DRAWCHAR command (example for STM8S001J3M3 MCU)  
+- `st7565frm.bsc` - draw frame using box-drawing characters  
+- `lsestm8l.b1c` - set LSE oscillator as system clock source (for STM8L151KxT6 or STM8L050J3M3 MCU)  
   
 # building the samples from command line  
 `b1c -d -s -m STM8S103F3 samples/blink.bsc`  
@@ -50,4 +52,6 @@ For interrupt handlers specify interrupt name before the source file name separa
 `b1c -d -s -m STM8S105K4 samples/st7565m105.bsc samples/st7565mdata.bsc`  
 `b1c -d -s -m STM8S001J3 samples/st7565all.bsc`  
 `b1c -d -s -m STM8S001J3 samples/st7565all1.bsc`  
-  
+`b1c -d -s -m STM8L151K6 samples/st7565frm.bsc`  
+`b1c -d -s -m STM8L151K6 samples/lsestm8l.bsc`  
+    

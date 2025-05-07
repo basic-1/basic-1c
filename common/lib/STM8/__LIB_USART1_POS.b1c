@@ -1,0 +1,2 @@
+; zero-based current print positon
+=,0<BYTE>,__LIB_USART1_POS<BYTE>

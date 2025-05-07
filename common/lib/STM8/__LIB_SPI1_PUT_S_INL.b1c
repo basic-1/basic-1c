@@ -1,0 +1,40 @@
+; sends string data over SPI1 bus
+; X - string to send
+ASM
+PUSHW X
+TNZW X
+JREQ ::__LBL_EXIT
+JRMI ::__LBL_ROM_STR
+INCW X ; skip usage counter
+
+:::__LBL_ROM_STR
+LD A, (X)
+; here A - bytes count
+JREQ ::__LBL_EXIT
+
+PUSH A
+
+:::__LBL_NEXT
+INCW X
+LD A, (X)
+.IF {!XOROUT_TYPE} == I
+XOR A, {!XOROUT_VALUE}
+.ELIF {!XOROUT_TYPE} == M
+XOR A, ({!XOROUT_VALUE})
+.ELIF {!XOROUT_TYPE} == S
+XOR A, ({!XOROUT_VALUE} + 3, SP)
+.ENDIF ;{!XOROUT_TYPE}
+
+:::__LBL_WAIT_SPI1_TXE
+BTJF (SPI1_SR), SPI1_SR_TXE_POS, ::__LBL_WAIT_SPI1_TXE
+LD (SPI1_DR), A
+
+DEC (1, SP)
+JRNE ::__LBL_NEXT
+
+POP A
+
+:::__LBL_EXIT
+POPW X ; restore string address to release the string
+CALLR __LIB_STR_RLS
+ENDASM

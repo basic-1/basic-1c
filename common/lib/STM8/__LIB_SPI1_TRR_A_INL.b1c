@@ -1,0 +1,34 @@
+; transfers array data over SPI1 bus (full-duplex mode)
+; X - data address, Y - data size (in bytes)
+ASM
+
+:::__LBL_WAIT_SPI1_TXE
+BTJF (SPI1_SR), SPI1_SR_TXE_POS, ::__LBL_WAIT_SPI1_TXE
+
+:::__LBL_NEXT
+LD A, (X)
+.IF {!XOROUT_TYPE} == I
+XOR A, {!XOROUT_VALUE}
+.ELIF {!XOROUT_TYPE} == M
+XOR A, ({!XOROUT_VALUE})
+.ELIF {!XOROUT_TYPE} == S
+XOR A, ({!XOROUT_VALUE}, SP)
+.ENDIF ;{!XOROUT_TYPE}
+LD (SPI1_DR), A
+
+:::__LBL_WAIT_SPI1_RXNE
+BTJF (SPI1_SR), SPI1_SR_RXNE_POS, ::__LBL_WAIT_SPI1_RXNE
+LD A, (SPI1_DR)
+.IF {!XORIN_TYPE} == I
+XOR A, {!XORIN_VALUE}
+.ELIF {!XORIN_TYPE} == M
+XOR A, ({!XORIN_VALUE})
+.ELIF {!XORIN_TYPE} == S
+XOR A, ({!XORIN_VALUE}, SP)
+.ENDIF ;{!XORIN_TYPE}
+LD (X), A
+
+INCW X
+DECW Y
+JRNE ::__LBL_NEXT
+ENDASM

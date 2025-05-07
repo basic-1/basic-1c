@@ -17,5 +17,16 @@ OR A, 0xB0 ; set page address command
 ENDASM
 
 ; select page
+ASM
+.IF SUBSTR(__MCU_NAME,0,5) == STM8S
+ENDASM
 INL,__LIB_SPI_PUT_B_INL
+ASM
+.ELSE
+ENDASM
+INL,__LIB_SPI1_PUT_B_INL
+ASM
+.ENDIF
+ENDASM
+
 RET

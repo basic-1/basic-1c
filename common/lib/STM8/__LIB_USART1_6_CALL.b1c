@@ -1,0 +1,81 @@
+INI,__LIB_CPU_OPT
+INI,__LIB_USART1_OPT
+INI,__LIB_USART1_SPEED
+INI,__LIB_ERR_LAST_ERR
+IMP,__LIB_ERR_HANDLER
+
+GA,__LIB_USART1_SPD_NUM,BYTE(C),0<BYTE>,7<BYTE>
+DAT,__LIB_USART1_SPD_NUM,7<BYTE>,0<BYTE>,7<BYTE>,14<BYTE>,1<BYTE>,28<BYTE>,1<BYTE>,30<BYTE>
+
+GA,__LIB_USART1_SPD,WORD(C),0<BYTE>,15<BYTE>
+;                    1200         9600         14400        19200        38400        57600        115200
+DAT,__LIB_USART1_SPD,0x4135<WORD>,0x6803<WORD>,0x4507<WORD>,0x3401<WORD>,0x1A01<WORD>,0x1106<WORD>,0x080B<WORD>
+;     1200         9600         14400        19200        38400        57600        115200       1200         1200
+DAT,*,0xA01B<WORD>,0x3401<WORD>,0x220C<WORD>,0x1A01<WORD>,0x0D00<WORD>,0x080B<WORD>,0x0405<WORD>,0x010B<WORD>,0x0200<WORD>
+
+; start USART1
+; A - RX/TX mode in case of simplex transmisson mode (RX: A = 4, TX: A = 8)
+:__LIB_USART1_6_CALL
+ASM
+BTJT (__LIB_USART1_OPT), 4, ::__LBL_SIMPLEX
+; duplex mode
+LD A, USART1_CR2_REN + USART1_CR2_TEN
+:::__LBL_SIMPLEX
+PUSH A
+; set parity control and word lenth
+; now the only supported mode is 8N1
+CLR (USART1_CR1)
+; set stop bits
+; now the only supported mode is 8N1
+CLR (USART1_CR3)
+; no half duplex mode and other features support at the moment
+CLR (USART1_CR4)
+CLR (USART1_CR5)
+; set baud rate
+LD A, (__LIB_CPU_OPT)
+AND A, 3
+SLL A
+CLRW X
+LD XL, A
+LDW X, (__LIB_USART1_SPD_NUM, X)
+LD A, XH
+CP A, (__LIB_USART1_SPEED)
+JRULE ::__LBL_INV_SPEED
+CLR A
+LD XH, A
+LD A, (__LIB_USART1_SPEED)
+SLL A
+PUSH A
+PUSH 0
+ADDW X, (1, SP)
+ADDW SP, 2
+LDW X, (__LIB_USART1_SPD, X)
+JRA ::__LBL_SET_SPEED
+
+:::__LBL_INV_SPEED
+MOV (__LIB_ERR_LAST_ERR), B1C_RTE_USART_INV_ARG
+CALLR __LIB_ERR_HANDLER
+CLRW X
+
+:::__LBL_SET_SPEED
+LD A, XL
+LD (USART1_BRR2), A
+LD A, XH
+LD (USART1_BRR1), A
+; configure GPIO pins and enable RX/TX
+LD A, (__LIB_USART1_OPT)
+AND A, 0xF3
+OR A, (1, SP)
+LD (__LIB_USART1_OPT), A
+BCP A, 0x20
+JREQ ::__LBL_ENABLE_RX_TX
+ENDASM
+
+; configure GPIO pins
+INL,__LIB_USART1_CFG_PINS
+
+ASM
+:::__LBL_ENABLE_RX_TX
+POP (USART1_CR2) ; enable TX or/and RX
+RET
+ENDASM

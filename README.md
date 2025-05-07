@@ -22,6 +22,8 @@ Supported STM8 microcontrollers list:
 - STM8S103F3P6  
 - STM8S105K4T6  
 - STM8S105K6T6  
+- STM8L151K4T6  
+- STM8L151K6T6  
   
 # Data types  
   
