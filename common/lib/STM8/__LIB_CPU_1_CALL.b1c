@@ -1,4 +1,4 @@
-; CPU CLOCKSOURCE HSI/LSI/HSE8/HSE16/LSE
+; CPU CLOCKSOURCE HSI/HSI16/HSI8/LSI/HSE8/HSE16/LSE
 ; X - predefined value specific to clock source
 INI,__LIB_CPU_OPT
 
@@ -30,9 +30,19 @@ BTJF (CLK_SWCR), CLK_SWCR_SWIF_POS, ::__LBL_CLKSRC_RDY
 CLR (CLK_SWCR)
 
 :::__LBL_CLK_SELECTED
-CLR (CLK_CKDIVR)
-
+; configure system clock prescaler
 LD A, XL
+AND A, 0xF0
+.IF SUBSTR(__MCU_NAME,0,5) == STM8S
+SRL A ; use HSI clock prescaler (for fMASTER == fCPU)
+.ELSE
+SWAP A ; the only option is system clock prescaler
+.ENDIF
+LD (CLK_CKDIVR), A
+
+; update __LIB_CPU_OPT with new frequency value
+LD A, XL
+AND A, 0xF
 PUSH A
 LD A, (__LIB_CPU_OPT)
 AND A, 0xFC

@@ -1,6 +1,6 @@
 #[[
  BASIC1 compiler
- Copyright (c) 2021-2024 Nikolay Pletnev
+ Copyright (c) 2021-2025 Nikolay Pletnev
  MIT license
 
  CMakeLists.txt: CMake file for BASIC1 compiler
@@ -12,7 +12,7 @@ set(CMAKE_CXX_STANDARD 17)
 # set project (target) name, B1_TARGET variable should be set before running cmake
 set(B1_PROJECT_NAME $ENV{B1_TARGET})
 
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.10)
 
 project(${B1_PROJECT_NAME} LANGUAGES C CXX)
 

@@ -13,7 +13,7 @@
 ### CPU  
   
 - `IOCTL CPU, INTERRUPTS, ON | OFF` - enable or disable interrupts, by default interrups are disabled.  
-- `IOCTL CPU, CLOCKSOURCE, HSI | HSI16 | LSI | HSE16 | HSE8 | LSE` - select MCU clock source generator, default is `HSI`. `HSI` stands for the maximum possible frequence available with internal RC oscillator, `HSI16` - 16 MHz with internal oscillator, `HSE8` - 8 MHz with 8 MHz external crystal oscillator, `HSE16` - 16 MHz with 16 MHz external crystal oscillator. `LSI` and `LSE` are internal RC low-speed oscillator and external low-speed oscillator (using external resonator or another clock source).  
+- `IOCTL CPU, CLOCKSOURCE, HSI | HSI16 | HSI8 | LSI | HSE16 | HSE8 | LSE` - select MCU clock source generator, default is `HSI`. `HSI` stands for the maximum possible frequence available with internal RC oscillator, `HSI16` - 16 MHz with internal oscillator, `HSI8` - 8 MHz with 16 MHz internal oscillator (divided by 2), `HSE8` - 8 MHz with 8 MHz external crystal oscillator, `HSE16` - 16 MHz with 16 MHz external crystal oscillator. `LSI` and `LSE` are internal RC low-speed oscillator and external low-speed oscillator (using external resonator or another clock source).  
 - `IOCTL CPU, WAIT, INTERRUPT` - wait for interrupt command  
 - `IOCTL CPU, DELAYMS, <numeric_value>` - pauses program execution for the specified amount of time (in milliseconds, acceptable range of the numeric argument is: 0 to 255 ms). The command is based on loops and cannot be used for precise delays generation (it should delay for not less than the specified amount of time).  
   

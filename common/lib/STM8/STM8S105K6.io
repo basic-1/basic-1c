@@ -3,7 +3,7 @@
 INPUTECHO,     0,  INL,      ,         ,         2,   TRUE,        BYTE,      ,          TRUE,        4,       ON,2,         OFF,0,         ENABLE,2,      DISABLE,0
 TRANSMODE,     0,  INL,      ,         ,         16,  TRUE,        BYTE,      ,          TRUE,        2,       DUPLEX,0,     SIMPLEX,16
 CFGPINS,       0,  INL,      ,         ,         64,  TRUE,        BYTE,      ,          TRUE,        4,       ON,64,        OFF,0,         ENABLE,64,     DISABLE,0,                                     ON
-SPEED,         1,  INL,      ,         ,         ,    TRUE,        WORD,      ,          TRUE,        6,       9600,1667,    14400,1111,    19200,833,     38400,417,     57600,278,     115200,139
+SPEED,         1,  INL,      ,         ,         ,    TRUE,        WORD,      ,          TRUE,        7,       1200,13333,   9600,1667,     14400,1111,    19200,833,     38400,417,     57600,278,     115200,139
 NEWLINE,       3,  CALL,     ,         ,         ,    TRUE,        STRING,    ,          FALSE
 MARGIN,        4,  INL,      ,         ,         ,    TRUE,        BYTE,      IMR,       FALSE
 ZONEWIDTH,     5,  INL,      ,         ,         ,    TRUE,        BYTE,      IMR,       FALSE
@@ -14,7 +14,7 @@ DISABLE,       9,  INL,      ,         ,         ,    FALSE
 
 [CPU]
 INTERRUPTS,    0,  INL,      ,         ,         ,    TRUE,        BYTE,      ,          TRUE,        4,       ON,1,         OFF,0,         ENABLE,1,      DISABLE,0
-CLOCKSOURCE,   1,  CALL,     ,         ,         ,    TRUE,        WORD,      ,          TRUE,        5,       HSI,0xE100,   HSI16,0xE100,  LSI,0xD203,    HSE16,0xB400,  HSE8,0xB401
+CLOCKSOURCE,   1,  CALL,     ,         ,         ,    TRUE,        WORD,      ,          TRUE,        6,       HSI,0xE100,   HSI16,0xE100,  HSI8,0xE111,   LSI,0xD203,    HSE16,0xB400,  HSE8,0xB401
 WAIT,          2,  INL,      ,         ,         ,    TRUE,        BYTE,      ,          TRUE,        1,       INTERRUPT,0
 DELAYMS,       3,  CALL,     ,         ,         ,    TRUE,        BYTE,      ,          FALSE
 

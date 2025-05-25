@@ -7621,6 +7621,9 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 			continue;
 		}
 
+		int n5_size = 0;
+		bool n5_arithm_op = is_arithm_op(aon5, n5_size);
+
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
 		if(
@@ -7653,6 +7656,52 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 			changed = true;
 			continue;
 
+		}
+
+		rule_id++;
+		update_opt_rule_usage_stat(rule_id, true);
+		if (!ao._volatile && ao._op == L"LDW" && ao._args[0] == L"X" && ao._args[1] != L"Y" && ao._args[1][0] != L'[' && ao._args[1][1] != L'[' &&
+			aon1._op == L"LD" && (aon1._args[1] == L"XL" || aon1._args[1] == L"XH") &&
+			(aon2._op == L"OR" || aon2._op == L"AND" || aon2._op == L"XOR") &&
+			aon3._op == L"LD" && aon3._args[0] == aon1._args[1] &&
+			aon4._op == L"LDW" && aon4._args[0] == ao._args[1] && aon4._args[1] == ao._args[0] &&
+			(aon5._type == AOT::AOT_LABEL || n5_arithm_op || aon5._op[0] ==L'J' || aon5._op == L"CP" || aon5._op == L"CPW" || aon5._op == L"TNZ" || aon5._op == L"TNZW" || aon5._op == L"CALL" || aon5._op == L"CALLR" || aon5._op == L"CALLF" || aon5._op == L"RET" || aon5._op == L"RETF" || aon5._op == L"IRET")
+			)
+		{
+			// LDW X, (smth non volatile)
+			// LD A, XH
+			// OR / AND / XOR A, smth1
+			// LD XH, A
+			// LDW (smth non volatile), X
+			// ->
+			// LD A, (smth)
+			// OR / AND / XOR A, smth1
+			// LD (smth), A
+			bool ind_addr = (ao._args[1] == L"(X)" || ao._args[1] == L"(Y)" || ao._args[1].find(L",SP)") != std::wstring::npos || ao._args[1].find(L",Y)") != std::wstring::npos || ao._args[1].find(L",X)") != std::wstring::npos);
+
+			if(aon1._args[1] == L"XH" || !ind_addr)
+			{
+				std::wstring new_arg = ao._args[1];
+
+				if(aon1._args[1] == L"XL")
+				{
+					new_arg.pop_back();
+					new_arg += L" + 1)";
+				}
+
+				ao._data = L"LD A, " + new_arg;
+				ao._parsed = false;
+				aon1._data = aon2._op + L" A, " + aon2._args[1];
+				aon1._parsed = false;
+				aon2._data = L"LD " + new_arg + L", A";
+				aon2._parsed = false;
+				cs.erase(next4);
+				cs.erase(next3);
+
+				update_opt_rule_usage_stat(rule_id);
+				changed = true;
+				continue;
+			}
 		}
 
 

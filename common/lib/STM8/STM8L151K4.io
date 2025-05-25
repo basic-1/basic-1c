@@ -14,7 +14,7 @@ DISABLE,       9,  INL,      ,         ,         ,    FALSE
 
 [CPU]
 INTERRUPTS,    0,  INL,      ,         ,         ,    TRUE,        BYTE,      ,          TRUE,        4,       ON,1,         OFF,0,         ENABLE,1,      DISABLE,0
-CLOCKSOURCE,   1,  CALL,     ,         ,         ,    TRUE,        WORD,      ,          TRUE,        6,       HSI,0x0100,   HSI16,0x0100,  LSI,0x0203,    HSE16,0x0400,  HSE8,0x0401, LSE,0x0802
+CLOCKSOURCE,   1,  CALL,     ,         ,         ,    TRUE,        WORD,      ,          TRUE,        7,       HSI,0x0100,   HSI16,0x0100,  HSI8,0x0111,   LSI,0x0203,    HSE16,0x0400,  HSE8,0x0401, LSE,0x0802
 WAIT,          2,  INL,      ,         ,         ,    TRUE,        BYTE,      ,          TRUE,        1,       INTERRUPT,0
 DELAYMS,       3,  CALL,     ,         ,         ,    TRUE,        BYTE,      ,          FALSE
 

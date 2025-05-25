@@ -72,7 +72,26 @@ Supported STM8 microcontrollers list:
 - automatic numeric to string conversion  
 - functions: ABS, INT, SGN, LEN, ASC, CHR$, STR$, VAL, IIF, IIF$, CBYTE, CINT, CWRD, CLNG  
 - more functions: MID$, INSTR, LTRIM$, RTRIM$, LEFT$, RIGHT$, LSET$, RSET$, SET$, UCASE$, LCASE$  
+  
+# Program example  
+  
+```
+REM blink with an LED connected to pin 5 of port B
+10 IOCTL PB, CFGPIN5, OUT_PUSHPULL_FAST
+20 WHILE 1 > 0
+30 IOCTL PB, INVPIN5
+40 GOSUB 1000
+50 WEND
+60 END
 
+REM delay subroutine
+1000 FOR I1 = 0 TO 9
+1010 FOR I2 = -32768 TO 32767
+1020 NEXT I2
+1030 NEXT I1
+1040 RETURN
+```
+  
 # Building and usage  
   
 ## Building  

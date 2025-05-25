@@ -1,3 +1,11 @@
+b1c (1.0.0-44) unstable; urgency=low
+
+  * UART 1200 baud speed
+  * HSI8 clock source added (8 MHz system frequency from 16 MHz HSI oscillator)
+  * some fixes and improvements
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Sun, 25 May 2025 19:01:52 +0300
+
 b1c (1.0.0-43) unstable; urgency=low
 
   * STM8L151K4T6 and STM8L151K6T6 MCUs support added

@@ -36,7 +36,7 @@ RETURN
 ' draw frame using box-drawing characters
 2000
 PRINT "ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿";
-PRINT "³ Hello, word! ³";
+PRINT "³ Hello, world ³";
 PRINT "³ The 2nd line ³";
 PRINT "ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ";
 RETURN

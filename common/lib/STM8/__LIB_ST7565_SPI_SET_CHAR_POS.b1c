@@ -20,7 +20,7 @@ ADD A, (1, SP)
 
 :::__LBL_8X8_FONT
 LD (1, SP), A
-LD A, (__LIB_ST7565_SPI_OPT) ; take into accouns display start line
+LD A, (__LIB_ST7565_SPI_OPT) ; take into account display start line
 SRL A
 ADD A, (1, SP)
 ADD SP, 1
