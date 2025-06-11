@@ -7655,7 +7655,6 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 			update_opt_rule_usage_stat(rule_id);
 			changed = true;
 			continue;
-
 		}
 
 		rule_id++;
@@ -9215,6 +9214,39 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
+		if(
+			((ao._op == L"CLRW" || (ao._op == L"LDW" && ao._args[1] != L"(X)" && ao._args[1].find(L",X)") == std::wstring::npos)) && ao._args[0] == L"X") &&
+			(aon1._op == L"LDW" && aon1._args[0] == L"Y" && aon1._args[1] == L"X") &&
+			(aon2._op == L"LDW" && aon2._args[1] != L"(X)" && aon2._args[1].find(L",X)") == std::wstring::npos && aon2._args[0] == L"X")
+			)
+		{
+			// LDW X, smth1
+			// LDW Y, X
+			// LDW X, smth2
+			// ->
+			// LDW Y, smth1
+			// LDW X, smth2
+			if(!ao._volatile)
+			{
+				if(ao._op == L"CLRW")
+				{
+					ao._data = L"CLRW Y";
+				}
+				else
+				{
+					ao._data = L"LDW Y, " + ao._args[1];
+				}
+				ao._parsed = false;
+				cs.erase(next1);
+
+				update_opt_rule_usage_stat(rule_id);
+				changed = true;
+				continue;
+			}
+		}
+
+		rule_id++;
+		update_opt_rule_usage_stat(rule_id, true);
 		if ((ao._op == L"LDW" && aon1._op == L"POPW" && aon2._op == L"POPW") &&
 			(ao._args[1] == aon1._args[0] && aon1._args[0] == aon2._args[0]) && ao._args[0] == L"(0x3,SP)")
 		{
@@ -9942,6 +9974,69 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 			update_opt_rule_usage_stat(rule_id);
 			changed = true;
 			continue;
+		}
+
+		rule_id++;
+		update_opt_rule_usage_stat(rule_id, true);
+		if(
+			(ao._op == L"LD" && ao._args[0] == L"A") &&
+			(aon1._op == L"PUSH" && aon1._args[0] == L"A") &&
+			(aon2._op == L"PUSH" && aon2._args[0] == L"0x0") &&
+			(aon3._op == L"LDW" && aon3._args[0] == L"X") &&
+			(aon4._op == L"CPW" && aon4._args[0] == L"X") &&
+			(aon5._op == L"POPW" && aon5._args[0] == L"X") &&
+			(aon6._op[0] == L'J' && aon6._op[1] == L'R')
+		)
+		{
+			// LD A, (1, SP)
+			// PUSH A
+			// PUSH 0
+			// LDW X, smth
+			// CPW X, (1, SP)
+			// POPW X
+			// relative jump
+			// ->
+			// PUSH 0
+			// LDW X, smth
+			// CPW X, (1, SP)
+			// POP A
+			// relative jump
+
+			bool no_SP_off = true;
+			int32_t off = -1;
+			correct_SP_offset(ao._args[1], 0, no_SP_off, &off);
+
+			if(!no_SP_off && off == 1)
+			{
+				no_SP_off = true;
+				off = -1;
+				correct_SP_offset(aon4._args[1], 0, no_SP_off, &off);
+
+				if(!no_SP_off && off == 1)
+				{
+					no_SP_off = true;
+					off = -1;
+					std::wstring new_arg = correct_SP_offset(aon3._args[1], -1, no_SP_off, &off);
+
+					if(no_SP_off || !new_arg.empty())
+					{
+						if(!no_SP_off)
+						{
+							aon3._data = L"LDW X, " + new_arg;
+							aon3._parsed = false;
+						}
+						aon5._data = L"POP A";
+						aon5._parsed = false;
+						cs.erase(next1);
+						cs.erase(i);
+						i = next2;
+
+						update_opt_rule_usage_stat(rule_id);
+						changed = true;
+						continue;
+					}
+				}
+			}
 		}
 
 		i++;

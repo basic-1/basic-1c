@@ -191,7 +191,7 @@ Expressions on the left and right sides of the comparison operators can be simpl
   
 ## .ERROR directive  
   
-`.ERROR` directive emits a specified error message and stops assempling.  
+`.ERROR` directive emits a specified error message and stops assembling.  
   
 **Syntax:**  
 `.ERROR <double_quoted_error_message>`  
@@ -202,7 +202,7 @@ Expressions on the left and right sides of the comparison operators can be simpl
   
 # Usage  
   
-Executable file name of the assempler is `a1stm8.exe` or `a1stm8` depending on target platform. Command line syntax:  
+Executable file name of the assembler is `a1stm8.exe` or `a1stm8` depending on target platform. Command line syntax:  
 `a1stm8 [options] <filename> [<filename1> .. <filenameN>]`  
 Here `<filename>` .. `<filenameN>` are names of source files. Possible options are listed below.  
   

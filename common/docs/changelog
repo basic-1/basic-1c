@@ -1,3 +1,10 @@
+b1c (1.0.0-45) unstable; urgency=low
+
+  * STM8L050J3M3 MCU support added
+  * more optimizer rules
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Wed, 11 Jun 2025 19:00:02 +0300
+
 b1c (1.0.0-44) unstable; urgency=low
 
   * UART 1200 baud speed

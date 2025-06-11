@@ -63,5 +63,5 @@ public:
 extern std::map<std::wstring, std::pair<std::any, B1Types>> _B1C_consts;
 
 
-// assemply-time constant names (their values are computed at assembly time)
+// assembly-time constant names (their values are computed at assembly time)
 extern std::map<std::wstring, B1Types> _B1AT_consts;
