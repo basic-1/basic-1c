@@ -8,19 +8,18 @@ IMP,__LIB_STR_RLS
 ASM
 PUSHW X ; initial string address
 TNZW X
+JREQ ::__LBL_RET
 JRMI ::__LBL_ROM_STR
 ; RAM string
 INCW X
 
 :::__LBL_ROM_STR
 LD A, (X) ; init. string length
-PUSH A
-LD A, (__RET_ADDR_SIZE + 5, SP) ; start
-PUSH A
-PUSH 0
-ADDW X, (1, SP)
-ADDW SP, 2
-POP A ; init. string length
+RRWA X
+ADD A, (__RET_ADDR_SIZE + 4, SP) ; start
+RRWA X
+ADC A, 0
+RRWA X ; A - init. string length
 PUSHW X ; address of data to copy (init. string data address + start - 1)
 ; if(start == 0 || start > init_len) return ""
 CLRW X

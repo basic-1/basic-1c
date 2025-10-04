@@ -17,3 +17,5 @@ Run-time errors:
 7 `B1C_RTE_COM_WRONG_INDEX` - common wrong index error  
 8 `B1C_RTE_STR_INVALID` - invalid quoted string  
   
+32 `B1C_RTE_USART_INV_ARG` or `B1C_RTE_UART_INV_ARG` - invalid function argument  
+  

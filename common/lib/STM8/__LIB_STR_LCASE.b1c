@@ -7,6 +7,7 @@ IMP,__LIB_STR_RLS
 ASM
 PUSHW X ; initial string address
 TNZW X
+JREQ ::__LBL_RET
 JRMI ::__LBL_ROM_STR
 ; RAM string
 INCW X
