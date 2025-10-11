@@ -1,6 +1,6 @@
 /*
  STM8 intermediate code compiler
- Copyright (c) 2021-2024 Nikolay Pletnev
+ Copyright (c) 2021-2025 Nikolay Pletnev
  MIT license
 
  c1stm8.h: STM8 intermediate code compiler classes declaration
@@ -28,6 +28,11 @@ public:
 	{
 	}
 
+	B1_ASM_OP_STM8(B1_ASM_OP_STM8 &op)
+	: B1_ASM_OP_STM8(op._type, op._data, op._comment, op._volatile, op._is_inline)
+	{
+	}
+
 	bool ParseNumeric(const std::wstring &num_str, int32_t &n) const;
 	bool Parse() const;
 };
@@ -47,6 +52,7 @@ protected:
 	std::vector<int32_t> _curr_udef_arg_offsets;
 	// offsets of the current UDEF's string arguments
 	std::vector<int32_t> _curr_udef_str_arg_offsets;
+	std::map<int32_t, B1_ASM_OPS::const_iterator> _curr_udef_str_arg_last_use;
 
 	// _cmp_active is set to true by a comparison operator, LA, LF, JT and JF operators do not change the variable, other operators set it to false
 	bool _cmp_active;
@@ -77,7 +83,7 @@ protected:
 	C1_T_ERROR stm8_arrange_types(const B1Types type_from, const B1Types type_to);
 	int32_t stm8_get_local_offset(const std::wstring &local_name);
 	int32_t stm8_get_type_cvt_offset(B1Types type_from, B1Types type_to);
-	C1_T_ERROR stm8_load_from_stack(int32_t offset, const B1Types init_type, const B1Types req_type, LVT req_valtype, LVT &rvt, std::wstring &rv);
+	C1_T_ERROR stm8_load_from_stack(int32_t offset, const B1Types init_type, const B1Types req_type, LVT req_valtype, LVT &rvt, std::wstring &rv, B1_ASM_OPS::const_iterator *str_last_use_it = nullptr);
 	std::wstring stm8_get_var_addr(const std::wstring &var_name, B1Types type_from, B1Types type_to, bool direct_cvt, bool *volatile_var = nullptr);
 	C1_T_ERROR stm8_load(const B1_TYPED_VALUE &tv, const B1Types req_type, LVT req_valtype, LVT *res_valtype = nullptr, std::wstring *res_val = nullptr, bool *volatile_var = nullptr);
 	C1_T_ERROR stm8_arr_alloc_def(const B1_CMP_VAR &var);
