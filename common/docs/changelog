@@ -1,3 +1,9 @@
+b1c (1.0.0-48) unstable; urgency=low
+
+  * more hardware registers definition
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Fri, 17 Oct 2025 23:17:45 +0300
+
 b1c (1.0.0-47) unstable; urgency=low
 
   * STM8S903K3T6 MCU support added
