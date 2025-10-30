@@ -165,8 +165,13 @@ The next comparison operators can be used in the condition expressions:
 - `>=` - greater than or equal check  
 - `<=` - less than equal check  
   
-Non-numeric values can be compared using `==` and `!=` operators only. Non-numeric immediate values can be enclosed in double quotes. Use two double quote characters to escape a double quote character inside a string. `SUBSTR` function can be used to extract a substring from non-numeric value.  
+Non-numeric values can be compared using `==` and `!=` operators only. Non-numeric immediate values can be enclosed in double quotes. Use two double quote characters to escape a double quote character inside a string.  
+The next special functions can be used with non-numeric values:  
+- `SUBSTR` function extracts a substring from a non-numeric value  
+- `FIND` function searches for the first substring appearance in the source string (regular expressions can be used)  
+  
 `SUBSTR` function syntax: `SUBSTR(<value>, <start>, <count>)`, starting position is zero-based. If starting position is omitted, zero value is used, if `<count>` argument is omitted - `SUBSTR` function copies characters to the end of the string.  
+`FIND` function syntax: `FIND(<source_string>, <substring> | <regexp>)`, supports ECMAScript regexp grammar. Returns zero-based substring position if the string or its part matches the regexp or -1 otherwise.  
   
 **Examples:**  
 `.IF __RET_ADDR_SIZE == 2`  
@@ -179,6 +184,18 @@ Non-numeric values can be compared using `==` and `!=` operators only. Non-numer
 `CP A, (CLK_CMSR)`  
 `.ELSE`  
 `CP A, (CLK_SCSR)`  
+`.ENDIF`  
+  
+`.IF FIND(__MCU_NAME, "STM8S") == 0`  
+`; STM8S MCU family`  
+`.ENDIF`  
+  
+`.IF FIND(__MCU_NAME, "K4") == 8`  
+`; STM8S105K4, STM8L151K4, etc.`  
+`.ENDIF`  
+  
+`.IF FIND(__MCU_NAME, "^.*K4") == 0`  
+`; STM8S105K4, STM8L151K4, etc.`  
 `.ENDIF`  
   
 Expressions on the left and right sides of the comparison operators can be simple expressions (without parentheses) described [here](#CPU-instructions). Another type of condition is `DEFINED()` function, which returns true if its argument is an existing symbolic constant. The function can be used with `NOT` operator to negate its result.  

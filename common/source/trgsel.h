@@ -36,3 +36,4 @@ public:
 
 extern bool select_target(Settings &settings);
 extern std::string get_c1_compiler_name(const Settings &settings);
+extern std::string get_MCU_config_name(const std::string &MCU_name);

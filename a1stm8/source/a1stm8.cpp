@@ -1295,7 +1295,7 @@ int main(int argc, char **argv)
 				else
 				{
 					i++;
-					MCU_name = Utils::str_toupper(argv[i]);
+					MCU_name = get_MCU_config_name(argv[i]);
 				}
 
 				continue;

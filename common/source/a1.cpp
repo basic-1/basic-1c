@@ -12,6 +12,7 @@
 #include <memory>
 #include <algorithm>
 #include <cstring>
+#include <regex>
 
 #include "a1.h"
 #include "moresym.h"
@@ -531,6 +532,12 @@ A1_T_ERROR SrcFile::GetNextToken(Token &token)
 				else
 				if(!qstr)
 				{
+					if(c == L',' || c == L')' || c == L'=' || c == L'!')
+					{
+						_saved_chr = c;
+						break;
+					}
+
 					return A1_T_ERROR::A1_RES_ESYNTAX;
 				}
 			}
@@ -2442,6 +2449,107 @@ A1_T_ERROR Sections::check_if_str_expression(std::vector<Token>::const_iterator 
 	return A1_T_ERROR::A1_RES_OK;
 }
 
+A1_T_ERROR Sections::check_if_int_expression(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, const std::vector<Token> &terms, int32_t &res)
+{
+	if(start == end)
+	{
+		return A1_T_ERROR::A1_RES_ESYNTAX;
+	}
+
+	if(start->IsString() && start->GetToken() == L"FIND")
+	{
+		start++;
+		if(start == end || *start != Token(TokType::TT_OPER, L"(", -1))
+		{
+			return A1_T_ERROR::A1_RES_ESYNTAX;
+		}
+
+		start++;
+		if(start == end)
+		{
+			return A1_T_ERROR::A1_RES_ESYNTAX;
+		}
+
+		std::wstring str1, str2;
+		bool processed = false;
+
+		auto err = check_if_getstr(*start, str1, processed);
+		if(err != A1_T_ERROR::A1_RES_OK)
+		{
+			return err;
+		}
+		if(!processed)
+		{
+			return A1_T_ERROR::A1_RES_ESYNTAX;
+		}
+
+		start++;
+		if(start == end)
+		{
+			return A1_T_ERROR::A1_RES_ESYNTAX;
+		}
+
+		if(start->GetType() != TokType::TT_OPER || start->GetToken() != L",")
+		{
+			return A1_T_ERROR::A1_RES_ESYNTAX;
+		}
+
+		start++;
+		if(start == end)
+		{
+			return A1_T_ERROR::A1_RES_ESYNTAX;
+		}
+
+		err = check_if_getstr(*start, str2, processed);
+		if(err != A1_T_ERROR::A1_RES_OK)
+		{
+			return err;
+		}
+		if(!processed)
+		{
+			return A1_T_ERROR::A1_RES_ESYNTAX;
+		}
+
+		start++;
+		if(start == end)
+		{
+			return A1_T_ERROR::A1_RES_ESYNTAX;
+		}
+
+		if(start->GetType() != TokType::TT_OPER || start->GetToken() != L")")
+		{
+			return A1_T_ERROR::A1_RES_ESYNTAX;
+		}
+
+		start++;
+		if(!(start == end || std::find(terms.cbegin(), terms.cend(), *start) != terms.cend()))
+		{
+			return A1_T_ERROR::A1_RES_ESYNTAX;
+		}
+
+		std::wsmatch m;
+		res = std::regex_search(str1, m, std::wregex(str2)) ? (int32_t) m.prefix().length() : -1;
+	}
+	else
+	{
+		Exp exp;
+
+		auto err = Exp::BuildExp(start, end, exp, terms);
+		if(err != A1_T_ERROR::A1_RES_OK)
+		{
+			return err;
+		}
+
+		err = exp.Eval(res, _memrefs);
+		if(err != A1_T_ERROR::A1_RES_OK)
+		{
+			return err;
+		}
+	}
+
+	return A1_T_ERROR::A1_RES_OK;
+}
+
 A1_T_ERROR Sections::CheckIFDir(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, bool &res)
 {
 	start++;
@@ -2460,7 +2568,6 @@ A1_T_ERROR Sections::CheckIFDir(std::vector<Token>::const_iterator &start, const
 	}
 
 	int32_t resl = 0, resr = 0;
-	Exp exp_l, exp_r;
 	std::vector<Token> terms;
 
 	terms.push_back(Token(TokType::TT_OPER, L"==", -1));
@@ -2470,13 +2577,7 @@ A1_T_ERROR Sections::CheckIFDir(std::vector<Token>::const_iterator &start, const
 	terms.push_back(Token(TokType::TT_OPER, L">=", -1));
 	terms.push_back(Token(TokType::TT_OPER, L"<=", -1));
 
-	err = Exp::BuildExp(start, end, exp_l, terms);
-	if(err != A1_T_ERROR::A1_RES_OK)
-	{
-		return err;
-	}
-
-	err = exp_l.Eval(resl, _memrefs);
+	err = check_if_int_expression(start, end, terms, resl);
 	if(err != A1_T_ERROR::A1_RES_OK)
 	{
 		return err;
@@ -2488,16 +2589,15 @@ A1_T_ERROR Sections::CheckIFDir(std::vector<Token>::const_iterator &start, const
 	terms.clear();
 	terms.push_back(Token(TokType::TT_EOL, L"", -1));
 		
-	err = Exp::BuildExp(start, end, exp_r, terms);
+	err = check_if_int_expression(start, end, terms, resr);
 	if(err != A1_T_ERROR::A1_RES_OK)
 	{
 		return err;
 	}
 
-	err = exp_r.Eval(resr, _memrefs);
-	if(err != A1_T_ERROR::A1_RES_OK)
+	if(start != end && !start->IsEOL() && !start->IsEOF())
 	{
-		return err;
+		return A1_T_ERROR::A1_RES_ESYNTAX;
 	}
 
 	if(cmp_op.GetToken() == L"==")

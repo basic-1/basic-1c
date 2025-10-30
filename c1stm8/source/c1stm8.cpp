@@ -1549,16 +1549,21 @@ C1_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_offs
 	{
 		// multidimensional array of any size
 		// offset
-		add_op(*_curr_code_sec, L"CLRW X", false); //5F
+		auto err = stm8_load(arg.back(), B1Types::B1T_INT, LVT::LVT_REG);
+		if(err != C1_T_ERROR::C1_RES_OK)
+		{
+			return err;
+		}
+		add_op(*_curr_code_sec, L"SUBW X, (" + arg[0].value + L" + " + Utils::str_tohex16(2 + (arg.size() - 2) * 4) + L")", false); //72 B0 LONG_ADDRESS
 		add_op(*_curr_code_sec, L"PUSHW X", false); //89
 		_stack_ptr += 2;
 
 		// dimensions size
-		add_op(*_curr_code_sec, L"INCW X", false); //5C
+		add_op(*_curr_code_sec, L"LDW X, (" + arg[0].value + L" + " + Utils::str_tohex16(2 + 2 + (arg.size() - 2) * 4) + L")", false); //BE SHORT_ADDRESS CE LONG_ADDRESS
 		add_op(*_curr_code_sec, L"PUSHW X", false); //89
 		_stack_ptr += 2;
 
-		for(int32_t i = (arg.size() - 2); i >= 0; i--)
+		for(int32_t i = (arg.size() - 3); i >= 0; i--)
 		{
 			const auto &tv = arg[i + 1];
 
@@ -1569,14 +1574,9 @@ C1_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_offs
 			}
 
 			add_op(*_curr_code_sec, L"SUBW X, (" + arg[0].value + L" + " + Utils::str_tohex16(2 + i * 4) + L")", false); //72 B0 LONG_ADDRESS
-
-			if(i != (arg.size() - 2))
-			{
-				add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_COM_MUL16", false); //AD SIGNED_BYTE_OFFSET (CALLR)
-				_req_symbols.insert(L"__LIB_COM_MUL16");
-				add_op(*_curr_code_sec, L"ADDW X, (3, SP)", false); //72 FB BYTE_OFFSET
-			}
-			
+			add_op(*_curr_code_sec, _call_stmt + L" " + L"__LIB_COM_MUL16", false); //AD SIGNED_BYTE_OFFSET (CALLR)
+			_req_symbols.insert(L"__LIB_COM_MUL16");
+			add_op(*_curr_code_sec, L"ADDW X, (3, SP)", false); //72 FB BYTE_OFFSET
 			add_op(*_curr_code_sec, L"LDW (3, SP), X", false); //1F BYTE_OFFSET
 
 			if(i != 0)
@@ -10615,7 +10615,7 @@ int main(int argc, char** argv)
 			else
 			{
 				i++;
-				MCU_name = Utils::str_toupper(argv[i]);
+				MCU_name = get_MCU_config_name(argv[i]);
 				args = args + " -m " + MCU_name;
 			}
 

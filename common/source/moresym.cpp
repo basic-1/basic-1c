@@ -50,6 +50,7 @@ std::map<std::wstring, std::pair<std::any, B1Types>> _B1C_consts =
 	std::make_pair(L"B1C_MAX_STR_LEN", std::make_pair((int32_t)B1C_T_CONST::B1C_MAX_STR_LEN, B1Types::B1T_BYTE)),
 	std::make_pair(L"__TARGET_NAME", std::make_pair(std::wstring(), B1Types::B1T_STRING)),
 	std::make_pair(L"__MCU_NAME", std::make_pair(std::wstring(), B1Types::B1T_STRING)),
+	std::make_pair(L"__EXTENSIONS", std::make_pair(std::wstring(), B1Types::B1T_STRING)),
 };
 
 

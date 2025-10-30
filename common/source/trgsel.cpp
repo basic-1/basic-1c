@@ -113,3 +113,17 @@ bool select_target(Settings &settings)
 
 	return false;
 }
+
+std::string get_MCU_config_name(const std::string &MCU_name)
+{
+	auto uc_name = Utils::str_toupper(MCU_name);
+
+#if defined(B1_TARGET_STM8) || defined(B1_TARGET_ALL)
+	if(uc_name.substr(0, 4) == "STM8")
+	{
+		return uc_name.substr(0, 10);
+	}
+#endif
+
+	return uc_name;
+}

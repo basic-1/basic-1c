@@ -200,6 +200,8 @@ protected:
 	std::string _MCU_name;
 	bool _embedded;
 	bool _compressed;
+	bool _multiplication;
+	bool _division;
 
 	std::vector<std::string> _lib_dirs;
 
@@ -246,6 +248,8 @@ public:
 
 	, _embedded(false)
 	, _compressed(true)
+	, _multiplication(false)
+	, _division(false)
 
 	, _mem_model_small(true)
 	, _ret_address_size(-1)
@@ -304,6 +308,12 @@ public:
 
 	void SetCompressed(bool compressed = true) { _compressed = compressed; }
 	bool GetCompressed() const { return _compressed; }
+
+	void SetMultiplication(bool multiplication = true) { _multiplication = multiplication; }
+	bool GetMultiplication() const { return _multiplication; }
+
+	void SetDivision(bool division = true) { _division = division; }
+	bool GetDivision() const { return _division; }
 
 	bool GetMemModelSmall() const { return _mem_model_small; }
 	bool GetMemModelLarge() const { return !_mem_model_small; }

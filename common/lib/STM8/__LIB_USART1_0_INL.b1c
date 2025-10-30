@@ -1,11 +1,13 @@
 INI,__LIB_USART1_OPT
 
-; configure USART1 options (3 - mask, 4 - new values):
+; configure USART1 options:
 ; bit 0 - print new line on reaching margin (enabled by default)
 ; bit 1 - input echo (enabled by default)
 ; bit 2 - RX (enabled by default)
 ; bit 3 - TX (enabled by default)
-; bits 4, 5, 6, 7 - reserved
+; bit 4 - simplex mode (duplex is default)
+; bit 6 - configure GPIO pins (enabled by default)
+; bits 5, 7 - reserved
 ASM
 ; MODE
 LD A, !{MASK}.ll

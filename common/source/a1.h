@@ -834,6 +834,7 @@ protected:
 	A1_T_ERROR check_if_getstr(const Token &token, std::wstring &res_str, bool &processed);
 	A1_T_ERROR check_if_substr(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, std::wstring &res_str);
 	A1_T_ERROR check_if_str_expression(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, bool &res, bool &processed);
+	A1_T_ERROR check_if_int_expression(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, const std::vector<Token> &terms, int32_t &res);
 	A1_T_ERROR CheckIFDir(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, bool &res);
 	A1_T_ERROR ReadUntil(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, std::vector<std::reference_wrapper<const Token>>::const_iterator stop_dirs_start, std::vector<std::reference_wrapper<const Token>>::const_iterator stop_dirs_end);
 	A1_T_ERROR SkipUntil(std::vector<Token>::const_iterator &start, const std::vector<Token>::const_iterator &end, std::vector<std::reference_wrapper<const Token>>::const_iterator stop_dirs_start, std::vector<std::reference_wrapper<const Token>>::const_iterator stop_dirs_end);
