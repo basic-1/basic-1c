@@ -1,6 +1,3 @@
-IMP,__LIB_AUX_CVT_WRD
-IMP,__LIB_STR_RLS
-
 ; converts string representation of a WORD value to the binary form
 ; X - input string, returns WORD value in X
 :__LIB_STR_CWRD

@@ -1,5 +1,3 @@
-IMP,__LIB_ST7565_SPI_DC_LO
-
 ; sets ST7565 column address
 ; A - column address (0..131)
 :__LIB_ST7565_SPI_SET_COL_ADDR

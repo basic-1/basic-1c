@@ -1,5 +1,3 @@
-IMP,__LIB_ST7565_SPI_OUT_CHAR
-
 ; SPC(n) PRINT function
 ; A - number of spaces to write
 :__LIB_ST7565_SPI_SPC

@@ -1,9 +1,5 @@
 INI,__LIB_UART2_OPT
 INI,__LIB_ERR_LAST_ERR
-IMP,__LIB_MEM_RLC
-IMP,__LIB_MEM_FRE
-IMP,__LIB_ERR_HANDLER
-IMP,__LIB_UART2_OUT_CHR
 
 ; reads a string from UART2
 ; returns string in X

@@ -1,10 +1,3 @@
-IMP,__LIB_STR_CPY
-IMP,__LIB_STR_LEN
-IMP,__LIB_MEM_ALC
-IMP,__LIB_MEM_SET
-IMP,__LIB_MEM_CPY
-IMP,__LIB_STR_RLS
-
 ; X - string address, stack - new string length, returns justified string in X
 :__LIB_STR_LSET
 ASM

@@ -1,5 +1,3 @@
-IMP,__LIB_STR_MID
-
 ; returns the left part of a string
 ; X - string address, stack - characters to return (byte), returns substring in X
 :__LIB_STR_LEFT

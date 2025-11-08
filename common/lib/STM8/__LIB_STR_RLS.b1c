@@ -1,5 +1,3 @@
-IMP,__LIB_MEM_FRE
-
 ; releases memory used by string or decreases its usage counter
 ; X - string address
 :__LIB_STR_RLS

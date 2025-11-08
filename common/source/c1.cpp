@@ -397,7 +397,7 @@ C1_T_ERROR C1Compiler::load_inline(size_t offset, const std::wstring &line, iter
 		return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
 	}
 
-	const auto file_name = _global_settings.GetLibFileName(Utils::wstr2str(tv.value), ".b1c");
+	const auto file_name = _global_settings.GetLibFileName(Utils::wstr2str(get_alt_fn_name(tv.value)), ".b1c");
 	if(file_name.empty())
 	{
 		return C1_T_ERROR::C1_RES_EFOPEN;
@@ -3089,6 +3089,32 @@ C1_T_ERROR C1Compiler::WriteOptLogFile(const std::string &file_name) const
 	std::fclose(fp);
 
 	return C1_T_ERROR::C1_RES_OK;
+}
+
+void C1Compiler::AddFunctionsSymbols()
+{
+	static const auto call_cmd_prefix = _call_stmt + L" ";
+
+	for(auto &i: *_curr_code_sec)
+	{
+		// inline code should be processed when reading source files (with process_asm_cmd() function)
+		if(i->_is_inline)
+		{
+			continue;
+		}
+
+		if(i->_data.find(call_cmd_prefix) != std::wstring::npos)
+		{
+			auto name = i->_data.substr(call_cmd_prefix.length());
+			// remove comment
+			auto pos = name.find(L';');
+			if(pos != std::wstring::npos)
+			{
+				name = name.substr(0, pos);
+			}
+			_req_symbols.insert(Utils::str_trim(name));
+		}
+	}
 }
 
 C1_T_ERROR C1Compiler::GetUndefinedSymbols(std::set<std::wstring> &symbols) const

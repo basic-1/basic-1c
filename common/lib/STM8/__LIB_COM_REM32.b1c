@@ -1,5 +1,3 @@
-IMP,__LIB_AUX_NEG32
-
 ; calculates remainder after dividing two signed 32-bit integers
 ; Y:X - dividend, stack1 - divisor, returns 32-bit remainder in Y:X
 :__LIB_COM_REM32

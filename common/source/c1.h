@@ -107,6 +107,8 @@ protected:
 	std::wstring _call_stmt;
 	// return statement
 	std::wstring _ret_stmt;
+	// function names
+	std::map<std::wstring, std::wstring> _fn_names;
 
 	std::map<int32_t, std::wstring> _src_lines;
 
@@ -199,6 +201,32 @@ protected:
 
 	C1_T_ERROR save_section(const std::wstring &sec_name, const B1_ASM_OPS &sec, std::FILE *fp);
 
+	void add_alt_fn_name(const std::wstring &fn_name, const std::wstring &alt_fn_name)
+	{
+		_fn_names[fn_name] = alt_fn_name;
+	}
+
+	std::wstring get_alt_fn_name(const std::wstring &fn_name) const
+	{
+		auto fn = _fn_names.find(fn_name);
+		return (fn == _fn_names.cend()) ? fn_name : fn->second;
+	}
+
+	B1_ASM_OPS::iterator add_call_op(B1_ASM_OPS::const_iterator where, const std::wstring &fn_name, bool is_volatile = false, bool is_inline = false)
+	{
+		auto alt_fn_name = get_alt_fn_name(fn_name);
+		// do not add function name to the symbols list immediately, do it with AddFunctionsSymbols() function call
+		// after code optimization in order not to include functions that are not called anymore due to optimizations.
+		//_req_symbols.insert(alt_fn_name);
+		return add_op(*_curr_code_sec, where, _call_stmt + L" " + alt_fn_name, is_volatile, is_inline);
+	}
+
+	B1_ASM_OPS::iterator add_call_op(const std::wstring &fn_name, bool is_volatile = false, bool is_inline = false)
+	{
+		return add_call_op(_curr_code_sec->cend(), fn_name, is_volatile, is_inline);
+	}
+
+
 public:
 	C1Compiler() = delete;
 	C1Compiler(bool out_src_lines, bool opt_nocheck);
@@ -216,6 +244,7 @@ public:
 	C1_T_ERROR WriteCode(bool code_init, int32_t code_sec_index);
 	virtual C1_T_ERROR Save(const std::string &file_name, bool overwrite_existing = true);
 
+	void AddFunctionsSymbols();
 	C1_T_ERROR GetUndefinedSymbols(std::set<std::wstring> &symbols) const;
 	C1_T_ERROR GetResolvedSymbols(std::set<std::wstring> &symbols) const;
 	C1_T_ERROR GetInitFiles(std::vector<std::wstring> &init_files) const;

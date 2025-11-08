@@ -1,6 +1,3 @@
-IMP,__LIB_UART1_OUT_CHR
-IMP,__LIB_STR_RLS
-
 ; writes the specified string value to UART1
 ; X - string to write
 :__LIB_UART1_OUT

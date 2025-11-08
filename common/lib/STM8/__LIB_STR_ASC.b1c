@@ -1,6 +1,4 @@
 INI,__LIB_ERR_LAST_ERR
-IMP,__LIB_ERR_HANDLER
-IMP,__LIB_STR_RLS
 
 ; returns numeric code for the first character of the specified string
 ; X - string address, returns character code in A

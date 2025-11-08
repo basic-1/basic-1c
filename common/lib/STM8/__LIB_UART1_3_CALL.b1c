@@ -1,7 +1,6 @@
 INI,__LIB_UART1_NL_LEN
 INI,__LIB_UART1_NL_CHR1
 INI,__LIB_UART1_NL_CHR2
-IMP,__LIB_STR_RLS
 
 ; configure UART1 new-line sequence
 :__LIB_UART1_3_CALL

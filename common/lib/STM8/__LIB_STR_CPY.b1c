@@ -1,6 +1,3 @@
-IMP,__LIB_MEM_ALC
-IMP,__LIB_MEM_CPY
-
 ; creates string copy or increases its usage counter
 ; can raise no memory error
 ; X - string address, returns new string address in X

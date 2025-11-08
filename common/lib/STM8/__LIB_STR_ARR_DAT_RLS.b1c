@@ -1,5 +1,3 @@
-IMP,__LIB_STR_RLS
-
 ; releases all array strings
 ; X - string array data address, stack1 - array size
 :__LIB_STR_ARR_DAT_RLS

@@ -1,9 +1,6 @@
 INI,__LIB_SPI1_OPT
 INI,__LIB_SPI1_OPT1
 INI,__LIB_SPI1_SS_PIN
-IMP,__LIB_SPI1_NSS_CFG_IN
-IMP,__LIB_SPI1_NSS_CFG_OUT
-IMP,__LIB_SPI1_NSS_HI
 
 ; __LIB_SPI1_OPT1
 ; bit 0 - bi-directional mode (half-duplex, 0 by default - default mode is simplex)

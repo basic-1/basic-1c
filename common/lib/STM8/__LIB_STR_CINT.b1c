@@ -1,7 +1,4 @@
 INI,__LIB_ERR_LAST_ERR
-IMP,__LIB_ERR_HANDLER
-IMP,__LIB_AUX_CVT_WRD
-IMP,__LIB_STR_RLS
 
 ; converts string representation of an INT value to the binary form
 ; X - input string, returns INT value in X

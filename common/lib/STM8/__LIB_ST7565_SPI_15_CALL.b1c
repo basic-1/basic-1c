@@ -1,5 +1,3 @@
-IMP,__LIB_ST7565_SPI_DC_LO
-
 ; set contrast (CONTRAST)
 ; A - contrast value (1..100)
 :__LIB_ST7565_SPI_15_CALL

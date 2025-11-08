@@ -2,8 +2,6 @@ INI,__LIB_ST7565_SPI_COL
 INI,__LIB_ST7565_SPI_ROW
 INI,__LIB_ST7565_SPI_FONT_OPT
 INI,__LIB_ST7565_SPI_OPT
-IMP,__LIB_ST7565_SPI_SET_COL_ADDR
-IMP,__LIB_ST7565_SPI_SET_PAGE_ADDR
 
 ; sets ST7565 position to draw a char
 ; A - 0 (position to draw upper part of a 8x16 character) or 1 (position

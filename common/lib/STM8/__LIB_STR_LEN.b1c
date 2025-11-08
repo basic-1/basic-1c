@@ -1,5 +1,3 @@
-IMP,__LIB_STR_RLS
-
 ; calculates string length
 ; X - string address, returns the string length in A
 :__LIB_STR_LEN

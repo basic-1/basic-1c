@@ -1,6 +1,3 @@
-IMP,__LIB_ST7565_SPI_OUT_CHAR
-IMP,__LIB_STR_RLS
-
 ; renders the specified string
 ; X - string address
 :__LIB_ST7565_SPI_OUT

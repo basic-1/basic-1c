@@ -1,8 +1,6 @@
 INI,__LIB_SPI1_OPT
 INI,__LIB_SPI1_OPT1
 INI,__LIB_SPI1_SS_PIN
-IMP,__LIB_SPI1_CFG_PINS_ENA
-IMP,__LIB_SPI1_NSS_LO
 
 ; start SPI1 (START)
 ;  A - RX/TX mode in case of simplex or half-duplex transmisson mode (RX: A = 0, TX: A = 1)

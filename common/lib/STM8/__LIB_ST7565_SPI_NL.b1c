@@ -1,5 +1,3 @@
-IMP,__LIB_ST7565_SPI_OUT_CHAR
-
 ; goes on new line
 :__LIB_ST7565_SPI_NL
 ASM

@@ -1,10 +1,4 @@
 INI,__LIB_ERR_LAST_ERR
-IMP,__LIB_STR_CPY
-IMP,__LIB_STR_LEN
-IMP,__LIB_ERR_HANDLER
-IMP,__LIB_AUX_MUL10
-IMP,__LIB_AUX_NEG32
-IMP,__LIB_STR_RLS
 
 ; converts string representation of a LONG integer value to the binary form
 ; X - input string, returns LONG value in Y:X

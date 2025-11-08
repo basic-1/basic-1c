@@ -1,5 +1,3 @@
-IMP,__LIB_AUX_NEG32
-
 ; divides two signed 32-bit integers
 ; Y:X - dividend, stack1 - divisor, returns 32-bit quotient in Y:X
 :__LIB_COM_DIV32

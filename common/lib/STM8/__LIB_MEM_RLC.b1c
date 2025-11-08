@@ -1,7 +1,4 @@
 INI,__INI_MEM
-IMP,__LIB_MEM_ALC
-IMP,__LIB_MEM_CPY
-IMP,__LIB_MEM_FRE
 
 ; reallocates memory block
 ; X - memory block address, stack1 - new block size, returns new block address in X

@@ -1,6 +1,4 @@
 INI,__LIB_ERR_LAST_ERR
-IMP,__LIB_ERR_HANDLER
-IMP,__LIB_STR_RLS
 
 ; returns position of the first occurrence of a string in another string (1-based) or zero if the string is not found
 ; A - 1-based starting position, stack1 - string to search in, stack2 - string to search for

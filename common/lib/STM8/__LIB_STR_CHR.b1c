@@ -1,5 +1,3 @@
-IMP,__LIB_MEM_ALC
-
 ; returns a string representing the character that corresponds to the numeric code
 ; A - numeric code, returns address of the string in X
 :__LIB_STR_CHR

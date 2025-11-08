@@ -1,5 +1,3 @@
-IMP,__LIB_COM_MUL32
-
 ; calculates power of a 32-bit integer number
 ; Y:X - base, stack1 - 16-bit exponent, returns 32-bit power in Y:X
 :__LIB_COM_POW32

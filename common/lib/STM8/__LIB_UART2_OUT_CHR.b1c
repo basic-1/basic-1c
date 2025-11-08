@@ -1,7 +1,6 @@
 INI,__LIB_UART2_MGN
 INI,__LIB_UART2_POS
 INI,__LIB_UART2_OPT
-IMP,__LIB_UART2_NL
 
 ; writes one character to UART2
 ; A - character to write

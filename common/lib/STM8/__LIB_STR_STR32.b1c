@@ -1,7 +1,3 @@
-IMP,__LIB_AUX_NEG32
-IMP,__LIB_AUX_DIV10
-IMP,__LIB_MEM_ALC
-
 ; converts 32-bit signed integer value to string
 ; Y:X - integer value, stack1 (byte) - flags (bit 0 - not used, bit 1 - add spaces), returns string address in X
 :__LIB_STR_STR32

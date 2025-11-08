@@ -1,6 +1,3 @@
-IMP,__LIB_STR_SET
-IMP,__LIB_STR_RLS
-
 ; converts string to lower case
 ; X - string address, returns converted string in X
 :__LIB_STR_LCASE

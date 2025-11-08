@@ -1,7 +1,6 @@
 INI,__LIB_USART1_MGN
 INI,__LIB_USART1_POS
 INI,__LIB_USART1_OPT
-IMP,__LIB_USART1_NL
 
 ; writes one character to USART1
 ; A - character to write

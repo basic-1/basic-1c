@@ -1,7 +1,4 @@
 INI,__LIB_ERR_LAST_ERR
-IMP,__LIB_ERR_HANDLER
-IMP,__LIB_AUX_CVT_CHR
-IMP,__LIB_STR_RLS
 
 ; converts string representation of a WORD value to binary form
 ; A - characters number, X - input data address, returns WORD value in X

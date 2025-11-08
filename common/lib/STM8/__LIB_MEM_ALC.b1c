@@ -1,7 +1,5 @@
 INI,__INI_MEM
 INI,__LIB_ERR_LAST_ERR
-IMP,__LIB_ERR_HANDLER
-IMP,__LIB_MEM_SET
 
 ; allocates memory in heap
 ; can raise B1C_RTE_MEM_NOT_ENOUGH error

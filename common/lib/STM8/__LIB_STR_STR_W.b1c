@@ -1,5 +1,3 @@
-IMP,__LIB_STR_STR16
-
 ; converts unsigned 16-bit integer value to string
 ; X - integer value, returns string address in X
 :__LIB_STR_STR_W

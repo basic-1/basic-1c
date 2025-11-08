@@ -1,5 +1,3 @@
-IMP,__LIB_ST7565_SPI_DC_LO
-
 ; sets ST7565 page address
 ; A - page address (0..8)
 :__LIB_ST7565_SPI_SET_PAGE_ADDR

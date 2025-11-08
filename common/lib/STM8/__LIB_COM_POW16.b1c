@@ -1,5 +1,3 @@
-IMP,__LIB_COM_MUL16
-
 ; calculates power of a 16-bit integer number
 ; X - base, stack1 - exponent, returns 16-bit power in X
 :__LIB_COM_POW16

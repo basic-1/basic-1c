@@ -1,7 +1,3 @@
-IMP,__LIB_MEM_ALC
-IMP,__LIB_MEM_CPY
-IMP,__LIB_STR_RLS
-
 ; returns substring of a source string
 ; X - string address, stack1 - 1-based starting position (byte), stack2 - num. characters to copy (byte), returns substring in X
 :__LIB_STR_MID

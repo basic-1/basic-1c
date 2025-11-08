@@ -1,5 +1,3 @@
-IMP,__LIB_STR_MID
-
 ; returns a copy of the string without trailing spaces
 ; X - string address, returns trimmed string in X
 :__LIB_STR_RTRIM

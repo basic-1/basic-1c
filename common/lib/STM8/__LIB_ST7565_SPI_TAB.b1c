@@ -1,8 +1,6 @@
 INI,__LIB_ST7565_SPI_COL
 INI,__LIB_ST7565_SPI_MGN
 INI,__LIB_ST7565_SPI_ZW
-IMP,__LIB_ST7565_SPI_NL
-IMP,__LIB_ST7565_SPI_SPC
 
 ; TAB(n) PRINT function
 ; A - new print zone number (1-based), 0 stands for the next position

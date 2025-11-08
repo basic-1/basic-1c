@@ -1,9 +1,5 @@
 INI,__LIB_USART1_OPT
 INI,__LIB_ERR_LAST_ERR
-IMP,__LIB_MEM_RLC
-IMP,__LIB_MEM_FRE
-IMP,__LIB_ERR_HANDLER
-IMP,__LIB_USART1_OUT_CHR
 
 ; reads a string from USART1
 ; returns string in X

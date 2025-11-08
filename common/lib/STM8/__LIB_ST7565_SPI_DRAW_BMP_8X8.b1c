@@ -1,5 +1,4 @@
 INI,__LIB_ST7565_SPI_INV
-IMP,__LIB_ST7565_SPI_DC_HI
 
 ; draw 8x8 bitmaps
 ; A - bitmaps count, X - bitmap data address

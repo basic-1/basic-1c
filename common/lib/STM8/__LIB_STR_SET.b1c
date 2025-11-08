@@ -1,7 +1,3 @@
-IMP,__LIB_MEM_ALC
-IMP,__LIB_MEM_SET
-IMP,__LIB_STR_RLS
-
 ; SET$(<string>, <length>): creates a string of length <length> and sets all its characters to the first character of <string>
 ; X - string address, stack - new string length (byte), returns resulting string in X
 :__LIB_STR_SET

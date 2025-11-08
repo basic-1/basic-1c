@@ -1,10 +1,4 @@
 INI,__LIB_ERR_LAST_ERR
-IMP,__LIB_STR_CPY
-IMP,__LIB_STR_LEN
-IMP,__LIB_ERR_HANDLER
-IMP,__LIB_MEM_ALC
-IMP,__LIB_MEM_CPY
-IMP,__LIB_STR_RLS
 
 ; concatenates two strings
 ; can raise B1C_RTE_STR_TOOLONG or no memory error

@@ -1,5 +1,3 @@
-IMP,__LIB_MEM_ALC
-
 ; converts 16-bit integer value to string
 ; X - integer value, stack1 (byte) - flags (bit 0 - signed value, bit 1 - add spaces), returns string address in X
 :__LIB_STR_STR16
