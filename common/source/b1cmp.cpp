@@ -241,7 +241,7 @@ B1_T_ERROR B1CUtils::get_num_min_type(const std::wstring &val, B1Types &type, st
 		return B1_RES_OK;
 	}
 
-	if (ival >= 0 && ival <= 255)
+	if(ival >= 0 && ival <= 255)
 	{
 		type = B1Types::B1T_BYTE;
 	}

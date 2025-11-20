@@ -1,0 +1,7 @@
+INI,__LIB_UART3_SPEED
+
+; configure UART3 speed
+ASM
+LDW X, {VALUE}
+LDW (__LIB_UART3_SPEED), X
+ENDASM

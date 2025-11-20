@@ -1,0 +1,78 @@
+INI,__LIB_CPU_OPT
+INI,__LIB_UART3_OPT
+INI,__LIB_UART3_SPEED
+
+; start UART3
+; A - RX/TX mode in case of simplex transmisson mode (RX: A = 4, TX: A = 8)
+:__LIB_UART3_6_CALL
+ASM
+BTJT (__LIB_UART3_OPT), 4, ::__LBL_SIMPLEX
+; duplex mode
+LD A, UART3_CR2_REN + UART3_CR2_TEN
+:::__LBL_SIMPLEX
+PUSH A
+; set parity control and word lenth
+; now the only supported mode is 8N1
+CLR (UART3_CR1)
+; set stop bits
+; now the only supported mode is 8N1
+CLR (UART3_CR3)
+; no half duplex mode and other features support at the moment
+CLR (UART3_CR4)
+CLR (UART3_CR6)
+; set baud rate
+LDW X, (__LIB_UART3_SPEED)
+LD A, (__LIB_CPU_OPT)
+CP A, 3
+JRNE ::__LBL_NOT_LSI
+; LSI (128 kHz)
+LD A, 125
+DIV X, A
+JRA ::__LBL_SET_SPEED
+
+:::__LBL_NOT_LSI
+CP A, 1
+JRNE ::__LBL_NOT_8MHZ
+; 8 MHz HSE or HSI
+SRLW X
+JRA ::__LBL_SET_SPEED
+
+:::__LBL_NOT_8MHZ
+.IF SUBSTR(__MCU_NAME,0,6) == STM8S2
+CP A, 2
+JRNE ::__LBL_SET_SPEED ; 16 MHz HSE or HSI
+; 24 MHz HSE
+PUSHW X
+SRLW X
+ADDW X, (1, SP)  ; X = X * 1.5
+ADDW SP, 2
+.ENDIF
+
+:::__LBL_SET_SPEED
+LD A, 16
+DIV X, A
+PUSH A
+LD A, XH
+SWAP A
+OR A, (1, SP)
+LD (UART3_BRR2), A
+POP A
+LD A, XL
+LD (UART3_BRR1), A
+; configure GPIO pins and enable RX/TX
+LD A, (__LIB_UART3_OPT)
+AND A, 0xF3
+OR A, (1, SP)
+LD (__LIB_UART3_OPT), A
+BCP A, 0x20
+JREQ ::__LBL_ENABLE_RX_TX
+ENDASM
+
+; configure GPIO pins
+INL,__LIB_UART3_CFG_PINS
+
+ASM
+:::__LBL_ENABLE_RX_TX
+POP (UART3_CR2) ; enable TX or/and RX
+RET
+ENDASM

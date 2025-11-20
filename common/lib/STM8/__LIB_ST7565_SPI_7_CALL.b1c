@@ -35,6 +35,17 @@ CALL,__LIB_ST7565_SPI_DC_CFG_OUT
 ; different datasheets to ST7565/ST7567 chips give min. SPI clock period parameter (Tsync) equal to 400, 200, 100 or 50 ns
 ; depending on chip version or supply voltage. in fact all tested displays worked well with 8 MHz SPI speed (Tsync = 125 ns)
 ; uncomment the code fragment below to restrict the speed to 2 MHz max. (Tsync >= 500 ns)
+;ASM
+;.IF SUBSTR(__MCU_NAME,0,6) == STM8S2
+;ENDASM
+;==,__LIB_CPU_OPT<BYTE>,2<BYTE>
+;JF,::__LBL_CHECK_16MHZ
+;IOCTL,"SPI"<STRING>,"PRESCALER"<STRING>,"DIV16"<STRING>
+;JMP,::__LBL_PRESCLR_SET
+;:::__LBL_CHECK_16MHZ
+;ASM
+;.ENDIF
+;ENDASM
 ;==,__LIB_CPU_OPT<BYTE>,0<BYTE>
 ;JF,::__LBL_CHECK_8MHZ
 ;IOCTL,"SPI"<STRING>,"PRESCALER"<STRING>,"DIV8"<STRING>

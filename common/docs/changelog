@@ -1,3 +1,10 @@
+b1c (1.0.0-51) unstable; urgency=low
+
+  * STM8S207K6T6 and STM8S207K8T6 MCUs support added
+  * a minor bug fixed
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Thu, 20 Nov 2025 18:54:08 +0300
+
 b1c (1.0.0-50) unstable; urgency=low
 
   * some code revision: add library functions after the first optimizations

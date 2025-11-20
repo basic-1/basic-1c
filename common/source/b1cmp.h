@@ -155,10 +155,10 @@ protected:
 
 	std::wstring _curr_name_space;
 
-	int32_t _curr_line_num;
-	int32_t _curr_line_cnt;
-	int32_t _curr_src_file_id;
-	int32_t _curr_src_line_id;
+	mutable int32_t _curr_line_num;
+	mutable int32_t _curr_line_cnt;
+	mutable int32_t _curr_src_file_id;
+	mutable int32_t _curr_src_line_id;
 
 public:
 	B1_CMP_CMDS();

@@ -785,7 +785,37 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 				}
 				args.push_back(arg);
 				argnum++;
+
+				if(argnum % 2 == 0)
+				{
+					if(	args[args.size() - 2].size() == 1 && args[args.size() - 2 + 1].size() == 1 &&
+						B1CUtils::is_num_val(args[args.size() - 2][0].value) && B1CUtils::is_num_val(args[args.size() - 2 + 1][0].value))
+						{
+							// check immediate subscript range
+							int32_t lb = 0, ub = -1;
+
+							auto err = Utils::str2int32(args[args.size() - 2][0].value, lb);
+							if(err != B1_RES_OK)
+							{
+								return static_cast<C1_T_ERROR>(err);
+							}
+							Utils::correct_int_value(lb, args[args.size() - 2][0].type);
+
+							err = Utils::str2int32(args[args.size() - 2 + 1][0].value, ub);
+							if(err != B1_RES_OK)
+							{
+								return static_cast<C1_T_ERROR>(err);
+							}
+							Utils::correct_int_value(ub, args[args.size() - 2 + 1][0].type);
+
+							if(lb > ub)
+							{
+								return static_cast<C1_T_ERROR>(B1_RES_ESUBSRANGE);
+							}
+						}
+				}
 			}
+
 			if(argnum % 2 != 0)
 			{
 				return static_cast<C1_T_ERROR>(B1_RES_EWRARGCNT);

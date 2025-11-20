@@ -232,6 +232,7 @@ public:
 	B1C_T_ERROR PutTypesAndOptimize();
 	B1C_T_ERROR Optimize(bool init);
 	B1C_T_ERROR CollectDeclStmts();
+	B1C_T_ERROR CheckGAStmts() const;
 	B1C_T_ERROR WriteUFns(const std::string &file_name) const;
 	B1C_T_ERROR WriteStmt(const B1_CMP_CMD &cmd, std::FILE *ofp, int &curr_line_id) const;
 	B1C_T_ERROR WriteMAs(const std::string &file_name);

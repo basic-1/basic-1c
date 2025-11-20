@@ -1,0 +1,12 @@
+INI,__LIB_UART3_ZW
+
+; configure UART3 zone width
+ASM
+.IF {ARG_TYPE} == I
+MOV (__LIB_UART3_ZW), {!VALUE}
+.ELIF {ARG_TYPE} == M
+MOV (__LIB_UART3_ZW), ({!VALUE})
+.ELSE
+LD (__LIB_UART3_ZW), A
+.ENDIF
+ENDASM

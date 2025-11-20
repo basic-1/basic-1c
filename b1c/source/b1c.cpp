@@ -929,7 +929,7 @@ B1_T_ERROR B1FileCompiler::eval_chr(const std::wstring &num_val, const B1Types t
 		return err;
 	}
 
-	Utils::Utils::correct_int_value(n, type);
+	Utils::correct_int_value(n, type);
 	if(n < 0 || n > 255)
 	{
 		return B1_RES_EINVARG;
@@ -3380,7 +3380,7 @@ B1_T_ERROR B1FileCompiler::st_read_data(const B1_T_CHAR **value_separators, cons
 					return err;
 				}
 
-				Utils::Utils::correct_int_value(n, type);
+				Utils::correct_int_value(n, type);
 				value = std::to_wstring(n);
 			}
 		}
@@ -5623,7 +5623,7 @@ B1C_T_ERROR B1FileCompiler::remove_redundant_comparisons(bool &changed)
 
 			if(cmd.args[0].size() == 1 && B1CUtils::is_num_val(cmd.args[0][0].value) && Utils::str2int32(cmd.args[0][0].value, n) == B1_RES_OK && !B1CUtils::is_imm_val(cmd.args[1][0].value) && cmd.args[1][0].type != B1Types::B1T_STRING)
 			{
-				Utils::Utils::correct_int_value(n, cmd.args[0][0].type);
+				Utils::correct_int_value(n, cmd.args[0][0].type);
 				lnum = true;
 				vtype = cmd.args[1][0].type;
 				proceed = true;
@@ -5631,7 +5631,7 @@ B1C_T_ERROR B1FileCompiler::remove_redundant_comparisons(bool &changed)
 			else
 			if(cmd.args[1].size() == 1 && B1CUtils::is_num_val(cmd.args[1][0].value) && Utils::str2int32(cmd.args[1][0].value, n) == B1_RES_OK && !B1CUtils::is_imm_val(cmd.args[0][0].value) && cmd.args[0][0].type != B1Types::B1T_STRING)
 			{
-				Utils::Utils::correct_int_value(n, cmd.args[1][0].type);
+				Utils::correct_int_value(n, cmd.args[1][0].type);
 				vtype = cmd.args[0][0].type;
 				proceed = true;
 			}
@@ -10268,6 +10268,60 @@ B1C_T_ERROR B1FileCompiler::CollectDeclStmts()
 	return err;
 }
 
+B1C_T_ERROR B1FileCompiler::CheckGAStmts() const
+{
+	for(auto i = cbegin(); i != cend(); i++)
+	{
+		const auto &cmd = *i;
+
+		if(B1CUtils::is_label(cmd))
+		{
+			continue;
+		}
+
+		_curr_line_cnt = cmd.line_cnt;
+		_curr_line_num = cmd.line_num;
+		_curr_src_line_id = cmd.src_line_id;
+
+		if(!B1CUtils::is_label(cmd) && (cmd.cmd == L"GA" || cmd.cmd == L"MA"))
+		{
+			auto dim_start = (cmd.cmd == L"GA") ? 2 : 3;
+			auto dim_num = (cmd.args.size() - dim_start) / 2;
+
+			for(auto d = 0; d < dim_num; d++)
+			{
+				if(cmd.args[dim_start + d * 2].size() == 1 && cmd.args[dim_start + d * 2 + 1].size() == 1 &&
+					B1CUtils::is_num_val(cmd.args[dim_start + d * 2][0].value) && B1CUtils::is_num_val(cmd.args[dim_start + d * 2 + 1][0].value))
+				{
+					// check immediate subscript range
+					int32_t lb = 0, ub = -1;
+
+					auto err = Utils::str2int32(cmd.args[dim_start + d * 2][0].value, lb);
+					if(err != B1_RES_OK)
+					{
+						return static_cast<B1C_T_ERROR>(err);
+					}
+					Utils::correct_int_value(lb, cmd.args[dim_start + d * 2][0].type);
+
+					err = Utils::str2int32(cmd.args[dim_start + d * 2 + 1][0].value, ub);
+					if(err != B1_RES_OK)
+					{
+						return static_cast<B1C_T_ERROR>(err);
+					}
+					Utils::correct_int_value(ub, cmd.args[dim_start + d * 2 + 1][0].type);
+
+					if(lb > ub)
+					{
+						return static_cast<B1C_T_ERROR>(B1_RES_ESUBSRANGE);
+					}
+				}
+			}
+		}
+	}
+
+	return B1C_T_ERROR::B1C_RES_OK;
+}
+
 B1C_T_ERROR B1FileCompiler::WriteUFns(const std::string &file_name) const
 {
 	std::FILE *ofp = std::fopen(file_name.c_str(), "a");
@@ -11091,6 +11145,19 @@ B1C_T_ERROR B1Compiler::WriteUFns(const std::string &file_name) const
 
 B1C_T_ERROR B1Compiler::Write(const std::string &file_name)
 {
+	// some checks before writing compiled code
+	for(auto &fc: _file_compilers)
+	{
+		_curr_file_name = fc.GetFileName();
+
+		auto err = fc.CheckGAStmts();
+		if(err != B1C_T_ERROR::B1C_RES_OK)
+		{
+			b1_curr_prog_line_cnt = fc._curr_line_cnt;
+			return err;
+		}
+	}
+
 	_curr_file_name = file_name;
 
 	// truncate output file

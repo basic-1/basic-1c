@@ -1,0 +1,16 @@
+INI,__LIB_UART3_OPT
+
+; stop UART3
+:__LIB_UART3_7_CALL
+ASM
+; do not wait for data transmission complete if TX is disabled
+BTJF (__LIB_UART3_OPT), 3, ::__LBL_UART_STOP
+
+:::__LBL_TST_WAIT_TC
+BTJF (UART3_SR), UART3_SR_TC_POS, ::__LBL_TST_WAIT_TC
+
+:::__LBL_UART_STOP
+; disable RX/TX
+CLR (UART3_CR2)
+RET
+ENDASM

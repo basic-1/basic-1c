@@ -1,0 +1,2 @@
+; 9600 baud by default
+=,0x0683<WORD>,__LIB_UART3_SPEED<WORD>

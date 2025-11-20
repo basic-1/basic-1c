@@ -1,0 +1,17 @@
+INI,__LIB_UART3_OPT
+
+; configure UART3 options:
+; bit 0 - print new line on reaching margin (enabled by default)
+; bit 1 - input echo (enabled by default)
+; bit 2 - RX (enabled by default)
+; bit 3 - TX (enabled by default)
+; bit 4 - simplex mode (duplex is default)
+; bit 6 - configure GPIO pins (enabled by default)
+; bits 5, 7 - reserved
+ASM
+; MODE
+LD A, !{MASK}.ll
+AND A, (__LIB_UART3_OPT)
+OR A, {VALUE} & {MASK}
+LD (__LIB_UART3_OPT), A
+ENDASM

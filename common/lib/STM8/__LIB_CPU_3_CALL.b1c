@@ -8,11 +8,23 @@ TNZ A
 JREQ ::__LBL_EXIT
 
 .IF SUBSTR(__MCU_NAME,0,5) == STM8S
+.IF SUBSTR(__MCU_NAME,0,6) == STM8S2
+BTJF (__LIB_CPU_OPT), 1, ::__LBL_16_OR_8_MHZ
+LDW X, 44 ; 128 kHz
+BTJT (__LIB_CPU_OPT), 0, ::__LBL_DO_DELAY
+LDW X, 42 * 8 * 12 ; 24 MHz, 1 wait state
+JRA ::__LBL_DO_DELAY
+:::__LBL_16_OR_8_MHZ
+LDW X, 42 * 8 * 16 ; 16 MHz
+BTJF (__LIB_CPU_OPT), 0, ::__LBL_DO_DELAY
+SRLW X ; 8 MHz
+.ELSE
 LDW X, 44 ; 128 kHz
 BTJT (__LIB_CPU_OPT), 1, ::__LBL_DO_DELAY
 LDW X, 42 * 8 * 16 ; 16 MHz
 BTJF (__LIB_CPU_OPT), 0, ::__LBL_DO_DELAY
 SRLW X ; 8 MHz
+.ENDIF
 .ELSE ; STM8L family
 BTJT (__LIB_CPU_OPT), 1, ::__LBL_LS_OSC
 ; high-speed oscillator

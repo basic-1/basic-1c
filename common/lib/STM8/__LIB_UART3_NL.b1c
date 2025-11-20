@@ -1,0 +1,25 @@
+INI,__LIB_UART3_OPT
+INI,__LIB_UART3_POS
+INI,__LIB_UART3_NL_LEN
+INI,__LIB_UART3_NL_CHR1
+INI,__LIB_UART3_NL_CHR2
+
+; writes new line sequence to UART3
+:__LIB_UART3_NL
+ASM
+; do not write anything if TX is disabled
+BTJF (__LIB_UART3_OPT), 3, ::__LBL_EXIT
+LD A, (__LIB_UART3_NL_LEN)
+JREQ ::__LBL_EXIT
+:::__LBL_WAIT_TX_READY1
+BTJF (UART3_SR), UART3_SR_TXE_POS, ::__LBL_WAIT_TX_READY1
+MOV (UART3_DR), (__LIB_UART3_NL_CHR1) ; the first new line character
+DEC A
+JREQ ::__LBL_EXIT
+:::__LBL_WAIT_TX_READY2
+BTJF (UART3_SR), UART3_SR_TXE_POS, ::__LBL_WAIT_TX_READY2
+MOV (UART3_DR), (__LIB_UART3_NL_CHR2) ; the second new line character
+:::__LBL_EXIT
+CLR (__LIB_UART3_POS)
+RET
+ENDASM
