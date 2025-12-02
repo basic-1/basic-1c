@@ -247,6 +247,7 @@ public:
 	int32_t address;			// variable address
 	std::wstring symbol;		// constant name
 	bool fixed_size;			// fixed size array
+	std::vector<bool> is_0_based;
 	std::vector<int32_t> dims;	// dimensions (for fixed size array)
 
 	int32_t src_line_cnt;

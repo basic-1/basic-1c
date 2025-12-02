@@ -1767,6 +1767,11 @@ C1_T_ERROR C1Compiler::read_and_check_vars(iterator begin, iterator end, bool in
 			{
 				vars[vname] = B1_CMP_VAR(vname, vtype, dims / 2, is_volatile, is_const, _curr_src_file_id, _curr_line_cnt);
 				v = vars.find(vname);
+				
+				for(auto i = 0; i < dims / 2; i++)
+				{
+					v->second.is_0_based.push_back(b1_opt_explicit_val != 0 || b1_opt_base_val == 0);
+				}
 
 				if(is_ma)
 				{
@@ -1854,6 +1859,14 @@ C1_T_ERROR C1Compiler::read_and_check_vars(iterator begin, iterator end, bool in
 				v->second.is_volatile = is_volatile;
 				v->second.is_const = is_const;
 
+				if(dims > 0 && v->second.is_0_based.size() == 0)
+				{
+					for(auto i = 0; i < dims / 2; i++)
+					{
+						v->second.is_0_based.push_back(b1_opt_explicit_val != 0 || b1_opt_base_val == 0);
+					}
+				}
+
 				if(is_ma)
 				{
 					if(((v->second.use_symbol && v->second.symbol == vname) || is_const) && dims != 0)
@@ -1867,7 +1880,9 @@ C1_T_ERROR C1Compiler::read_and_check_vars(iterator begin, iterator end, bool in
 				}
 			}
 
-			for(auto a = cmd.args.begin() + dims_off; a != cmd.args.end(); a++)
+			auto dim_num = 0;
+
+			for(auto a = cmd.args.begin() + dims_off; a != cmd.args.end(); a++, dim_num++)
 			{
 				auto err = check_arg(*a);
 				if(err != C1_T_ERROR::C1_RES_OK)
@@ -1875,42 +1890,45 @@ C1_T_ERROR C1Compiler::read_and_check_vars(iterator begin, iterator end, bool in
 					return err;
 				}
 
-				if(is_ma || check_sizes)
+				bool imm_size = (a->size() == 1);
+				bool zero_size = false;
+				int32_t n = -1;
+
+				if(imm_size)
 				{
-					if(a->size() > 1)
-					{
-						if(is_ma)
-						{
-							return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
-						}
-						else
-						{
-							exp_alloc.find(vname)->second.second = false;
-							v->second.dims.clear();
-							check_sizes = false;
-							continue;
-						}
-					}
+					imm_size = (Utils::str2int32((*a)[0].value, n) == B1_RES_OK);
+					zero_size = (n == 0);
+				}
 
-					int32_t n;
-
-					auto err = Utils::str2int32((*a)[0].value, n);
-					if(err != B1_RES_OK)
+				if(is_ma)
+				{
+					if(!imm_size)
 					{
-						if(is_ma)
-						{
-							return static_cast<C1_T_ERROR>(err);
-						}
-						else
-						{
-							exp_alloc.find(vname)->second.second = false;
-							v->second.dims.clear();
-							check_sizes = false;
-							continue;
-						}
+						return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
 					}
 
 					v->second.dims.push_back(n);
+				}
+				else
+				{
+					if(check_sizes)
+					{
+						if(imm_size)
+						{
+							v->second.dims.push_back(n);
+						}
+						else
+						{
+							exp_alloc.find(vname)->second.second = false;
+							v->second.dims.clear();
+							check_sizes = false;
+						}
+					}
+
+					if(dim_num % 2 == 0 && v->second.is_0_based[dim_num / 2])
+					{
+						v->second.is_0_based[dim_num / 2] = zero_size;
+					}
 				}
 			}
 
@@ -2098,6 +2116,8 @@ C1_T_ERROR C1Compiler::read_and_check_vars(iterator begin, iterator end, bool in
 				{
 					var.second.dims.push_back(b1_opt_base_val);
 					var.second.dims.push_back(10);
+
+					var.second.is_0_based.push_back(b1_opt_base_val == 0);
 				}
 			}
 			else

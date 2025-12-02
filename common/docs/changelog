@@ -1,3 +1,9 @@
+b1c (1.0.0-52) unstable; urgency=low
+
+  * more compact and faster code when accessing arrays
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Tue, 02 Dec 2025 20:27:01 +0300
+
 b1c (1.0.0-51) unstable; urgency=low
 
   * STM8S207K6T6 and STM8S207K8T6 MCUs support added
