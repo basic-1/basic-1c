@@ -332,6 +332,8 @@ const Token Token::ERROR_DIR(TokType::TT_DIR, L".ERROR", -1);
 
 const Token Token::DEF_DIR(TokType::TT_DIR, L".DEF", -1);
 
+const Token Token::ALIGN_DIR(TokType::TT_DIR, L".ALIGN", -1);
+
 
 A1_T_ERROR SrcFile::ReadChar(wchar_t &chr)
 {
@@ -2724,6 +2726,76 @@ A1_T_ERROR Sections::ReadUntil(std::vector<Token>::const_iterator &start, const 
 
 				return A1_T_ERROR::A1_RES_EERRDIR;
 			}
+			else
+			if(*start == Token::ALIGN_DIR)
+			{
+				start++;
+				if(start == end || start->IsEOL())
+				{
+					A1_T_ERROR::A1_RES_ESYNTAX;
+				}
+
+				Exp exp;
+				int32_t res = 0;
+
+				auto err = Exp::BuildExp(start, end, exp, { Token(TokType::TT_EOL, L"", -1) });
+				if(err != A1_T_ERROR::A1_RES_OK)
+				{
+					return err;
+				}
+
+				err = exp.Eval(res, _memrefs);
+				if(err != A1_T_ERROR::A1_RES_OK)
+				{
+					return err;
+				}
+
+				if(res <= 0)
+				{
+					A1_T_ERROR::A1_RES_ESYNTAX;
+				}
+
+				if(res > 1)
+				{
+					int32_t ssize = 0;
+					err = back().GetSize(ssize);
+					if(err != A1_T_ERROR::A1_RES_OK)
+					{
+						return err;
+					}
+
+					int32_t addr = 0;
+					err = back().GetAddress(addr);
+					if(err != A1_T_ERROR::A1_RES_OK)
+					{
+						return err;
+					}
+
+					addr += ssize;
+					auto abytes = res - addr % res;
+
+					if(abytes != res)
+					{
+						std::vector<Token> align
+						{
+							Token(TokType::TT_STRING, L"DB", start->GetLineNum()),
+							Token(TokType::TT_OPER, L"(", start->GetLineNum()),
+							Token(TokType::TT_NUMBER, std::to_wstring(abytes), start->GetLineNum()),
+							Token(TokType::TT_OPER, L")", start->GetLineNum())
+						};
+
+						auto astart = align.cbegin();
+						auto aend = align.cend();
+						auto err = ReadStmt(astart, aend);
+						if(err != A1_T_ERROR::A1_RES_OK)
+						{
+							return err;
+						}
+					}
+				}
+
+				continue;
+			}
 		}
 
 		auto err = ReadStmt(start, end);
@@ -3701,4 +3773,6 @@ const std::vector<std::reference_wrapper<const Token>> Sections::ALL_DIRS =
 	Token::ERROR_DIR,
 
 	Token::DEF_DIR,
+
+	Token::ALIGN_DIR,
 };

@@ -223,6 +223,8 @@ public:
 	static const Token ERROR_DIR;
 
 	static const Token DEF_DIR;
+
+	static const Token ALIGN_DIR;
 };
 
 class SrcFile

@@ -206,6 +206,18 @@ Expressions on the left and right sides of the comparison operators can be simpl
 `.ENDIF`  
 `DB (_SIZE)`  
   
+## .ALIGN directive  
+  
+`.ALIGN` directive aligns the next data element or instruction address on a value that is a multiple of the directive's parameter.  
+  
+**Syntax:**  
+`.ALIGN <align_on_bytes>`  
+  
+**Examples:**  
+`.ALIGN 4`  
+`:__VAR_B` - the variable address will be a multiple of 4  
+`DB`  
+  
 ## .ERROR directive  
   
 `.ERROR` directive emits a specified error message and stops assembling.  
