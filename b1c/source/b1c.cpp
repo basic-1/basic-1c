@@ -1912,7 +1912,7 @@ B1_T_ERROR B1FileCompiler::st_dim_get_size(bool first_run, bool range_only, std:
 	return B1_RES_OK;
 }
 
-B1C_T_ERROR B1FileCompiler::st_dim(bool first_run)
+B1C_T_ERROR B1FileCompiler::st_dim(bool first_run, bool is_const)
 {
 	B1_T_ERROR err;
 	B1_T_CHAR c;
@@ -1920,7 +1920,7 @@ B1C_T_ERROR B1FileCompiler::st_dim(bool first_run)
 	bool stop;
 	B1_TOKENDATA td;
 	B1_T_INDEX len;
-	bool is_global, is_volatile, at, is_static, is_const;
+	bool is_global, is_volatile, at, is_static;
 	bool read_init;
 
 	while(true)
@@ -1934,7 +1934,6 @@ B1C_T_ERROR B1FileCompiler::st_dim(bool first_run)
 		is_global = false;
 		is_volatile = false;
 		is_static = false;
-		is_const = false;
 
 		read_init = false;
 
@@ -2868,9 +2867,9 @@ B1C_T_ERROR B1FileCompiler::compile_simple_stmt(uint8_t stmt)
 		emit_command(L"RET");
 	}
 
-	if(stmt == B1_ID_STMT_DIM)
+	if(stmt == B1_ID_STMT_DIM || stmt == B1_ID_STMT_CONST)
 	{
-		auto err1 = st_dim(false);
+		auto err1 = st_dim(false, (stmt == B1_ID_STMT_CONST));
 		if(err1 != B1C_T_ERROR::B1C_RES_OK)
 		{
 			return err1;
@@ -9285,9 +9284,9 @@ B1C_T_ERROR B1FileCompiler::FirstRun()
 			continue;
 		}
 
-		if(stmt == B1_ID_STMT_DIM)
+		if(stmt == B1_ID_STMT_DIM || stmt == B1_ID_STMT_CONST)
 		{
-			err1 = st_dim(true);
+			err1 = st_dim(true, (stmt == B1_ID_STMT_CONST));
 			if(err1 != B1C_T_ERROR::B1C_RES_OK)
 			{
 				break;

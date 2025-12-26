@@ -76,15 +76,18 @@ mkdir -p -m 775 $tmp_dir$proj_dir_name/local/share/doc/$proj_dir_name
 mkdir -p -m 775 $tmp_dir$proj_dir_name/local/share/doc/$proj_dir_name/b1c
 mkdir -p -m 775 $tmp_dir$proj_dir_name/local/share/doc/$proj_dir_name/c1stm8
 mkdir -p -m 775 $tmp_dir$proj_dir_name/local/share/doc/$proj_dir_name/a1stm8
+mkdir -p -m 775 $tmp_dir$proj_dir_name/local/share/doc/$proj_dir_name/a1rv32
 
 #copy executable modules, samples, docs and README
 cp ../../bin/lnx/$platform/$compiler/rel/b1c $tmp_dir$proj_dir_name/local/bin/
 cp ../../bin/lnx/$platform/$compiler/rel/c1stm8 $tmp_dir$proj_dir_name/local/bin/
 cp ../../bin/lnx/$platform/$compiler/rel/a1stm8 $tmp_dir$proj_dir_name/local/bin/
+cp ../../bin/lnx/$platform/$compiler/rel/a1rv32 $tmp_dir$proj_dir_name/local/bin/
 
 cp -af ../../b1c/docs $tmp_dir$proj_dir_name/local/share/doc/$proj_dir_name/b1c
 cp -af ../../c1stm8/docs $tmp_dir$proj_dir_name/local/share/doc/$proj_dir_name/c1stm8
 cp -af ../../a1stm8/docs $tmp_dir$proj_dir_name/local/share/doc/$proj_dir_name/a1stm8
+cp -af ../../a1rv32/docs $tmp_dir$proj_dir_name/local/share/doc/$proj_dir_name/a1rv32
 
 cp ../../README.md $tmp_dir$proj_dir_name/local/share/doc/$proj_dir_name
 cp ../../LICENSE $tmp_dir$proj_dir_name/local/share/doc/$proj_dir_name
@@ -96,6 +99,7 @@ cp -af ../../common/lib $tmp_dir$proj_dir_name/local/share/$proj_dir_name
 strip --strip-all $tmp_dir$proj_dir_name/local/bin/b1c
 strip --strip-all $tmp_dir$proj_dir_name/local/bin/c1stm8
 strip --strip-all $tmp_dir$proj_dir_name/local/bin/a1stm8
+strip --strip-all $tmp_dir$proj_dir_name/local/bin/a1rv32
 
 #correct file attributes
 chmod 755 `find $tmp_dir$proj_dir_name -type d`

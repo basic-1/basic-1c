@@ -34,6 +34,20 @@ public:
 #endif
 
 
+#if defined(B1_TARGET_RV32) || defined(B1_TARGET_ALL)
+class RV32Settings: virtual public Settings
+{
+public:
+	RV32Settings()
+	: Settings()
+	{
+	}
+
+	B1_T_ERROR ProcessNumPostfix(const std::wstring &postfix, int32_t &n) const override;
+};
+#endif
+
+
 extern bool select_target(Settings &settings);
 extern std::string get_c1_compiler_name(const Settings &settings);
 extern std::string get_MCU_config_name(const std::string &MCU_name);

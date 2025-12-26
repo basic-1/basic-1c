@@ -68,6 +68,9 @@ copy ..\..\c1stm8\docs\*.* docs\c1stm8
 mkdir docs\a1stm8
 copy ..\..\a1stm8\docs\*.* docs\a1stm8
 
+mkdir docs\a1rv32
+copy ..\..\a1rv32\docs\*.* docs\a1rv32
+
 rem create samples directory and copy sample files there
 mkdir docs\b1c\samples
 copy ..\..\b1c\docs\samples\*.* docs\b1c\samples
@@ -76,11 +79,15 @@ copy ..\..\c1stm8\docs\samples\*.* docs\c1stm8\samples
 mkdir docs\a1stm8\samples
 copy ..\..\a1stm8\docs\samples\*.* docs\a1stm8\samples
 
+mkdir docs\a1rv32\samples
+copy ..\..\a1rv32\docs\samples\*.* docs\a1rv32\samples
+
 rem create temp. bin directory and copy binaries
 mkdir bin
 copy ..\..\bin\win\%platform%\%compiler%\rel\b1c.exe bin
 copy ..\..\bin\win\%platform%\%compiler%\rel\c1stm8.exe bin
 copy ..\..\bin\win\%platform%\%compiler%\rel\a1stm8.exe bin
+copy ..\..\bin\win\%platform%\%compiler%\rel\a1rv32.exe bin
 rem copy C/C++ run-time libraries (temp. solution: now they should be present in the output directory)
 copy ..\..\bin\win\%platform%\%compiler%\rel\*.dll bin
 

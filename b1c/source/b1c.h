@@ -116,7 +116,7 @@ private:
 	B1_T_ERROR st_gosub();
 	B1_T_ERROR st_dim_get_one_size(bool first_run, bool allow_TO_stop_word, bool TO_stop_word_only, std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE> &res);
 	B1_T_ERROR st_dim_get_size(bool first_run, bool range_only, std::vector<std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE>> &range);
-	B1C_T_ERROR st_dim(bool first_run);
+	B1C_T_ERROR st_dim(bool first_run, bool is_const);
 	B1_T_ERROR st_erase();
 	B1_T_ERROR st_get_type_def(bool allow_addr, B1_TOKENDATA &td, B1_T_INDEX &len, B1Types &type, bool *addr_present = nullptr, std::wstring *address = nullptr);
 	B1_T_ERROR st_def(bool first_run);

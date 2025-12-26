@@ -1,9 +1,9 @@
 /*
- STM8 intermediate code compiler
- Copyright (c) 2020-2025 Nikolay Pletnev
+ RISC-V 32-bit assembler
+ Copyright (c) 2025 Nikolay Pletnev
  MIT license
 
- feat.h: compiler features
+ feat.h: interpreter features (for b1core)
 */
 
 
@@ -11,10 +11,12 @@
 #define _B1_FEATURES_
 
 
-#define B1_TARGET_STM8
-#define B1_DEF_STD_FNS
+#define B1_TARGET_RV32
 
-#define C1_DAT_STORE_BYTE_AS_WORD
+// assembler-specific definition
+#define A1_REVERSE_CONST_BYTES_ORDER
+#define A1_REVERSE_CODE_BYTES_ORDER
+//#define A1_CONST_AFTER_CODE
 
 
 // ERASE statement
@@ -78,7 +80,7 @@
 //#define B1_FEATURE_STMT_WHILE_WEND
 
 // enable three-dimensional arrays
-#define B1_FEATURE_3_DIM_ARRAYS
+//#define B1_FEATURE_3_DIM_ARRAYS
 
 // enables minimal (short-circuit) evaluation of expresions passed to IIF and IIF$ functions
 // (depends on the logical expression evaluation result)
@@ -120,7 +122,7 @@
 #define B1_MAX_PROGLINE_LEN 255
 #define B1_MAX_STRING_LEN (B1_MAX_PROGLINE_LEN / 2)
 #define B1_MAX_LINE_NUM_LEN 5
-#define B1_MAX_FN_ARGS_NUM 5
+#define B1_MAX_FN_ARGS_NUM 3
 #define B1_MAX_IDENTIFIER_LEN 31
 #ifdef B1_FEATURE_3_DIM_ARRAYS
 #define B1_MAX_VAR_DIM_NUM 3

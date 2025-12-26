@@ -1,3 +1,10 @@
+b1c (1.0.0-54) unstable; urgency=low
+
+  * now DIM keyword is optional in constant variable declaration
+  * a1rv32 (RISC-V RV32) assembler initial commit
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Fri, 26 Dec 2025 19:58:43 +0300
+
 b1c (1.0.0-53) unstable; urgency=low
 
   * a1stm8 assembler .ALIGN directive implemented

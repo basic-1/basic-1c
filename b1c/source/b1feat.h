@@ -1,6 +1,6 @@
 /*
  BASIC1 compiler
- Copyright (c) 2020-2024 Nikolay Pletnev
+ Copyright (c) 2020-2025 Nikolay Pletnev
  MIT license
 
  feat.h: interpreter features (for b1core)
@@ -109,6 +109,9 @@
 
 // enables using 32-bit hash function for keywords and identifiers
 #define B1_FEATURE_HASH_32BIT
+
+// enables more statements used by b1c compiler (CONST, LABEL, etc.)
+#define B1_FEATURE_STMT_B1C_MISC
 
 
 // constraints and memory usage
