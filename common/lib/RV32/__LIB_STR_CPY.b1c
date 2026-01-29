@@ -1,0 +1,43 @@
+; creates string copy or increases its usage counter
+; can raise no memory error
+; A1 - string address, returns new string address in A0
+:__LIB_STR_CPY
+ASM
+MV A0, A1
+BEQ A1, ZERO, ::__LBL_RET
+LBU T1, 0(A1)
+BEQ T1, ZERO, ::__LBL_RET ; ROM string or non-copyable RAM string
+LI T2, 255
+BEQ T1, T2, ::__LBL_NEW_STR
+ADDI T1, T1, 1
+SB T1, 0(A1)
+J ::__LBL_RET
+
+:::__LBL_NEW_STR
+ADDI SP, SP, -16
+SW RA, 12(SP)
+SW A3, 8(SP)
+SW A2, 4(SP)
+SW A1, 0(SP)
+
+LBU A1, 1(A1)
+ADDI A1, A1, 2
+CALL __LIB_MEM_ALC
+BEQ A0, ZERO, ::__LBL_EXIT
+MV A3, A1
+LW A2, 0(SP)
+MV A1, A0
+CALL __LIB_MEM_CPY
+LI A1, 1
+SB A1, 0(A0)
+
+:::__LBL_EXIT
+LW A1, 0(SP)
+LW A2, 4(SP)
+LW A3, 8(SP)
+LW RA, 12(SP)
+ADDI SP, SP, 16
+
+:::__LBL_RET
+RET
+ENDASM

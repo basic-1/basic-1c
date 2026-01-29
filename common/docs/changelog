@@ -1,3 +1,12 @@
+b1c (1.0.0-55) unstable; urgency=low
+
+  * some code revision: library search algorithm changed
+  * some RISC-V library files added
+  * initial version of a1rv32 assembler reference file added
+  * other minor changes
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Thu, 29 Jan 2026 19:43:52 +0300
+ 
 b1c (1.0.0-54) unstable; urgency=low
 
   * now DIM keyword is optional in constant variable declaration

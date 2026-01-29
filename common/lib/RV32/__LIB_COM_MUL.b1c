@@ -1,0 +1,50 @@
+; performs multiplication of two signed 32-bit numbers
+; A1 - first multiplier, A2 - second multiplier, returns product in A0
+:__LIB_COM_MUL
+ASM
+ADDI SP, SP, -16
+SW A3, 12(SP)
+SW A2, 8(SP)
+SW A1, 4(SP)
+LI A3, 0 ; neg flag
+
+BGE A1, ZERO, ::__LBL_CHECK_M2
+NEG A1
+NOT A3
+
+:::__LBL_CHECK_M2
+BGE A2, ZERO, ::__LBL_GET_MIN
+NEG A2
+NOT A3
+
+:::__LBL_GET_MIN
+BLT A2, A1, ::__LBL_DO_MUL
+MV A0, A1
+MV A1, A2
+MV A2, A0
+
+:::__LBL_DO_MUL
+LI A0, 0 ; product
+
+:::__LBL_MUL_LOOP
+BEQ A2, ZERO, ::__LBL_EXIT
+ANDI T1, A2, 1
+BEQ T1, ZERO, ::__LBL_DO_SHIFTS
+ADD A0, A0, A1
+
+:::__LBL_DO_SHIFTS
+SLLI A1, A1, 1
+SRLI A2, A2, 1
+J ::__LBL_MUL_LOOP
+
+:::__LBL_EXIT
+BEQ A3, ZERO, ::__LBL_POS_VALUE
+NEG A0
+
+:::__LBL_POS_VALUE
+LW A1, 4(SP)
+LW A2, 8(SP)
+LW A3, 12(SP)
+ADDI SP, SP, 16
+RET
+ENDASM

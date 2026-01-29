@@ -1,0 +1,18 @@
+; calculates string length
+; A1 - string address, returns the string length in A0
+:__LIB_STR_LEN
+ASM
+LI A0, 0
+BEQ A1, ZERO, ::__LBL_EXIT
+LBU A0, 1(A1)
+ADDI SP, SP, -16
+SW RA, 12(SP)
+SW A0, 8(SP)
+CALL __LIB_STR_RLS
+LW A0, 8(SP)
+LW RA, 12(SP)
+ADDI SP, SP, 16
+
+:::__LBL_EXIT
+RET
+ENDASM

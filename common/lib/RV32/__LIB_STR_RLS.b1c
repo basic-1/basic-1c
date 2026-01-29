@@ -1,0 +1,19 @@
+; releases memory used by string or decreases its usage counter
+; A1 - string address
+:__LIB_STR_RLS
+ASM
+BEQ A1, ZERO, ::__LBL_EXIT ; empty string
+LBU A0, 0(A1)
+BEQ A0, ZERO, ::__LBL_EXIT ; non-copyable RAM or ROM string
+ADDI A0, A0, -1
+SB A0, 0(A1)
+BNE A0, ZERO, ::__LBL_EXIT
+ADDI SP, SP, -16
+SW RA, 12(SP)
+CALL __LIB_MEM_FRE
+LW RA, 12(SP)
+ADDI SP, SP, 16
+
+:::__LBL_EXIT
+RET
+ENDASM

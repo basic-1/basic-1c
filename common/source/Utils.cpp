@@ -726,9 +726,11 @@ bool Settings::GetValue(const std::wstring &key, std::wstring &value) const
 }
 
 // get libraries directory
-void Settings::SetLibDir(const std::string &lib_dir)
+void Settings::SetLibDirRoot(const std::string &lib_dir)
 {
 	std::string lib_dir1 = lib_dir;
+
+	_lib_dir_root.clear();
 
 	if(lib_dir.empty())
 	{
@@ -795,17 +797,48 @@ void Settings::SetLibDir(const std::string &lib_dir)
 		lib_dir1 = ".";
 	}
 
+	_lib_dir_root = lib_dir1 + "/";
+}
+
+void Settings::InitLibDirs()
+{
 	// build library directories list
+	_lib_dirs.clear();
+
+	std::string dir = _lib_dir_root;
+
+	dir += "lib/";
+	_lib_dirs.push_back(dir);
+
 	if(!_target_name.empty())
 	{
-		lib_dir1 += "/lib/";
-		_lib_dirs.push_back(lib_dir1);
-		_lib_dirs.push_back(lib_dir1 + _target_name + "/");
-		_lib_dirs.push_back(lib_dir1 + _target_name + "/" + (_mem_model_small ? "small" : "large") + "/");
-		if(!_MCU_name.empty())
+		dir += _target_name + "/";
+		_lib_dirs.push_back(dir);
+	}
+
+	if(!_MCU_name.empty())
+	{
+		_lib_dirs.push_back(dir + _MCU_name + "/");
+	}
+
+	std::wstring value;
+
+	if(!_MCU_name.empty() && GetValue(L"LIB", value))
+	{
+		std::vector<std::wstring> len;
+		Utils::str_split(value, L",", len);
+		size_t start = 0;
+		for(const auto &sl: len)
 		{
-			_lib_dirs.push_back(lib_dir1 + _target_name + "/" + _MCU_name + "/");
-			_lib_dirs.push_back(lib_dir1 + _target_name + "/" + _MCU_name + "/" + (_mem_model_small ? "small" : "large") + "/");
+			int32_t l = 0;
+			if(Utils::str2int32(sl, l) != B1_RES_OK)
+			{
+				break;
+			}
+			dir = dir + _MCU_name.substr(start, start + l) + "/";
+			start += l;
+			_lib_dirs.push_back(dir);
+			_lib_dirs.push_back(dir + _MCU_name + "/");
 		}
 	}
 }

@@ -1,0 +1,12 @@
+; frees memory block
+; A1 - memory block address
+:__LIB_MEM_FRE
+ASM
+BEQ A1, ZERO, ::__LBL_EXIT
+LW A0, -4(A1)
+NEG A0
+SW A0, -4(A1)
+
+:::__LBL_EXIT
+RET
+ENDASM

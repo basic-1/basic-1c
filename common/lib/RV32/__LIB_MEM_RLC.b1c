@@ -1,0 +1,79 @@
+INI,__INI_MEM
+
+; reallocates memory block
+; A1 - memory block address, A2 - new block size, returns new block address in A0
+:__LIB_MEM_RLC
+ASM
+ADDI SP, SP, -16
+SW RA, 12(SP)
+SW A3, 8(SP)
+SW A2, 4(SP)
+SW A1, 0(SP)
+; make new block size a multiple of 4
+ADDI A2, A2, 3
+ANDI A2, A2, -4 ; -4 == ~3
+
+BNE A1, ZERO, ::__LBL_CHECK_NEW_SIZE
+MV A1, A2
+CALL __LIB_MEM_ALC
+J ::__LBL_EXIT
+
+:::__LBL_CHECK_NEW_SIZE
+LI A0, 0
+BEQ A2, ZERO, ::__LBL_FREE_AND_EXIT
+; get old block size
+LW A3, -4(A1)
+NEG A3
+LI T1, __HEAP_START + __HEAP_SIZE
+
+:::__LBL_CORRECT_OLD_BLOCK
+; here A1 - old block address, A2 - new block size, A3 - old block size (+ next empty blocks sizes)
+BLT A3, A2, ::__LBL_TRY_INCREASE
+; correct the old block
+MV A0, A1
+SUB A3, A3, A2 ; old_size - new_size
+ADDI A3, A3, -4
+BLT A3, ZERO, ::__LBL_EXIT
+; create new empty block
+NEG A2
+SW A2, -4(A1)
+SUB A1, A1, A2
+SW A3, 0(A1)
+J ::__LBL_EXIT
+
+:::__LBL_TRY_INCREASE
+; here A1 - old block address, A2 - new block size, A3 - old block size (+ next empty blocks sizes)
+ADD A0, A1, A3
+BEQ A0, T1, ::__LBL_ALLOC_NEW
+LW A0, 0(A0) ; next block header
+BLT A0, ZERO, ::__LBL_ALLOC_NEW
+ADD A3, A3, A0
+ADDI A3, A3, 4
+J ::__LBL_CORRECT_OLD_BLOCK
+
+:::__LBL_ALLOC_NEW
+; here A1 - old block address, A2 - new block size
+MV A3, A1
+MV A1, A2
+CALL __LIB_MEM_ALC
+BEQ A0, ZERO, ::__LBL_EXIT
+MV A1, A0
+MV A2, A3
+LW A3, -4(A2)
+NEG A3
+CALL __LIB_MEM_CPY
+MV A1, A2
+
+:::__LBL_FREE_AND_EXIT
+MV A3, A0
+CALL __LIB_MEM_FRE
+MV A0, A3
+
+:::__LBL_EXIT
+LW A1, 0(SP)
+LW A2, 4(SP)
+LW A3, 8(SP)
+LW RA, 12(SP)
+ADDI SP, SP, 16
+RET
+ENDASM

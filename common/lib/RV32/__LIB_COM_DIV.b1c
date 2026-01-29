@@ -1,0 +1,50 @@
+; divides two signed 32-bit integers
+; A1 - dividend, A2 - divisor, A3 - 0: get quotient, 1: get remainder, returns 32-bit quotient or remainder in A0
+:__LIB_COM_DIV
+ASM
+ADDI SP, SP, -16
+SW A2, 12(SP)  ; divisor
+SW A1, 8(SP)
+SW S1, 4(SP)
+
+MV T1, A1 ; dividend/quotient
+LI S1, -1 ; neg flag
+LI A0, 0  ; remainder
+LI A1, -1 ; counter
+
+BGE T1, ZERO, ::__LBL_CHECK_DIVISOR
+NEG T1
+ADDI S1, S1, 1
+
+:::__LBL_CHECK_DIVISOR
+BGE A2, ZERO, ::__LBL_DIV_LOOP
+NEG A2
+BNE A3, ZERO, ::__LBL_DIV_LOOP
+ADDI S1, S1, 1
+
+:::__LBL_DIV_LOOP
+SLTI T2, T1, 0 ; T2 = (T1 < 0)
+SLLI T1, T1, 1
+SLLI A0, A0, 1
+ADD A0, A0, T2
+BLT A0, A2, ::__LBL_TEST_LOOP
+SUB A0, A0, A2
+ADDI T1, T1, 1
+
+:::__LBL_TEST_LOOP
+SLLI A1, A1, 1
+BNE A1, ZERO, ::__LBL_DIV_LOOP
+BNE A3, ZERO, ::__LBL_REM_FN ; remainder is already in A0
+MV A0, T1 ; get quotient
+
+:::__LBL_REM_FN
+BNE S1, ZERO, ::__LBL_POS_QUOT
+SUB A0, ZERO, A0
+
+:::__LBL_POS_QUOT
+LW S1, 4(SP)
+LW A1, 8(SP)
+LW A2, 12(SP)
+ADDI SP, SP, 16
+RET
+ENDASM

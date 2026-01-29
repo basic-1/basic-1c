@@ -218,6 +218,24 @@ Expressions on the left and right sides of the comparison operators can be simpl
 `:__VAR_B` - the variable address will be a multiple of 4  
 `DB`  
   
+## .DEF directive  
+  
+`.DEF` directive creates new symbolic constant and assigns it a numeric value. A constant with omitted expression part is assigned zero value. After definition the constant can be used in expressions.  
+  
+**Syntax:**  
+`.DEF <constant_name> [<expression>]`  
+**Examples:**  
+`.DEF PORTA_BASE 0x5000`  
+`.DEF PORTA_DDR PORTA_BASE + 2`  
+...  
+...  
+...  
+`.IF DEFINED(PORTA_DDR)`  
+`MOV (PORTA_DDR), 0`  
+`.ELSE`  
+`.ERROR "PORTA_DDR is not defined"`  
+`.ENDIF`  
+  
 ## .ERROR directive  
   
 `.ERROR` directive emits a specified error message and stops assembling.  
@@ -234,24 +252,6 @@ Expressions on the left and right sides of the comparison operators can be simpl
 Executable file name of the assembler is `a1stm8.exe` or `a1stm8` depending on target platform. Command line syntax:  
 `a1stm8 [options] <filename> [<filename1> .. <filenameN>]`  
 Here `<filename>` .. `<filenameN>` are names of source files. Possible options are listed below.  
-  
-## .DEF directive  
-  
-`.DEF` directive creates new symbolic constant and assigns it a numeric value. A constant with omitted expression part is assigned zero value. After definition the constant can be used in expressions.  
-  
-**Syntax:**  
-`DEF <constant_name> [<expression>]`  
-**Examples:**  
-`.DEF PORTA_BASE 0x5000`  
-`.DEF PORTA_DDR PORTA_BASE + 2`  
-...  
-...  
-...  
-`.IF DEFINED(PORTA_DDR)`  
-`MOV (PORTA_DDR), 0`  
-`.ELSE`  
-`.ERROR "PORTA_DDR is not defined"`  
-`.ENDIF`  
   
 ## Command-line options  
   

@@ -1,0 +1,91 @@
+INI,__LIB_ERR_LAST_ERR
+
+; concatenates two strings
+; can raise B1C_RTE_STR_TOOLONG or no memory error
+; A1 - first string address, A2 - second string address, returns address of a concatenated string in A0
+:__LIB_STR_APD
+ASM
+ADDI SP, SP, -16
+SW RA, 12(SP)
+SW A3, 8(SP)
+
+BEQ A1, ZERO, ::__LBL_RET_STR_A2
+LBU A0, 1(A1)
+BNE A0, ZERO, ::__LBL_CHK_STR2
+
+; the first string is empty: just return the second one
+:::__LBL_RET_STR_A2
+CALL __LIB_STR_RLS
+MV A0, A2
+J ::__LBL_EXIT
+
+:::__LBL_CHK_STR2
+SW A0, 4(SP) ; first string length
+SW A1, 0(SP)
+MV A1, A2
+LW A2, 0(SP)
+BEQ A1, ZERO, ::__LBL_RET_STR_A2
+LBU A0, 1(A1)
+BEQ A0, ZERO, ::__LBL_RET_STR_A2
+
+MV A2, A1
+LW A1, 0(SP)
+SW A0, 0(SP) ; second string length
+LW A3, 4(SP)
+ADD A0, A0, A3 ; new string length
+LI A3, B1C_MAX_STR_LEN
+BGEU A3, A0, ::__LBL_ALLOC_MEM
+LI A0, B1C_RTE_STR_TOOLONG
+SB A0, __LIB_ERR_LAST_ERR
+CALL __LIB_ERR_HANDLER
+LI A3, 0
+J ::__LBL_RLS_RET
+
+:::__LBL_ALLOC_MEM
+MV A3, A1 ; save first string address
+ADDI A1, A0, 2
+CALL __LIB_MEM_ALC
+MV T1, A1 ; new string length + 2
+MV A1, A3 ; restore first string address
+LI A3, 0
+BEQ A0, ZERO, ::__LBL_RLS_RET
+; set string usage counter and length
+LI A3, 1
+SB A3, 0(A0)
+ADDI A3, T1, -2
+SB A3, 1(A0)
+
+; copy the second string
+LW A3, 0(SP) ; second string length
+SW A1, 0(SP) ; save first string address
+ADDI A2, A2, 2 ; string data address
+ADDI A1, A0, 2
+LW A0, 4(SP) ; first string length
+ADD A1, A1, A0 ; destination address
+CALL __LIB_MEM_CPY
+; copy the first string
+LW A3, 4(SP) ; first string length
+ADDI A2, A2, -2
+SW A2, 4(SP) ; save second string address
+LW A2, 0(SP) ; first string address
+ADDI A2, A2, 2 ; source address
+SUB A1, A1, A3 
+CALL __LIB_MEM_CPY
+ADDI A3, A0, -2
+LW A1, 0(SP) ; first string address
+LW A2, 4(SP) ; second string address
+
+:::__LBL_RLS_RET
+CALL __LIB_STR_RLS
+SW A1, 0(SP)
+MV A1, A2
+CALL __LIB_STR_RLS
+LW A1, 0(SP)
+MV A0, A3
+
+:::__LBL_EXIT
+LW A3, 8(SP)
+LW RA, 12(SP)
+ADDI SP, SP, 16
+RET
+ENDASM

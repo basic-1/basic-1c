@@ -1425,13 +1425,6 @@ static void load_RV32_instructions()
 	}
 }
 
-/*
-pseudo-instructions to implement:
-jr rs
-jal offset or 20-bit call???
-jalr rs or call rs
-*/
-
 
 static std::map<std::wstring, int32_t> _registers;
 
@@ -1940,7 +1933,7 @@ int main(int argc, char **argv)
 				continue;
 			}
 
-			// allow special pseudo-instructions to fix 12-bit offsets
+			// enable pseudo-instructions with different argument sizes and proper instruction selection algorithm
 			if ((argv[i][0] == '-' || argv[i][0] == '/') &&
 				(argv[i][1] == 'F' || argv[i][1] == 'f') &&
 				argv[i][2] == 0)
@@ -2170,7 +2163,7 @@ int main(int argc, char **argv)
 
 	_global_settings.SetTargetName("RV32");
 	_global_settings.SetMCUName(MCU_name);
-	_global_settings.SetLibDir(lib_dir);
+	_global_settings.SetLibDirRoot(lib_dir);
 
 	// load target-specific stuff
 	if(!select_target(global_settings))
@@ -2200,15 +2193,15 @@ int main(int argc, char **argv)
 		std::fputs(" [options] filename [filename1 filename2 ... filenameN]\n", stderr);
 		std::fputs("options:\n", stderr);
 		std::fputs("-d or /d - print error description\n", stderr);
-		std::fputs("-ex or /ex - specify MCU extensions (default IC), e.g.: -ex EC\n", stderr);
+		std::fputs("-ex or /ex - specify RISC-V MCU extensions (default IC), e.g.: -ex EC\n", stderr);
 		std::fputs("-l or /l - libraries directory, e.g. -l \"../lib\"\n", stderr);
 		std::fputs("-m or /m - specify MCU name, e.g. -m CH32V003F4\n", stderr);
 		std::fputs("-mu or /mu - print memory usage\n", stderr);
 		std::fputs("-o or /o - specify output file name, e.g.: -o out.ihx\n", stderr);
-		std::fputs("-ram_size or /ram_size - specify RAM size, e.g.: -ram_size 0x400\n", stderr);
+		std::fputs("-ram_size or /ram_size - specify RAM size, e.g.: -ram_size 0x800\n", stderr);
 		std::fputs("-ram_start or /ram_start - specify RAM starting address, e.g.: -ram_start 0x20000000\n", stderr);
-		std::fputs("-rom_size or /rom_size - specify ROM size, e.g.: -rom_size 0x2000\n", stderr);
-		std::fputs("-rom_start or /rom_start - specify ROM starting address, e.g.: -rom_start 0x8000000\n", stderr);
+		std::fputs("-rom_size or /rom_size - specify ROM size, e.g.: -rom_size 0x4000\n", stderr);
+		std::fputs("-rom_start or /rom_start - specify ROM starting address, e.g.: -rom_start 0x0\n", stderr);
 		std::fputs("-t or /t - set target (default RV32), e.g.: -t RV32\n", stderr);
 		std::fputs("-v or /v - show assembler version\n", stderr);
 		return 1;
@@ -2222,6 +2215,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 
+	_global_settings.InitLibDirs();
 
 	// read settings file if specified
 	if(!MCU_name.empty())
@@ -2247,6 +2241,9 @@ int main(int argc, char **argv)
 		{
 			a1_print_warning(A1_T_WARNING::A1_WRN_WUNKNMCU, -1, MCU_name, _global_settings.GetPrintWarningDesc());
 		}
+
+		// initialize library directories a time more to take into account additional ones read from cfg file
+		_global_settings.InitLibDirs();
 	}
 
 

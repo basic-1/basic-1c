@@ -1,0 +1,16 @@
+; initializes memory region
+; A1 - memory address, A2 - bytes count to clear, A3 - byte to fill memory
+; returns initial memory address in A0
+:__LIB_MEM_SET
+ASM
+ADD A0, A1, A2
+BEQ A2, ZERO, ::__LBL_EXIT
+
+:::__LBL_LOOP
+ADDI A0, A0, -1
+SB A3, 0(A0)
+BNE A0, A1, ::__LBL_LOOP
+
+:::__LBL_EXIT
+RET
+ENDASM

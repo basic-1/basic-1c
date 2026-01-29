@@ -1,0 +1,93 @@
+INI,__INI_MEM
+INI,__LIB_ERR_LAST_ERR
+
+; allocates memory in heap
+; can raise B1C_RTE_MEM_NOT_ENOUGH error
+; A1 - requested memory block size, returns allocated memory block address in A0
+:__LIB_MEM_ALC
+ASM
+.IF __HEAP_SIZE < 4
+.ERROR "insufficient heap size"
+.ENDIF
+
+LI A0, 0
+BEQ A1, ZERO, ::__LBL_RET
+ADDI SP, SP, -16
+SW A3, 12(SP)
+SW A2, 8(SP)
+SW A1, 4(SP)
+SW RA, 0(SP)
+; make block size a multiple of 4
+ADDI A1, A1, 3
+ANDI A1, A1, -4 ; -4 == NOT 3
+LA A0, __HEAP_START ; current block address
+LI A3, 0 ; previous block address
+
+:::__LBL_NEXT_BLOCK
+LI A2, __HEAP_START + __HEAP_SIZE
+BNE A0, A2, ::__LBL_CHECK_BLOCK
+; no memory
+LI A0, B1C_RTE_MEM_NOT_ENOUGH
+SB A0, __LIB_ERR_LAST_ERR
+CALL __LIB_ERR_HANDLER
+LI A0, 0
+J ::__LBL_EXIT
+
+:::__LBL_CHECK_BLOCK
+LW A2, 0(A0)
+BGE A2, ZERO, ::__LBL_FREE_BLOCK
+; the block is busy, skip it
+NEG A2
+ADDI A0, A0, 4
+ADD A0, A0, A2
+LI A3, 0
+J ::__LBL_NEXT_BLOCK
+
+:::__LBL_FREE_BLOCK
+BGE A2, A1, ::__LBL_BLOCK_FOUND
+; the block is free but too small
+BNE A3, ZERO, ::__LBL_MERGE_FREE_BLOCKS
+MV A3, A0 ; remember the empty block
+ADDI A0, A0, 4
+ADD A0, A0, A2
+J ::__LBL_NEXT_BLOCK
+
+:::__LBL_MERGE_FREE_BLOCKS
+MV A0, A3
+LW A3, 0(A0)
+ADD A2, A2, A3
+ADDI A2, A2, 4
+SW A2, 0(A0)
+LI A3, 0
+J ::__LBL_NEXT_BLOCK
+
+:::__LBL_BLOCK_FOUND
+; occupy the found block
+SUB A3, A2, A1 ; check if the found block can be split in two blocks
+ADDI A3, A3, -4 ; A3 = found block size - required size - 4
+BLT A3, ZERO, ::__LBL_MARK_BUSY
+; split found block in two parts
+ADD A2, A0, A1
+SW A3, 4(A2)
+SW A1, 0(A0)
+
+:::__LBL_MARK_BUSY
+LW A2, 0(A0)
+NEG A2
+SW A2, 0(A0)
+ADDI A0, A0, 4
+MV A2, A1
+MV A1, A0
+LI A3, 0
+CALL __LIB_MEM_SET
+
+:::__LBL_EXIT
+LW RA, 0(SP)
+LW A1, 4(SP)
+LW A2, 8(SP)
+LW A3, 12(SP)
+ADDI SP, SP, 16
+
+:::__LBL_RET
+RET
+ENDASM

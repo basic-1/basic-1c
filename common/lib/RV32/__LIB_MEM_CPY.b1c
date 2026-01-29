@@ -1,0 +1,20 @@
+; copies data from one memory location to another
+; A1 - destination address, A2 - source address, A3 - bytes to copy, returns destination address in A0
+:__LIB_MEM_CPY
+ASM
+BEQ A3, ZERO, ::__LBL_EXIT
+MV T1, A1
+MV T2, A2
+
+:::__LBL_LOOP
+LB A0, 0(T2)
+SB A0, 0(T1)
+ADDI T1, T1, 1
+ADDI T2, T2, 1
+SUB A0, T1, A1
+BNE A0, A3, ::__LBL_LOOP
+
+:::__LBL_EXIT
+MV A0, A1
+RET
+ENDASM

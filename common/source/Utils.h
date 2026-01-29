@@ -203,6 +203,7 @@ protected:
 	bool _multiplication;
 	bool _division;
 
+	std::string _lib_dir_root;
 	std::vector<std::string> _lib_dirs;
 
 	std::map<std::wstring, std::wstring> _settings;
@@ -337,7 +338,8 @@ public:
 	std::string GetTargetName() const { return _target_name; }
 
 	void SetMCUName(const std::string &MCU_name) { _MCU_name = MCU_name; }
-	void SetLibDir(const std::string &lib_dir);
+	void SetLibDirRoot(const std::string &lib_dir);
+	void InitLibDirs();
 	std::string GetLibFileName(const std::string &file_name, const std::string &ext) const;
 
 	B1_T_ERROR ReadIoSettings(const std::string &file_name);

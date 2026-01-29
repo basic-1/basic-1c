@@ -1492,7 +1492,7 @@ int main(int argc, char **argv)
 
 	_global_settings.SetTargetName("STM8");
 	_global_settings.SetMCUName(MCU_name);
-	_global_settings.SetLibDir(lib_dir);
+	_global_settings.SetLibDirRoot(lib_dir);
 
 	// load target-specific stuff
 	if(!select_target(global_settings))
@@ -1542,6 +1542,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 
+	_global_settings.InitLibDirs();
 
 	// read settings file if specified
 	if(!MCU_name.empty())
@@ -1560,6 +1561,9 @@ int main(int argc, char **argv)
 		{
 			a1_print_warning(A1_T_WARNING::A1_WRN_WUNKNMCU, -1, MCU_name, _global_settings.GetPrintWarningDesc());
 		}
+
+		// initialize library directories a time more to take into account additional ones read from cfg file
+		_global_settings.InitLibDirs();
 	}
 
 

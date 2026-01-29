@@ -1,0 +1,9 @@
+ASM
+; set SYSCLK frequency equal to 24 MHz (disable prescaler)
+LW A0, RCC_CFGR0
+ANDI A0, A0, !RCC_CFGR0_HPRE
+ORI A0, A0, RCC_CFGR0_HPRE_OFF
+SW A0, RCC_CFGR0
+; configure interrupt vector table mode and base address (zero address)
+CSRRWI ZERO, MTVEC, MTVEC_MODE_VECTORED | MTVEC_VTID_JMP
+ENDASM

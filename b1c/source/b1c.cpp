@@ -11665,7 +11665,7 @@ int main(int argc, char **argv)
 
 	_global_settings.SetTargetName(target_name);
 	_global_settings.SetMCUName(MCU_name);
-	_global_settings.SetLibDir(lib_dir);
+	_global_settings.SetLibDirRoot(lib_dir);
 
 	// load target-specific stuff
 	if(!select_target(global_settings))
@@ -11732,6 +11732,8 @@ int main(int argc, char **argv)
 		src_files.push_back(argv[j]);
 	}
 
+	_global_settings.InitLibDirs();
+
 	if(MCU_name.empty())
 	{
 		if(list_devs || list_cmds)
@@ -11745,10 +11747,10 @@ int main(int argc, char **argv)
 		// read file with MCU-specific constants, variables, etc.
 		bool cfg_file_read = false;
 
-		auto file_name = _global_settings.GetLibFileName(MCU_name, ".io");
+		auto file_name = _global_settings.GetLibFileName(MCU_name, ".cfg");
 		if(!file_name.empty())
 		{
-			auto err = static_cast<B1C_T_ERROR>(_global_settings.ReadIoSettings(file_name));
+			auto err = static_cast<B1C_T_ERROR>(_global_settings.Read(file_name));
 			if(err != B1C_T_ERROR::B1C_RES_OK)
 			{
 				b1c_print_error(err, -1, file_name, print_err_desc);
@@ -11757,10 +11759,13 @@ int main(int argc, char **argv)
 			cfg_file_read = true;
 		}
 
-		file_name = _global_settings.GetLibFileName(MCU_name, ".cfg");
+		// initialize library directories a time more to take into account additional ones read from cfg file
+		_global_settings.InitLibDirs();
+
+		file_name = _global_settings.GetLibFileName(MCU_name, ".io");
 		if(!file_name.empty())
 		{
-			auto err = static_cast<B1C_T_ERROR>(_global_settings.Read(file_name));
+			auto err = static_cast<B1C_T_ERROR>(_global_settings.ReadIoSettings(file_name));
 			if(err != B1C_T_ERROR::B1C_RES_OK)
 			{
 				b1c_print_error(err, -1, file_name, print_err_desc);

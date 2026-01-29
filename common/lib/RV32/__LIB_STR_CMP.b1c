@@ -1,0 +1,69 @@
+; A1 - first string address, A2 - second string address, returns result in A0
+; (signed 32-bit value, negative value if str1 < str2, 0 if str1 == str2, positive value if str1 > str2)
+:__LIB_STR_CMP
+ASM
+ADDI SP, SP, -16
+SW S1, 12(SP)
+SW A3, 8(SP)
+SW A2, 4(SP)
+SW A1, 0(SP)
+
+LI S1, 0
+BEQ A1, ZERO, ::__LBL_STR1_EMPTY
+LBU S1, 1(A1) ; first string length
+
+:::__LBL_STR1_EMPTY
+LI T1, 0
+BEQ A2, ZERO, ::__LBL_STR2_EMPTY
+LBU T1, 1(A2) ; second string length
+
+:::__LBL_STR2_EMPTY
+LI T2, 26
+
+:::__LBL_CMP_LOOP
+BEQ S1, ZERO, ::__LBL_STR_END
+BNE T1, ZERO, ::__LBL_CMP_NEXT
+
+:::__LBL_STR_END
+SUB A0, S1, T1
+J ::__LBL_EXIT
+
+:::__LBL_CMP_NEXT
+ADDI S1, S1, -1
+ADDI T1, T1, -1
+
+LBU A0, 2(A1)
+ADDI A1, A1, 1
+ADDI A0, A0, -97 ; small 'a' character code
+BGEU A0, T2, ::__LBL_NOT_SMALL_LETTER1
+ADDI A0, A0, -32
+
+:::__LBL_NOT_SMALL_LETTER1
+ADDI A0, A0, 97
+LBU A3, 2(A2)
+ADDI A2, A2, 1
+ADDI A3, A3, -97
+BGEU A3, T2, ::__LBL_NOT_SMALL_LETTER2
+ADDI A3, A3, -32
+
+:::__LBL_NOT_SMALL_LETTER2
+ADDI A3, A3, 97
+SUB A0, A0, A3
+BEQ A0, ZERO, ::__LBL_CMP_LOOP
+
+:::__LBL_EXIT
+LW S1, 12(SP)
+SW RA, 12(SP)
+MV A3, A0
+LW A1, 4(SP)
+CALL __LIB_STR_RLS
+LW A1, 0(SP)
+CALL __LIB_STR_RLS
+MV A0, A3
+
+LW A2, 4(SP)
+LW A3, 8(SP)
+LW RA, 12(SP)
+ADDI SP, SP, 16
+RET
+ENDASM

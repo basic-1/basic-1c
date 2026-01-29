@@ -1,0 +1,24 @@
+; releases all array strings
+; A1 - string array data address, A2 - array size (in bytes)
+:__LIB_STR_ARR_DAT_RLS
+ASM
+BEQ A2, ZERO, ::__LBL_RET
+ADDI SP, SP, -16
+SW A1, 12(SP)
+SW RA, 8(SP)
+LI A0, 0 ; offset
+
+:::__LBL_RLS_LOOP
+SW A0, 4(SP)
+CALL __LIB_STR_RLS
+LW A0, 4(SP)
+ADDI A1, A1, 4
+ADDI A0, A0, 4
+BNE A0, A2, ::__LBL_RLS_LOOP
+
+LW RA, 8(SP)
+LW A1, 12(SP)
+ADDI SP, SP, 16
+:::__LBL_RET
+RET
+ENDASM

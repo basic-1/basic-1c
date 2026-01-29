@@ -1,0 +1,49 @@
+; calculates power of a 32-bit integer number
+; A1 - base, A2 - exponent, returns 32-bit power in A0
+:__LIB_COM_POW_M
+ASM
+LI A0, 1
+BEQ A2, ZERO, ::__LBL_RET ; x ^ 0 = 1
+LI A0, 0
+BEQ A1, ZERO, ::__LBL_RET ; 0 ^ y = 0, y != 0
+BLT ZERO, A2, ::__LBL_POS_EXP ; x ^ y, y > 0
+LI A0, 1
+BEQ A1, A0, ::__LBL_RET ; 1 ^ y = 1, y < 0
+LI A0, -1
+BEQ A1, A0, ::__LBL_PWR_M1 ; -1 ^ y, y < 0
+LI A0, 0
+J __LBL_RET ; x ^ y = 0, y < 0, x != 1, x != -1
+
+:::__LBL_PWR_M1
+LI A0, 1
+AND A0, A0, A2
+BEQ A0, ZERO, ::__LBL_RET ; -1 ^ y = 1, y < 0, y - even number
+LI A0, -1
+J __LBL_RET ; -1 ^ y = 1, y < 0, y - odd number
+
+:::__LBL_POS_EXP
+ADDI SP, SP, -16
+SW A2, 4(SP)
+SW A1, 0(SP)
+
+LI A0, 1 ; result
+
+:::__LBL_EXP_LOOP
+ANDI T1, A2, 1
+BEQ T1, ZERO, ::__LBL_NXT_BIT
+MUL A0, A0, A1 ; result *= base
+
+:::__LBL_NXT_BIT
+SRLI A2, A2, 1 ; exp >>= 1
+BEQ A2, ZERO, ::__LBL_EXIT
+MUL A1, A1, A1 ; base *= base
+J ::__LBL_EXP_LOOP
+
+:::__LBL_EXIT
+LW A1, 0(SP)
+LW A2, 4(SP)
+ADDI SP, SP, 16
+
+:::__LBL_RET
+RET
+ENDASM
