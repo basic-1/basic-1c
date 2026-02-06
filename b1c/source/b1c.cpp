@@ -1819,7 +1819,11 @@ B1_T_ERROR B1FileCompiler::st_gosub()
 		return B1_RES_ESYNTAX;
 	}
 
-	emit_command(L"CALL", get_name_space_prefix() + L"__ULB_" + std::to_wstring(b1_next_line_num));
+	auto label_name = get_name_space_prefix() + L"__ULB_" + std::to_wstring(b1_next_line_num);
+
+	emit_command(L"CALL", label_name);
+
+	_sub_labels.insert(label_name);
 
 	err = b1_tok_get(b1_curr_prog_line_offset, 0, &td);
 	if(err != B1_RES_OK)
@@ -4679,8 +4683,8 @@ B1C_T_ERROR B1FileCompiler::remove_duplicate_labels(bool &changed)
 
 	for(auto cmdi = cbegin(); cmdi != cend(); cmdi++)
 	{
-		// do not take into account functions
-		if(B1CUtils::is_label(*cmdi) && !B1CUtils::is_def_fn(*cmdi))
+		// do not take into account functions and subroutines
+		if(B1CUtils::is_label(*cmdi) && !B1CUtils::is_def_fn(*cmdi) && _sub_labels.find(cmdi->cmd) == _sub_labels.cend())
 		{
 			range.push_back(std::make_pair(cmdi, (_req_labels.find(cmdi->cmd) != _req_labels.cend())));
 		}

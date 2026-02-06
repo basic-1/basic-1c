@@ -1,6 +1,6 @@
 /*
  A1 assembler
- Copyright (c) 2021-2025 Nikolay Pletnev
+ Copyright (c) 2021-2026 Nikolay Pletnev
  MIT license
 
  a1.h: basic assembler classes
@@ -322,7 +322,7 @@ class GenStmt
 {
 protected:
 	int _line_num;
-	std::vector<A1_T_WARNING> _warnings;
+	std::set<A1_T_WARNING> _warnings;
 
 	int32_t _size;
 	int32_t _address;
@@ -363,7 +363,7 @@ public:
 		return _line_num;
 	}
 
-	const std::vector<A1_T_WARNING> &GetWarnings() const
+	const std::set<A1_T_WARNING> &GetWarnings() const
 	{
 		return _warnings;
 	}

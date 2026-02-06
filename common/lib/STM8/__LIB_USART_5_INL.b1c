@@ -1,0 +1,12 @@
+INI,__LIB_USART_ZW
+
+; configure USART zone width
+ASM
+.IF {ARG_TYPE} == I
+MOV (__LIB_USART_ZW), {!VALUE}
+.ELIF {ARG_TYPE} == M
+MOV (__LIB_USART_ZW), ({!VALUE})
+.ELSE
+LD (__LIB_USART_ZW), A
+.ENDIF
+ENDASM

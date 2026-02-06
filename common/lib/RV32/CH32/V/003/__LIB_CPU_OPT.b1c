@@ -1,0 +1,2 @@
+; bits 0..1 - SYSCLK frequency: 0 - 8 MHz, 1 - 16 MHz, 2 - 24 MHz (default), 3 - 48 MHz
+=,2<BYTE>,__LIB_CPU_OPT<BYTE>

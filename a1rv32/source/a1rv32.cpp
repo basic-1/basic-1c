@@ -1,6 +1,6 @@
 /*
  RISC-V 32-bit assembler
- Copyright (c) 2024-2025 Nikolay Pletnev
+ Copyright (c) 2024-2026 Nikolay Pletnev
  MIT license
 
  a1rv32.cpp: RISC-V 32-bit assembler
@@ -1112,6 +1112,16 @@ static void load_RV32_instructions()
 	ADD_INST(L"NEGXV,XV",		L"20:7 {2:4:5} 0:5 0:3 {1:4:5} 33:7", RV32ArgType::AT_RV32_REG, RV32ArgType::AT_RV32_REG);
 	// NEG rs/rd: SUB rs/rd, X0, rs/rd
 	ADD_INST(L"NEGXV",			L"20:7 {1:4:5} 0:5 0:3 {1:4:5} 33:7", RV32ArgType::AT_RV32_REG);
+	// LB/LH/LW/LBU/LHU rd, <address12>: LB/LH/LW/LBU/LHU rd, <address12>(X0)
+	ADD_INST(L"LBXV,V", L"{2:B:4} {2:7:8} 0:5 0:3 {1:4:5} 3:7", RV32ArgType::AT_RV32_REG, RV32ArgType::AT_RV32_12BIT_VAL);
+	ADD_INST(L"LHXV,V", L"{2:B:4} {2:7:8} 0:5 1:3 {1:4:5} 3:7", RV32ArgType::AT_RV32_REG, RV32ArgType::AT_RV32_12BIT_VAL);
+	ADD_INST(L"LWXV,V", L"{2:B:4} {2:7:8} 0:5 2:3 {1:4:5} 3:7", RV32ArgType::AT_RV32_REG, RV32ArgType::AT_RV32_12BIT_VAL);
+	ADD_INST(L"LBUXV,V", L"{2:B:4} {2:7:8} 0:5 4:3 {1:4:5} 3:7", RV32ArgType::AT_RV32_REG, RV32ArgType::AT_RV32_12BIT_VAL);
+	ADD_INST(L"LHUXV,V", L"{2:B:4} {2:7:8} 0:5 5:3 {1:4:5} 3:7", RV32ArgType::AT_RV32_REG, RV32ArgType::AT_RV32_12BIT_VAL);
+	// SB/SH/SW rs, <address12>: SB/SH/SW rs, <address12>(X0)
+	ADD_INST(L"SBXV,V", L"{2:B:7} {1:4:5} 0:5 0:3 {2:4:5} 23:7", RV32ArgType::AT_RV32_REG, RV32ArgType::AT_RV32_12BIT_VAL);
+	ADD_INST(L"SHXV,V", L"{2:B:7} {1:4:5} 0:5 1:3 {2:4:5} 23:7", RV32ArgType::AT_RV32_REG, RV32ArgType::AT_RV32_12BIT_VAL);
+	ADD_INST(L"SWXV,V", L"{2:B:7} {1:4:5} 0:5 2:3 {2:4:5} 23:7", RV32ArgType::AT_RV32_REG, RV32ArgType::AT_RV32_12BIT_VAL);
 
 	if(_global_settings.GetCompressed() && global_settings.GetAutoCompInst())
 	{
@@ -1647,6 +1657,18 @@ protected:
 			_size = last_size;
 			_refs = last_refs;
 		}
+		else
+		if(!inst_found)
+		{
+			if(_inst != nullptr)
+			{
+				_warnings.insert(A1_T_WARNING::A1_WRN_WINTOUTRANGE);
+			}
+			else
+			{
+				return A1_T_ERROR::A1_RES_EINVINST;
+			}
+		}
 
 		return A1_T_ERROR::A1_RES_OK;
 	}
@@ -1683,7 +1705,7 @@ protected:
 				{
 					return A1_T_ERROR::A1_RES_ERELOUTRANGE;
 				}
-				_warnings.push_back(A1_T_WARNING::A1_WRN_WINTOUTRANGE);
+				_warnings.insert(A1_T_WARNING::A1_WRN_WINTOUTRANGE);
 			}
 		}
 

@@ -1,0 +1,25 @@
+INI,__LIB_USART_OPT
+INI,__LIB_USART_POS
+INI,__LIB_USART_NL_LEN
+INI,__LIB_USART_NL_CHR1
+INI,__LIB_USART_NL_CHR2
+
+; writes new line sequence to USART
+:__LIB_USART_NL
+ASM
+; do not write anything if TX is disabled
+BTJF (__LIB_USART_OPT), 3, ::__LBL_EXIT
+LD A, (__LIB_USART_NL_LEN)
+JREQ ::__LBL_EXIT
+:::__LBL_WAIT_TX_READY1
+BTJF (USART_SR), USART_SR_TXE_POS, ::__LBL_WAIT_TX_READY1
+MOV (USART_DR), (__LIB_USART_NL_CHR1) ; the first new line character
+DEC A
+JREQ ::__LBL_EXIT
+:::__LBL_WAIT_TX_READY2
+BTJF (USART_SR), USART_SR_TXE_POS, ::__LBL_WAIT_TX_READY2
+MOV (USART_DR), (__LIB_USART_NL_CHR2) ; the second new line character
+:::__LBL_EXIT
+CLR (__LIB_USART_POS)
+RET
+ENDASM

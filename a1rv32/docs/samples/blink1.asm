@@ -67,7 +67,7 @@ ORI A0, A0, 3 << 8
 SW A0, GPIOD_CFGLR
 
 ; enable interrupts globally
-CSRRWI ZERO, MSTATUS, MSTATUS_MIE
+CSRRSI ZERO, MSTATUS, MSTATUS_MIE
 
 ; enable TIM2 timer module clock
 LW A0, RCC_APB1PCENR

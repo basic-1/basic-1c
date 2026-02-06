@@ -1,0 +1,55 @@
+; TIM2 PERIODMS <value>
+; X - period in ms
+; Maximum value of the period depends on the current CPU frequency (fMASTER), e.g.
+; for fMASTER = 16 MHz the value is 524 ms, for fMASTER = 8 MHz: 1048 ms, etc.
+
+INI,__LIB_CPU_OPT
+
+:__LIB_TIM2_2_CALL
+ASM
+; HSI
+; period_ms * 125
+PUSHW X
+
+LD A, 7
+CLRW Y
+
+; Y:X = Y:X << 7
+:::__LBL_DO_SHIFT
+SLAW X
+RLCW Y
+DEC A
+JRNE ::__LBL_DO_SHIFT
+
+; Y:X = Y:X - 3 * period_ms
+LD A, 3
+:::__LBL_PERIODMS_SUB3
+SUBW X, (1, SP)
+JRNC ::__LBL_NO_CARRY
+DECW Y
+:::__LBL_NO_CARRY
+DEC A
+JRNE ::__LBL_PERIODMS_SUB3
+
+ADDW SP, 2
+
+LD A, (__LIB_CPU_OPT)
+AND A, 3
+JREQ ::__LBL_PERIODMS_SET_REGS ; 16 MHz
+
+; Y:X = Y:X >> A
+:::__LBL_CALC_CNT_VAL
+SRLW Y
+RRCW X
+DEC A
+JRNE ::__LBL_CALC_CNT_VAL
+
+:::__LBL_PERIODMS_SET_REGS
+MOV (TIM2_PSCR), TIM2_PSCR_PSC_DIV128 ; use DIV128 prescaler
+DECW X
+LD A, XH
+LD (TIM2_ARRH), A
+LD A, XL
+LD (TIM2_ARRL), A
+RET
+ENDASM

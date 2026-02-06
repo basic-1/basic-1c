@@ -1,6 +1,6 @@
 /*
  STM8 assembler
- Copyright (c) 2021-2025 Nikolay Pletnev
+ Copyright (c) 2021-2026 Nikolay Pletnev
  MIT license
 
  a1stm8.cpp: STM8 assembler
@@ -1098,7 +1098,7 @@ protected:
 			{
 				return A1_T_ERROR::A1_RES_ERELOUTRANGE;
 			}
-			_warnings.push_back(A1_T_WARNING::A1_WRN_WINTOUTRANGE);
+			_warnings.insert(A1_T_WARNING::A1_WRN_WINTOUTRANGE);
 		}
 
 		value = addr;

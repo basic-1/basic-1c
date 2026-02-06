@@ -1,0 +1,25 @@
+REM Convert character to its ASCII code and vice versa
+
+IOCTL UART, ENABLE
+IOCTL UART, START
+
+WHILE 1 > 0
+INPUT "1 - Convert character to ASCII code" + CHR$(13) + "2 - Convert ASCII code to character" + CHR$(13), S$
+IF S$ = "1" THEN GOSUB 1000
+ELSEIF S$ = "2" THEN GOSUB 2000
+ELSE PRINT "Wrong command"
+WEND
+
+END
+
+1000
+INPUT "Enter a character: ", S$
+IF LEN(S$) = 0 THEN PRINT "Empty string"
+ELSE PRINT ASC(S$)
+RETURN
+
+2000
+DIM AC AS BYTE
+INPUT "Enter ASCII code: ", AC
+PRINT CHR$(AC)
+RETURN

@@ -1,0 +1,2 @@
+; bits 0..1 - fCPU = fMASTER frequency: 0 - 16 MHz (HSI, default), 1 - 8 MHz (HSI), 2 - 4 MHz (HSI), 3 - 2 MHz (HSI)
+=,0<BYTE>,__LIB_CPU_OPT<BYTE>

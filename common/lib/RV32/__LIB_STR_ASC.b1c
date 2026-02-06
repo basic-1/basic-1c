@@ -1,0 +1,29 @@
+INI,__LIB_ERR_LAST_ERR
+
+; returns numeric code for the first character of the specified string
+; A1 - string address, returns character code in A0
+:__LIB_STR_ASC
+ASM
+ADDI SP, SP, -16
+SW RA, 12(SP)
+BEQ A1, ZERO, ::__LBL_EMPTY
+LBU A0, 1(A1)
+BEQ A0, ZERO, ::__LBL_EMPTY
+LBU A0, 2(A1)
+J ::__LBL_EXIT
+
+:::__LBL_EMPTY
+; empty string
+LI A0, B1C_RTE_STR_WRONG_INDEX
+SB A0, __LIB_ERR_LAST_ERR
+CALL __LIB_ERR_HANDLER
+LI A0, 0
+
+:::__LBL_EXIT
+SW A0, 8(SP)
+CALL __LIB_STR_RLS
+LW A0, 8(SP)
+LW RA, 12(SP)
+ADDI SP, SP, 16
+RET
+ENDASM

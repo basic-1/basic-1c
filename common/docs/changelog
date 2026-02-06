@@ -1,3 +1,13 @@
+b1c (1.0.0-56) unstable; urgency=low
+
+  * STM8L101K3T6 MCU support added
+  * some RISC-V library files added
+  * a1rv32 assembler: more pseudo-instructions added
+  * ascchr.bsc example added
+  * other minor improvements
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Fri, 06 Feb 2026 18:58:03 +0300
+
 b1c (1.0.0-55) unstable; urgency=low
 
   * some code revision: library search algorithm changed

@@ -1,6 +1,6 @@
 /*
  A1 assembler
- Copyright (c) 2021-2025 Nikolay Pletnev
+ Copyright (c) 2021-2026 Nikolay Pletnev
  MIT license
 
  a1.cpp: basic assembler classes
@@ -1610,13 +1610,13 @@ A1_T_ERROR ConstStmt::Read(std::vector<Token>::const_iterator &start, const std:
 					auto n = std::wcrtomb(mbc, c, &mbs);
 					if(n == static_cast<std::size_t>(-1))
 					{
-						_warnings.push_back(A1_T_WARNING::A1_WRN_WBADWCHAR);
+						_warnings.insert(A1_T_WARNING::A1_WRN_WBADWCHAR);
 						mbc[0] = '?';
 					}
 					else
 					if(n != 1)
 					{
-						_warnings.push_back(A1_T_WARNING::A1_WRN_WNONANSICHAR);
+						_warnings.insert(A1_T_WARNING::A1_WRN_WNONANSICHAR);
 						mbc[0] = '?';
 					}
 
@@ -1732,7 +1732,7 @@ A1_T_ERROR ConstStmt::Write(IhxWriter *writer, const std::map<std::wstring, MemR
 	if(_truncated)
 	{
 		// data truncated
-		_warnings.push_back(A1_T_WARNING::A1_WRN_WDATATRUNC);
+		_warnings.insert(A1_T_WARNING::A1_WRN_WDATATRUNC);
 	}
 
 #ifdef A1_REVERSE_CONST_BYTES_ORDER

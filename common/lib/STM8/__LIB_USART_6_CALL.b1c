@@ -1,0 +1,66 @@
+INI,__LIB_CPU_OPT
+INI,__LIB_USART_OPT
+INI,__LIB_USART_SPEED
+INI,__LIB_ERR_LAST_ERR
+
+GA,__LIB_USART_SPD,WORD(C),0<BYTE>,27<BYTE>
+;                    1200         9600         14400        19200        38400        57600        115200
+DAT,__LIB_USART_SPD,0x4135<WORD>,0x6803<WORD>,0x4507<WORD>,0x3401<WORD>,0x1A01<WORD>,0x1106<WORD>,0x080B<WORD>
+;     1200         9600         14400        19200        38400        57600        115200
+DAT,*,0xA01B<WORD>,0x3401<WORD>,0x220C<WORD>,0x1A01<WORD>,0x0D00<WORD>,0x080B<WORD>,0x0405<WORD>
+DAT,*,0xD005<WORD>,0x1A01<WORD>,0x1106<WORD>,0x0D00<WORD>,0x0608<WORD>,0x0405<WORD>,0x0203<WORD>
+DAT,*,0x6803<WORD>,0x0D00<WORD>,0x080B<WORD>,0x0608<WORD>,0x0304<WORD>,0x0203<WORD>,0x0101<WORD>
+
+; start USART
+; A - RX/TX mode in case of simplex transmisson mode (RX: A = 4, TX: A = 8)
+:__LIB_USART_6_CALL
+ASM
+
+.DEF __LIB_USART_SPD_NUM 7
+
+BTJT (__LIB_USART_OPT), 4, ::__LBL_SIMPLEX
+; duplex mode
+LD A, USART_CR2_REN + USART_CR2_TEN
+:::__LBL_SIMPLEX
+PUSH A
+; set parity control and word lenth
+; now the only supported mode is 8N1
+CLR (USART_CR1)
+; set stop bits
+; now the only supported mode is 8N1
+CLR (USART_CR3)
+; no half duplex mode and other features support at the moment
+CLR (USART_CR4)
+; set baud rate
+LD A, (__LIB_CPU_OPT)
+AND A, 3
+LDW X, __LIB_USART_SPD_NUM
+MUL X, A
+PUSH (__LIB_USART_SPEED)
+PUSH 0
+ADDW X, (1, SP)
+ADDW SP, 2
+SLLW X
+LDW X, (__LIB_USART_SPD, X)
+
+LD A, XL
+LD (USART_BRR2), A
+LD A, XH
+LD (USART_BRR1), A
+; configure GPIO pins and enable RX/TX
+LD A, (__LIB_USART_OPT)
+AND A, 0xF3
+OR A, (1, SP)
+LD (__LIB_USART_OPT), A
+BCP A, 0x20
+JREQ ::__LBL_ENABLE_RX_TX
+ENDASM
+
+; configure GPIO pins
+INL,__LIB_USART_CFG_PINS
+
+ASM
+:::__LBL_ENABLE_RX_TX
+POP (USART_CR2) ; enable TX or/and RX
+RET
+ENDASM

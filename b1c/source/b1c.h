@@ -1,6 +1,6 @@
 /*
  BASIC1 compiler
- Copyright (c) 2021-2025 Nikolay Pletnev
+ Copyright (c) 2021-2026 Nikolay Pletnev
  MIT license
 
  b1c.h: BASIC1 compiler classes declaration
@@ -75,6 +75,9 @@ private:
 
 	// labels that should not be removed (used indirectly)
 	std::set<std::wstring> _req_labels;
+
+	// subroutine labels
+	std::set<std::wstring> _sub_labels;
 
 	std::map<std::wstring, std::pair<std::wstring, std::vector<iterator>>> _var_refs;
 

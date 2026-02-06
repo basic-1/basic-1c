@@ -1,0 +1,6 @@
+INI,__LIB_USART_SPEED
+
+; configure USART speed
+ASM
+MOV (__LIB_USART_SPEED), {VALUE}
+ENDASM

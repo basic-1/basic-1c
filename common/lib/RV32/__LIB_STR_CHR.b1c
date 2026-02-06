@@ -1,0 +1,24 @@
+; returns a string representing the character that corresponds to the numeric code
+; A1 - numeric code, returns address of the string in A0
+:__LIB_STR_CHR
+ASM
+ADDI SP, SP, -16
+SW RA, 12(SP)
+SW A1, 8(SP)
+LI A1, 4
+CALL __LIB_MEM_ALC
+BEQ A0, ZERO, ::__LBL_EXIT
+
+LBU A1, 8(SP)
+SLLI A1, A1, 8
+ADDI A1, A1, 1 ; string length
+SLLI A1, A1, 8
+ADDI A1, A1, 1 ; usage counter
+SW A1, 0(A0)
+
+:::__LBL_EXIT
+LW A1, 8(SP)
+LW RA, 12(SP)
+ADDI SP, SP, 16
+RET
+ENDASM
