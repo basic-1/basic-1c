@@ -1,0 +1,11 @@
+; ISACTIVE
+; returns SPI activity state in A register (0 - inactive, 1 - active)
+:__LIB_SPI1_9_CALL
+ASM
+LD A, (SPI1_CR1)
+AND A, SPI1_CR1_SPE
+JREQ ::__LBL_SPI_INACTIVE
+LD A, 1
+:::__LBL_SPI_INACTIVE
+RET
+ENDASM

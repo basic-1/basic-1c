@@ -1,0 +1,23 @@
+INI,__LIB_ERR_LAST_ERR
+
+; converts string representation of a WORD (unsigned 16-bit) value to the binary form
+; A1 - input string, returns value in A0
+:__LIB_STR_CWRD
+ASM
+ADDI SP, SP, -16
+SW RA, 12(SP)
+
+CALL __LIB_STR_VAL
+LI T1, 65536
+BLTU A0, T1, ::__LBL_EXIT
+
+LI A0, B1C_RTE_STR_INV_NUM
+SB A0, __LIB_ERR_LAST_ERR
+CALL __LIB_ERR_HANDLER
+LI A0, 0
+
+:::__LBL_EXIT
+LW RA, 12(SP)
+ADDI SP, SP, 16
+RET
+ENDASM

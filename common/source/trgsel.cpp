@@ -1,6 +1,6 @@
 /*
  BASIC1 compiler
- Copyright (c) 2021-2025 Nikolay Pletnev
+ Copyright (c) 2021-2026 Nikolay Pletnev
  MIT license
 
  trgsel.cpp: target selection
@@ -129,6 +129,11 @@ bool select_target(Settings &settings)
 			B1_CMP_FN(L"SPC",		B1Types::B1T_STRING,	{ B1Types::B1T_BYTE },				L""),
 			B1_CMP_FN(L"NL",		B1Types::B1T_STRING,	std::initializer_list<B1Types>(),	L""),
 
+			// IOCTL function: the records are used just for keyword identification as a function,
+			// it's a special function so argument types validation is performed in another way
+			B1_CMP_FN(L"IOCTL",		B1Types::B1T_UNKNOWN,	{ B1Types::B1T_STRING, B1Types::B1T_STRING },	L""),
+			B1_CMP_FN(L"IOCTL$",	B1Types::B1T_UNKNOWN,	{ B1Types::B1T_STRING, B1Types::B1T_STRING },	L""),
+
 			B1_CMP_FN(L"XORIN",		B1Types::B1T_BYTE,		{ B1Types::B1T_BYTE },				L""),
 			B1_CMP_FN(L"XOROUT",	B1Types::B1T_BYTE,		{ B1Types::B1T_BYTE },				L""),
 
@@ -208,6 +213,11 @@ bool select_target(Settings &settings)
 			B1_CMP_FN(L"TAB",		B1Types::B1T_STRING,	{ B1Types::B1T_BYTE },				L""),
 			B1_CMP_FN(L"SPC",		B1Types::B1T_STRING,	{ B1Types::B1T_BYTE },				L""),
 			B1_CMP_FN(L"NL",		B1Types::B1T_STRING,	std::initializer_list<B1Types>(),	L""),
+
+			// IOCTL function: the records are used just for keyword identification as a function,
+			// it's a special function so argument types validation is performed in another way
+			B1_CMP_FN(L"IOCTL",		B1Types::B1T_UNKNOWN,	{ B1Types::B1T_STRING, B1Types::B1T_STRING },	L""),
+			B1_CMP_FN(L"IOCTL$",	B1Types::B1T_UNKNOWN,	{ B1Types::B1T_STRING, B1Types::B1T_STRING },	L""),
 
 			B1_CMP_FN(L"XORIN",		B1Types::B1T_BYTE,		{ B1Types::B1T_BYTE },				L""),
 			B1_CMP_FN(L"XOROUT",	B1Types::B1T_BYTE,		{ B1Types::B1T_BYTE },				L""),

@@ -1,0 +1,73 @@
+INI,__LIB_ERR_LAST_ERR
+
+; converts string representation of a signed 32-bit value to the binary form
+; A1 - input string, returns value in A0
+:__LIB_STR_VAL
+ASM
+ADDI SP, SP, -16
+SW RA, 12(SP)
+SW A3, 8(SP)
+SW A2, 4(SP)
+SW A1, 0(SP)
+
+BEQ A1, ZERO, ::__LBL_INV_STR
+ADDI A1, A1, 1
+LBU A2, 0(A1) ; string length
+BEQ A2, ZERO, ::__LBL_INV_STR
+ADDI A1, A1, 1
+LBU A3, 0(A1)
+ADDI A3, A3, -45
+BNE A3, ZERO, ::__LBL_NO_UN_MINUS
+ADDI A1, A1, 1 ; skip unary minus sign
+ADDI A2, A2, -1
+
+:::__LBL_NO_UN_MINUS
+LI A3, 0 ; resulting value
+LI T1, 10
+LI T2, -2147483648
+
+:::__LBL_CVT_LOOP
+LBU A0, 0(A1) ; load next character
+ADDI A0, A0, -48
+BGEU A0, T1, ::__LBL_INV_STR
+ADD A3, A3, A0
+; if(A3 > 2147483648) goto _overflow; (2147483648 == -2147483648 == 0x80000000)
+BLTU T2, A3, ::__LBL_INV_STR
+ADDI A2, A2, -1
+BEQ A2, ZERO, ::__LBL_CHK_UN_MINUS
+MUL A3, A3, T1 ; A3 = A3 * 10
+BGEU A3, T2, ::__LBL_INV_STR ; overflow
+ADDI A1, A1, 1
+J ::__LBL_CVT_LOOP
+
+:::__LBL_INV_STR
+LI A0, B1C_RTE_STR_INV_NUM
+SB A0, __LIB_ERR_LAST_ERR
+CALL __LIB_ERR_HANDLER
+LI A3, 0
+J ::__LBL_EXIT
+
+:::__LBL_CHK_UN_MINUS
+LW A0, 0(SP)
+LBU A0, 2(A0)
+ADDI A0, A0, -45
+BEQ A0, ZERO, ::__LBL_NEG_VALUE
+; 2147483648 positive value cannot be represented with 32-bit integer
+; if(A3 == 2147483648) goto _overflow; (2147483648 == -2147483648 == 0x80000000)
+BEQ A3, T2, ::__LBL_INV_STR
+J ::__LBL_EXIT
+
+:::__LBL_NEG_VALUE
+NEG A3
+
+:::__LBL_EXIT
+LW A1, 0(SP)
+CALL __LIB_STR_RLS
+MV A0, A3
+
+LW A2, 4(SP)
+LW A3, 8(SP)
+LW RA, 12(SP)
+ADDI SP, SP, 16
+RET
+ENDASM

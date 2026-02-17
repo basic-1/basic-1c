@@ -1,6 +1,6 @@
 /*
  STM8 intermediate code compiler
- Copyright (c) 2021-2025 Nikolay Pletnev
+ Copyright (c) 2021-2026 Nikolay Pletnev
  MIT license
 
  c1stm8.cpp: STM8 intermediate code compiler
@@ -2142,6 +2142,39 @@ C1_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types req_ty
 
 			return C1_T_ERROR::C1_RES_EINTERR;
 		}
+
+		if(fn->args.size() == 2 && fn->isstdfn && fn->iname.empty())
+		{
+			if((fn->name == L"IOCTL" || fn->name == L"IOCTL$") && (req_valtype & LVT::LVT_REG))
+			{
+				auto err = stm8_write_ioctl_fn(arg);
+				if(err != C1_T_ERROR::C1_RES_OK)
+				{
+					return err;
+				}
+
+				if(init_type != req_type)
+				{
+					auto err = stm8_arrange_types(init_type, req_type);
+					if(err != C1_T_ERROR::C1_RES_OK)
+					{
+						return err;
+					}
+				}
+
+				if(res_val != nullptr)
+				{
+					res_val->clear();
+				}
+
+				if(res_valtype != nullptr)
+				{
+					*res_valtype = LVT::LVT_REG;
+				}
+
+				return C1_T_ERROR::C1_RES_OK;
+			}
+		}
 		 
 		// arguments size in stack
 		int args_size = 0;
@@ -4194,6 +4227,33 @@ C1_T_ERROR C1STM8Compiler::stm8_load_ptr(const B1_CMP_ARG &first, const B1_CMP_A
 	return C1_T_ERROR::C1_RES_OK;
 }
 
+C1_T_ERROR C1STM8Compiler::stm8_write_ioctl_fn(const B1_CMP_ARG &arg)
+{
+	auto dev_name = _global_settings.GetIoDeviceName(arg[1].value.substr(1, arg[1].value.length() - 2));
+	auto cmd_name = arg[2].value.substr(1, arg[2].value.length() - 2);
+	Settings::IoCmd iocmd;
+	if(!_global_settings.GetIoCmd(dev_name, cmd_name, iocmd))
+	{
+		return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
+	}
+
+	if(iocmd.call_type == Settings::IoCmd::IoCmdCallType::CT_CALL)
+	{
+		auto file_name = iocmd.file_name;
+		if(file_name.empty())
+		{
+			file_name = L"__LIB_" + dev_name + L"_" + std::to_wstring(iocmd.id) + L"_CALL";
+		}
+		add_call_op(file_name);
+	}
+	else
+	{
+		return C1_T_ERROR::C1_RES_ENOTIMP;
+	}
+
+	return C1_T_ERROR::C1_RES_OK;
+}
+
 // on return cmd_it is set on the last processed cmd
 C1_T_ERROR C1STM8Compiler::stm8_write_ioctl(std::list<B1_CMP_CMD>::iterator &cmd_it)
 {
@@ -4792,13 +4852,14 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 			// labels are processed in load_next_command() function
 			//_all_symbols.insert(cmd.cmd);
 
-			if(B1CUtils::is_def_fn(cmd.cmd))
+			const auto ufn = _ufns.find(cmd.cmd);
+
+			if(ufn != _ufns.cend())
 			{
 				_curr_udef_arg_offsets.clear();
 				_curr_udef_str_arg_offsets.clear();
 				_curr_udef_str_arg_last_use.clear();
 
-				const auto ufn = _ufns.find(cmd.cmd);
 				int32_t arg_off = 1;
 				for(auto a = ufn->second.args.rbegin(); a != ufn->second.args.rend(); a++)
 				{

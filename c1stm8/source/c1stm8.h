@@ -1,6 +1,6 @@
 /*
  STM8 intermediate code compiler
- Copyright (c) 2021-2025 Nikolay Pletnev
+ Copyright (c) 2021-2026 Nikolay Pletnev
  MIT license
 
  c1stm8.h: STM8 intermediate code compiler classes declaration
@@ -103,6 +103,7 @@ protected:
 	C1_T_ERROR stm8_num_cmp_op(const B1_CMP_CMD &cmd);
 	C1_T_ERROR stm8_str_cmp_op(const B1_CMP_CMD &cmd);
 	C1_T_ERROR stm8_load_ptr(const B1_CMP_ARG &first, const B1_CMP_ARG &count);
+	C1_T_ERROR stm8_write_ioctl_fn(const B1_CMP_ARG &arg);
 	C1_T_ERROR stm8_write_ioctl(std::list<B1_CMP_CMD>::iterator &cmd_it);
 
 	C1_T_ERROR write_data_sec(bool code_init) override;

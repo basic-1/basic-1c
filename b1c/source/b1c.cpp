@@ -1,6 +1,6 @@
 /*
  BASIC1 compiler
- Copyright (c) 2021-2025 Nikolay Pletnev
+ Copyright (c) 2021-2026 Nikolay Pletnev
  MIT license
 
  b1c.cpp: BASIC1 compiler
@@ -45,6 +45,10 @@ static const B1_T_CHAR *CONST_VAL_SEPARATORS[3] = { _COMMA, _CLBRACKET, NULL };
 static const B1_T_CHAR *CONST_STOP_TOKEN[2] = { _CLBRACKET, NULL };
 static const B1_T_CHAR *PUT_GET_STOP_TOKENS[3] = { _COMMA, _USING, NULL };
 static const B1_T_CHAR *USING_SEPARATORS[3] = { _COMMA, _CLBRACKET, NULL };
+
+
+#define B1_FN_IOCTL_FN_HASH 0x2901641a
+#define B1_FN_STRIOCTL_FN_HASH 0xed3377e6
 
 
 Settings global_settings;
@@ -513,6 +517,8 @@ B1_T_ERROR B1FileCompiler::process_expression(iterator pos, B1_CMP_EXP_TYPE &res
 
 	bool const_name = false;
 
+	bool ioctl_fn = false;
+
 	if(correct_rpn(res_type, res, get_ref))
 	{
 		return B1_RES_OK;
@@ -597,6 +603,80 @@ B1_T_ERROR B1FileCompiler::process_expression(iterator pos, B1_CMP_EXP_TYPE &res
 			continue;
 		}
 
+		// check for IOCTL function and its arguments
+		if(B1_RPNREC_TEST_TYPES(tflags, B1_RPNREC_TYPE_FNVAR | B1_RPNREC_TYPE_IMM_VALUE))
+		{
+			bool stop_iofn_check = false;
+
+			if(B1_RPNREC_TEST_TYPES(tflags, B1_RPNREC_TYPE_FNVAR))
+			{
+				hash = (*(b1_rpn + i)).data.id.hash;
+				if(hash == B1_FN_IOCTL_FN_HASH || hash == B1_FN_STRIOCTL_FN_HASH)
+				{
+					ioctl_fn = false;
+					stop_iofn_check = true;
+				}
+			}
+
+			if(!stop_iofn_check)
+			{
+				uint8_t tflags1 = (*(b1_rpn + i + 1)).flags;
+
+				if(!ioctl_fn)
+				{
+					if(!B1_RPNREC_TEST_TYPES(tflags1, B1_RPNREC_TYPE_FNVAR | B1_RPNREC_TYPE_IMM_VALUE))
+					{
+						stop_iofn_check = true;
+					}
+				}
+				else
+				{
+					if(!B1_RPNREC_TEST_TYPES(tflags1, B1_RPNREC_TYPE_FNVAR | B1_RPNREC_TYPE_IMM_VALUE))
+					{
+						return B1_RES_ESYNTAX;
+					}
+
+					// put IOCTL arg2 to stack
+					id_off = (*(b1_rpn + i)).data.id.offset;
+					id_len = (*(b1_rpn + i)).data.id.length;
+					token = Utils::str_toupper(B1CUtils::get_progline_substring(id_off, id_off + id_len));
+					if(token.empty() || token.front() != L'\"')
+					{
+						token = L'\"' + token + L'\"';
+					}
+					stack.push_back(std::pair<std::wstring, B1_CMP_VAL_TYPE>(token, B1_CMP_VAL_TYPE::B1_CMP_VT_IMM_VAL));
+					i++;
+					continue;
+				}
+			}
+
+			if(!stop_iofn_check && !ioctl_fn)
+			{
+				uint8_t tflags2 = (*(b1_rpn + i + 2)).flags;
+
+				if(B1_RPNREC_TEST_TYPES(tflags2, B1_RPNREC_TYPE_FNVAR))
+				{
+					hash = (*(b1_rpn + i + 2)).data.id.hash;
+
+					if(hash == B1_FN_IOCTL_FN_HASH || hash == B1_FN_STRIOCTL_FN_HASH)
+					{
+						ioctl_fn = true;
+						// put IOCTL arg1 to stack
+						id_off = (*(b1_rpn + i)).data.id.offset;
+						id_len = (*(b1_rpn + i)).data.id.length;
+						token = Utils::str_toupper(B1CUtils::get_progline_substring(id_off, id_off + id_len));
+						if(token.empty() || token.front() != L'\"')
+						{
+							token = L'\"' + token + L'\"';
+						}
+						stack.push_back(std::pair<std::wstring, B1_CMP_VAL_TYPE>(token, B1_CMP_VAL_TYPE::B1_CMP_VT_IMM_VAL));
+						i++;
+						continue;
+					}
+				}
+			}
+		}
+
 		if(B1_RPNREC_TEST_TYPES(tflags, B1_RPNREC_TYPE_FNVAR | B1_RPNREC_TYPE_FN_ARG))
 		{
 			hash = (*(b1_rpn + i)).data.id.hash;
@@ -633,6 +713,15 @@ B1_T_ERROR B1FileCompiler::process_expression(iterator pos, B1_CMP_EXP_TYPE &res
 					iif_refs.back()[1].get().args[1][0].type = type;
 					iif_refs.back()[2].get().args[1][0].type = type;
 					iif_refs.pop_back();
+				}
+				else
+				if(hash == B1_FN_IOCTL_FN_HASH || hash == B1_FN_STRIOCTL_FN_HASH)
+				{
+					// special case: IOCTL function
+					if(args_num != 2)
+					{
+						return B1_RES_EWRARGCNT;
+					}
 				}
 				else
 				{
@@ -6570,6 +6659,31 @@ B1_T_ERROR B1FileCompiler::get_type(B1_CMP_ARG &a, bool read, std::map<std::wstr
 		{
 			return err;
 		}
+	}
+
+	if(a[0].value == L"IOCTL" || a[0].value == L"IOCTL$")
+	{
+		auto dev_name = a[1].value;
+		dev_name.pop_back();
+		dev_name.erase(0, 1);
+		auto cmd_name = a[2].value;
+		cmd_name.pop_back();
+		cmd_name.erase(0, 1);
+		dev_name = _global_settings.GetIoDeviceName(dev_name);
+		Settings::IoCmd cmd;
+		if(!_global_settings.GetIoCmd(dev_name, cmd_name, cmd))
+		{
+			return B1_RES_EINVARG;
+		}
+
+		if(cmd.ret_type == B1Types::B1T_UNKNOWN)
+		{
+			return B1_RES_ESYNTAX;
+		}
+
+		a[0].type = cmd.ret_type;
+
+		return B1_RES_OK;
 	}
 
 	auto fn = get_fn(a);

@@ -1,6 +1,6 @@
 /*
  BASIC1 compiler
- Copyright (c) 2021-2025 Nikolay Pletnev
+ Copyright (c) 2021-2026 Nikolay Pletnev
  MIT license
 
  Utils.h: BASIC1 compiler utility classes declaration
@@ -156,6 +156,7 @@ public:
 
 		int32_t id;
 		IoCmdCallType call_type;
+		B1Types ret_type;
 		IoCmdCodePlacement code_place;
 		std::wstring file_name;
 		int32_t mask;
@@ -170,6 +171,7 @@ public:
 		IoCmd()
 		: id(-1)
 		, call_type(IoCmdCallType::CT_CALL)
+		, ret_type(B1Types::B1T_UNKNOWN)
 		, code_place(IoCmdCodePlacement::CP_CURR_POS)
 		, mask(0)
 		, accepts_data(false)
@@ -182,6 +184,7 @@ public:
 		{
 			id = -1;
 			call_type = IoCmdCallType::CT_CALL;
+			ret_type = B1Types::B1T_UNKNOWN;
 			code_place = IoCmdCodePlacement::CP_CURR_POS;
 			file_name.clear();
 			mask = 0;
@@ -208,7 +211,8 @@ protected:
 
 	std::map<std::wstring, std::wstring> _settings;
 
-	std::map<std::wstring, std::map<std::wstring, IoCmd>> _io_settings;
+	//       dev_name                         cmd_name                                    cmd_regex
+	std::map<std::wstring, std::pair<std::map<std::wstring, IoCmd>, std::vector<std::pair<std::wstring, IoCmd>>>> _io_settings;
 
 	mutable std::map<std::wstring, std::set<std::wstring>> _io_dev_options;
 

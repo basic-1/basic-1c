@@ -1,0 +1,27 @@
+INI,__LIB_ERR_LAST_ERR
+
+; converts string representation of an INT (signed 16-bit) value to the binary form
+; A1 - input string, returns value in A0
+:__LIB_STR_CINT
+ASM
+ADDI SP, SP, -16
+SW RA, 12(SP)
+
+CALL __LIB_STR_VAL
+LI T1, 32768
+BGE A0, T1, ::__LBL_INV_STR
+NEG T1 ; -32768
+BLT A0, T1, ::__LBL_INV_STR
+J ::__LBL_EXIT
+
+:::__LBL_INV_STR
+LI A0, B1C_RTE_STR_INV_NUM
+SB A0, __LIB_ERR_LAST_ERR
+CALL __LIB_ERR_HANDLER
+LI A0, 0
+
+:::__LBL_EXIT
+LW RA, 12(SP)
+ADDI SP, SP, 16
+RET
+ENDASM

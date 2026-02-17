@@ -1,2 +1,10 @@
 ; resume ST7565_SPI after stop (RESUME)
+INI,__LIB_ST7565_SPI_OPT1
 IOCTL,"SPI"<STRING>,"START"<STRING>,"TX"<STRING>
+
+; set contrast
+ASM
+LD A, (__LIB_ST7565_SPI_OPT1)
+AND A, 0x7F ; user contrast value
+CALLR __LIB_ST7565_SPI_15_CALL
+ENDASM

@@ -1,6 +1,6 @@
 /*
  Intermediate code compiler
- Copyright (c) 2021-2025 Nikolay Pletnev
+ Copyright (c) 2021-2026 Nikolay Pletnev
  MIT license
 
  c1.cpp: Intermediate code compiler
@@ -957,7 +957,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			Settings::IoCmd iocmd;
 			if(!_global_settings.GetIoCmd(dev_name, cmd_name, iocmd))
 			{
-				return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
+				return C1_T_ERROR::C1_RES_EUNKIODEV;
 			}
 			if(iocmd.accepts_data)
 			{
@@ -2134,6 +2134,12 @@ C1_T_ERROR C1Compiler::read_and_check_vars(iterator begin, iterator end, bool in
 
 C1_T_ERROR C1Compiler::process_imm_str_value(const B1_CMP_ARG &arg)
 {
+	if(arg[0].value == L"IOCTL" || arg[0].value == L"IOCTL$")
+	{
+		// do not treat IOCTL fn arguments as string data
+		return C1_T_ERROR::C1_RES_OK;
+	}
+
 	for(auto &a: arg)
 	{
 		if(B1CUtils::is_str_val(a.value))

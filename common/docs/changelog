@@ -1,3 +1,15 @@
+b1c (1.0.0-57) unstable; urgency=low
+
+  * added support for IOCTL functions
+  * added IOCTL(SPI, ISACTIVE) function
+  * ST7565 driver: now CONTRAST command can be used before START
+  * ST7565 driver: support for JLX12832G_509 display added
+  * some RISC-V library files added (for VAL function)
+  * CH32V003 MCU GPIO functions added
+  * other improvements
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Tue, 17 Feb 2026 18:50:02 +0300
+
 b1c (1.0.0-56) unstable; urgency=low
 
   * STM8L101K3T6 MCU support added

@@ -1,6 +1,6 @@
 /*
  BASIC1 compiler
- Copyright (c) 2021-2025 Nikolay Pletnev
+ Copyright (c) 2021-2026 Nikolay Pletnev
  MIT license
 
  Utils.cpp: BASIC1 compiler utility classes
@@ -12,6 +12,7 @@
 #include <cwctype>
 #include <sstream>
 #include <algorithm>
+#include <regex>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -831,11 +832,11 @@ void Settings::InitLibDirs()
 		for(const auto &sl: len)
 		{
 			int32_t l = 0;
-			if(Utils::str2int32(sl, l) != B1_RES_OK)
+			if(Utils::str2int32(Utils::str_trim(sl), l) != B1_RES_OK)
 			{
 				break;
 			}
-			dir = dir + _MCU_name.substr(start, start + l) + "/";
+			dir = dir + _MCU_name.substr(start, l) + "/";
 			start += l;
 			_lib_dirs.push_back(dir);
 			_lib_dirs.push_back(dir + _MCU_name + "/");
@@ -893,7 +894,7 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 	_io_settings.clear();
 
 	std::vector<std::wstring> dev_names;
-	std::map<std::wstring, IoCmd> cmds;
+	std::pair<std::map<std::wstring, IoCmd>, std::vector<std::pair<std::wstring, IoCmd>>> cmds;
 
 	bool is_eof = false;
 
@@ -933,7 +934,7 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 
 			if(!dev_names.empty())
 			{
-				if(cmds.empty())
+				if(cmds.first.empty() && cmds.second.empty())
 				{
 					std::fclose(fp);
 					return B1_RES_ESYNTAX;
@@ -954,7 +955,8 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 				return B1_RES_ESYNTAX;
 			}
 
-			cmds.clear();
+			cmds.first.clear();
+			cmds.second.clear();
 
 			continue;
 		}
@@ -1005,6 +1007,17 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 			return B1_RES_ESYNTAX;
 		}
 
+		// ret type
+		if(!get_field(line, true, value))
+		{
+			return B1_RES_ESYNTAX;
+		}
+		cmd.ret_type = B1Types::B1T_UNKNOWN;
+		if(!value.empty())
+		{
+			cmd.ret_type = Utils::get_type_by_name(value);
+		}
+
 		// code placement
 		if(!get_field(line, true, value))
 		{
@@ -1015,7 +1028,7 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 			cmd.code_place = IoCmd::IoCmdCodePlacement::CP_END;
 		}
 		else
-		if(Utils::str_toupper(value).empty() || Utils::str_toupper(value) == L"CURR_POS")
+		if(value.empty() || Utils::str_toupper(value) == L"CURR_POS")
 		{
 			cmd.code_place = IoCmd::IoCmdCodePlacement::CP_CURR_POS;
 		}
@@ -1194,21 +1207,42 @@ B1_T_ERROR Settings::ReadIoSettings(const std::string &file_name)
 			cmd.def_val = value;
 		}
 
-		cmds.emplace(std::make_pair(cmd_name, cmd));
+		// check cmd name
+		bool is_regex = false;
+
+		for(auto c: cmd_name)
+		{
+			if(std::iswalnum(c) || c == L'_')
+			{
+				continue;
+			}
+
+			is_regex = true;
+			break;
+		}
+
+		if(is_regex)
+		{
+			cmds.second.emplace_back(cmd_name, cmd);
+		}
+		else
+		{
+			cmds.first.emplace(cmd_name, cmd);
+		}
 	}
 
 	std::fclose(fp);
 
 	if(!dev_names.empty())
 	{
-		if(cmds.empty())
+		if(cmds.first.empty() && cmds.second.empty())
 		{
 			return B1_RES_ESYNTAX;
 		}
 
 		for(const auto &dn: dev_names)
 		{
-			_io_settings.emplace(std::make_pair(Utils::str_toupper(Utils::str_trim(dn)), cmds));
+			_io_settings.emplace(Utils::str_toupper(Utils::str_trim(dn)), cmds);
 		}
 	}
 
@@ -1223,11 +1257,22 @@ bool Settings::GetIoCmd(const std::wstring &dev_name, const std::wstring &cmd_na
 		return false;
 	}
 
-	auto c = dc->second.find(cmd_name);
-	if(c != dc->second.end())
+	// look for strict cmd name match
+	auto c = dc->second.first.find(cmd_name);
+	if(c != dc->second.first.end())
 	{
 		cmd = c->second;
 		return true;
+	}
+
+	// try regex match if any
+	for(auto &cmd_regex: dc->second.second)
+	{
+		if(std::regex_match(cmd_name, std::wregex(cmd_regex.first)))
+		{
+			cmd = cmd_regex.second;
+			return true;
+		}
 	}
 
 	return false;
@@ -1346,7 +1391,12 @@ std::vector<std::wstring> Settings::GetDevCmdsList(const std::wstring &dev_name)
 	auto dc = _io_settings.find(dev_name);
 	if(dc != _io_settings.end())
 	{
-		for(const auto &c: dc->second)
+		for(const auto &c: dc->second.first)
+		{
+			cmds.push_back(c.first);
+		}
+
+		for(const auto &c: dc->second.second)
 		{
 			cmds.push_back(c.first);
 		}

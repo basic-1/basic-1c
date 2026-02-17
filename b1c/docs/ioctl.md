@@ -13,9 +13,17 @@
 ### CPU  
   
 - `IOCTL CPU, INTERRUPTS, ON | OFF` - enable or disable interrupts, by default interrups are disabled.  
-- `IOCTL CPU, CLOCKSOURCE, HSI | HSI16 | HSI8 | LSI | HSE24 | HSE16 | HSE8 | LSE` - select MCU clock source generator, default is `HSI`. `HSI` stands for the maximum possible frequence available with internal RC oscillator, `HSI16` - 16 MHz with internal oscillator, `HSI8` - 8 MHz with 16 MHz internal oscillator (divided by 2), `HSE8` - 8 MHz with 8 MHz external crystal oscillator, `HSE16` - 16 MHz with 16 MHz external crystal oscillator, `HSE24` - 24 MHz with 24 MHz external crystal oscillator. `LSI` and `LSE` are internal RC low-speed oscillator and external low-speed oscillator (using external resonator or another clock source).  
+- `IOCTL CPU, CLOCKSOURCE, HSI | HSI16 | HSI8 | HSI4 | HSI2 | LSI | HSE24 | HSE16 | HSE8 | LSE` - select MCU system clock generator and its frequency, default is `HSI`. Usually `HSI` stands for the maximum possible frequency available with internal high-speed RC oscillator. `HSI16` - 16 MHz with internal oscillator, `HSI8` - 8 MHz with 16 MHz internal oscillator (divided by 2), `HSE8` - 8 MHz with 8 MHz external crystal oscillator, `HSE16` - 16 MHz with 16 MHz external crystal oscillator, `HSE24` - 24 MHz with 24 MHz external crystal oscillator. `LSI` and `LSE` are internal RC low-speed oscillator and external low-speed oscillator (using external resonator or another clock source).  
 - `IOCTL CPU, WAIT, INTERRUPT` - wait for interrupt command  
 - `IOCTL CPU, DELAYMS, <numeric_value>` - pauses program execution for the specified amount of time (in milliseconds, acceptable range of the numeric argument is: 0 to 255 ms). The command is based on loops and cannot be used for precise delays generation (it should delay for not less than the specified amount of time).  
+  
+**Note:**  
+`CLOCKSOURCE` command allows a limited set of constants listed above depending on MCU type:  
+- `STM8Lx01` family supports `HSI` (the same as `HSI16`), `HSI16`, `HSI8`, `HSI4` and `HSI2`  
+- `STM8Lx51`: `HSI` (the same as `HSI16`), `HSI16`, `HSI8`, `HSE16`, `HSE8`, `LSI` and `LSE`  
+- `STM8Sx03`: `HSI` (the same as `HSI16`), `HSI16`, `HSI8`, `HSE16`, `HSE8` and `LSI`  
+- `STM8Sx05`: `HSI` (the same as `HSI16`), `HSI16`, `HSI8`, `HSE16`, `HSE8` and `LSI`  
+- `STM8S207`: `HSI` (the same as `HSI16`), `HSI16`, `HSI8`, `HSE24`, `HSE16`, `HSE8` and `LSI`  
   
 ### GPIO  
   
@@ -92,10 +100,11 @@ Here `PX` stands for GPIO port name (e.g. `PA` for port A) and command names sho
 - `IOCTL SPI, SSPIN, <pin_name> | NONE` - specify slave select pin, `<pin_name>` format is `<port_name><pin_number>`, e.g.: `PA3`, `PE5`, etc. A special keyword `NONE` specified instead of the pin name disables automatic SS pin management. Default value corresponds to default NSS pin of the selected MCU.  
 - `IOCTL SPI, CFGPINS, ON | OFF` - configure GPIO pins when starting communication (enabled by default)  
 - `IOCTL SPI, WAIT, RXNE | TXE | NOTBSY` - wait for the specified event: `RXNE` stands for "RX buffer is not empty" (a byte is read into external MCU buffer and can be extracted with `GET` statement), `TXE` - "TX buffer is empty" (the next byte can be written with `PUT` statement), `NOTBSY` - "SPI transmission is complete" (all data is transferred, SPI device can be released).  
-- `IOCTL SPI, START [, TX | RX]` - selects data transmission direction, enables slave device (in master mode only, if SS pin management is not turned off with `IOCTL SPI, SSPIN, NONE`), starts SPI communication. Transmission direction is valid for simplex and half-duplex modes only, default is `TX`.  
+- `IOCTL SPI, START [, TX | RX]` - select data transmission direction, enable slave device (in master mode only, if SS pin management is not turned off with `IOCTL SPI, SSPIN, NONE`), start SPI communication. Transmission direction is valid for simplex and half-duplex modes only, default is `TX`.  
 - `IOCTL SPI, STOP` - stop SPI communication  
 - `IOCTL SPI, ENABLE` - enable SPI  
 - `IOCTL SPI, DISABLE` - disable SPI  
+- `IOCTL(SPI, ISACTIVE)` - return SPI activity status: 0 - SPI is inactive, 1 - SPI is active  
   
 **Example:**  
 `IOCTL SPI, ENABLE`  
@@ -110,6 +119,7 @@ Here `PX` stands for GPIO port name (e.g. `PA` for port A) and command names sho
 `PUT #SPI, 5, "hello"`  
 `IOCTL SPI, STOP`  
 `IOCTL SPI, DISABLE`  
+`IF IOCTL(SPI, ISACTIVE) <> 0 THEN IOCTL SPI, STOP`  
   
 Master simplex RX-only and master half-duplex RX modes are not fully implemented at the moment because of their odd disabling procedure. `IOCTL SPI, CFGPINS` command can be used to configure GPIO pins involved in SPI communication but disabling SPI with `IOCTL SPI, DISABLE` does not deinitializes them to their initial state (e.g.: master's CLK pin stays configured as output push-pull).  
   
@@ -187,7 +197,7 @@ Fonts included with the compiler:
 `FONT_8X16_ISO8859_5_FULL` - 8x16 extended ASCII font (256 characters), ISO8859-5 code page  
 `FONT_8X16_ISO8859_5_EXT` - 8x16 ASCII font (upper 128 characters), ISO8859-5 code page  
   
-The library was tested with two Chinese displays marked "GM12864-01A" and "GMG12864-06D Ver:2.2", predefined configuration names for them are `DISP_GM12864_01A` and `DISP_GMG12864_06D_V2`.  
+The library was tested with some displays marked: "GM12864-01A", "GMG12864-06D Ver:2.2" and "JLX12832G-509 Ver2.1", predefined configuration names for them are `DISP_GM12864_01A`, `DISP_GMG12864_06D_V2` and `DISP_JLX12832G_509`.  
   
 ![Tested displays, front](./images/dispfront.jpg "Tested displays, front")  
 Tested displays, front view  
