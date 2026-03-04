@@ -453,6 +453,9 @@ B1Types Utils::get_type_by_name(const std::wstring &type_name)
 	if(type_name_uc == L"TEXT")
 		return B1Types::B1T_TEXT;
 	else
+	if(type_name_uc == L"NONE")
+		return B1Types::B1T_NONE;
+	else
 		return B1Types::B1T_UNKNOWN;
 }
 

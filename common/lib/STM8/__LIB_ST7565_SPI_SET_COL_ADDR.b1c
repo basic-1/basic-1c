@@ -1,7 +1,10 @@
+INI,__LIB_ST7565_SPI_OFF
+
 ; sets ST7565 column address
 ; A - column address (0..131)
 :__LIB_ST7565_SPI_SET_COL_ADDR
 ASM
+ADD A, (__LIB_ST7565_SPI_OFF)
 PUSH A
 ENDASM
 

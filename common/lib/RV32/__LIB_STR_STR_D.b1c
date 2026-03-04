@@ -1,0 +1,63 @@
+; converts 32-bit signed integer value to string
+; A1 - integer value, returns string address in A0
+:__LIB_STR_STR_D
+ASM
+ADDI SP, SP, -16
+SW A3, 12(SP)
+SW A2, 8(SP)
+SW A1, 4(SP)
+SW RA, 0(SP)
+
+LI A2, 0 ; overall string length (including unary minus)
+BGE A1, ZERO, ::__LBL_POS_VALUE
+NEG A1
+ADDI A2, A2, 1
+
+:::__LBL_POS_VALUE
+MV A3, A1 ; save initial value
+
+; calc. resulting string length
+LI A0, 10
+
+:::__LBL_CALC_LEN_LOOP
+ADDI A2, A2, 1
+DIV A1, A1, A0
+BNE A1, ZERO, ::__LBL_CALC_LEN_LOOP
+
+ADDI A1, A2, 2 ; two bytes for usage string counter and length
+CALL __LIB_MEM_ALC
+BEQ A0, ZERO, ::__LBL_EXIT
+LI A1, 1
+SB A1, 0(A0) ; save usage counter
+SB A2, 1(A0) ; save string length
+ADD A0, A0, A2
+MV A1, A3 ; initial value (positive)
+ADDI A3, A0, 1 ; A3 points to the last string position
+
+LI A2, 10
+
+:::__LBL_CVT_LOOP
+REM A0, A1, A2
+DIV A1, A1, A2
+ADDI A0, A0, 48 ; '0'
+SB A0, 0(A3)
+ADDI A3, A3, -1
+BNE A1, ZERO, ::__LBL_CVT_LOOP
+
+LW A1, 4(SP)
+BGE A1, ZERO, ::__LBL_NO_UN_MINUS
+LI A0, 45 ; '-'
+SB A0, 0(A3)
+ADDI A3, A3, -1
+
+:::__LBL_NO_UN_MINUS
+ADDI A0, A3, -1
+
+:::__LBL_EXIT
+LW RA, 0(SP)
+LW A1, 4(SP)
+LW A2, 8(SP)
+LW A3, 12(SP)
+ADDI SP, SP, 16
+RET
+ENDASM

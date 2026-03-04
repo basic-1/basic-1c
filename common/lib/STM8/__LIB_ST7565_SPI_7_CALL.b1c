@@ -1,6 +1,7 @@
 INI,__LIB_CPU_OPT
 INI,__LIB_ST7565_SPI_OPT
 INI,__LIB_ST7565_SPI_OPT1
+INI,__LIB_ST7565_SPI_OFF
 INI,__LIB_ST7565_SPI_INIT
 INI,__LIB_ST7565_SPI_MGN
 INI,__LIB_ST7565_SPI_ZW
@@ -13,7 +14,12 @@ INI,__LIB_ST7565_SPI_FONT_OPT
 INI,__LIB_ST7565_SPI_FONT
 
 ; starts SPI and initializes ST7565 (START)
+; A - screen orientation: 0 - normal mode, 1 - 180-degree rotated
 :__LIB_ST7565_SPI_7_CALL
+ASM
+PUSH A
+ENDASM
+
 ; initialize and start SPI
 IOCTL,"SPI"<STRING>,"MODE"<STRING>,"M3"<STRING>
 IOCTL,"SPI"<STRING>,"MASTER"<STRING>
@@ -85,8 +91,23 @@ ASM
 LDW X, (__LIB_ST7565_SPI_INIT)
 LD A, (2, X) ; predefined contrast value
 PUSH A
-LD A, (3, X) ; init. sequence length
-ADDW X, 4 ; init. sequence start
+
+LD A, (2, SP)
+JREQ ::__LBL_READ_INIT
+; use the second init data block (for rotated screen)
+LD A, (4, X) ; init. sequence length
+PUSH A
+PUSH 0
+ADDW X, (1, SP)
+ADDW SP, 2
+INCW X
+INCW X
+
+:::__LBL_READ_INIT
+LD A, (3, X) ; column offset
+LD (__LIB_ST7565_SPI_OFF), A
+LD A, (4, X) ; init. sequence length
+ADDW X, 5 ; init. sequence start
 CLRW Y
 LD YL, A
 .IF FIND(__MCU_NAME,"STM8S|STM8L101|STM8L001") >= 0
@@ -110,7 +131,7 @@ LD A, (1, SP)
 
 :::__LBL_ST7565_SPI_USER_VALUE
 CALLR __LIB_ST7565_SPI_15_CALL
-POP A
+POPW X
 ENDASM
 
 >>,__LIB_ST7565_SPI_HRES<BYTE>,3<BYTE>,__LIB_ST7565_SPI_MGN<BYTE>

@@ -36,6 +36,7 @@ enum class B1Types
 	B1T_VARREF, // used with IOCTL
 	B1T_TEXT, // used with IOCTL
 	B1T_COMMON, // used when choosing type of IIF pseudo-function
+	B1T_NONE, // used as function ret type (a subroutine that does not return any value)
 };
 
 

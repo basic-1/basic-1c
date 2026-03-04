@@ -1,6 +1,6 @@
 /*
  Intermediate code compiler
- Copyright (c) 2021-2024 Nikolay Pletnev
+ Copyright (c) 2021-2026 Nikolay Pletnev
  MIT license
 
  c1errors.h: error codes definition and function prototypes
@@ -65,6 +65,7 @@ enum class C1_T_WARNING
 	C1_WRN_RESERVED1,
 	C1_WRN_WUNKNMCU,
 	C1_WRN_WUNKMCUEX,
+	C1_WRN_WFNRVALIGN,
 
 	C1_WRN_LASTWRNCODE
 };

@@ -16,6 +16,7 @@
 - `IOCTL CPU, CLOCKSOURCE, HSI | HSI16 | HSI8 | HSI4 | HSI2 | LSI | HSE24 | HSE16 | HSE8 | LSE` - select MCU system clock generator and its frequency, default is `HSI`. Usually `HSI` stands for the maximum possible frequency available with internal high-speed RC oscillator. `HSI16` - 16 MHz with internal oscillator, `HSI8` - 8 MHz with 16 MHz internal oscillator (divided by 2), `HSE8` - 8 MHz with 8 MHz external crystal oscillator, `HSE16` - 16 MHz with 16 MHz external crystal oscillator, `HSE24` - 24 MHz with 24 MHz external crystal oscillator. `LSI` and `LSE` are internal RC low-speed oscillator and external low-speed oscillator (using external resonator or another clock source).  
 - `IOCTL CPU, WAIT, INTERRUPT` - wait for interrupt command  
 - `IOCTL CPU, DELAYMS, <numeric_value>` - pauses program execution for the specified amount of time (in milliseconds, acceptable range of the numeric argument is: 0 to 255 ms). The command is based on loops and cannot be used for precise delays generation (it should delay for not less than the specified amount of time).  
+- `IOCTL CPU, RESET` - initiates system reset  
   
 **Note:**  
 `CLOCKSOURCE` command allows a limited set of constants listed above depending on MCU type:  
@@ -143,7 +144,7 @@ SPI continuous transmission example (8 MHz, 100 bytes long array)
 - `IOCTL ST7565_SPI, FONT, <font_name>` -  select font (`8x8` and `8x16` dot matrix fonts are supported). Either 7-bit font (characters of the original ASCII table) or 8-bit font (for 256 characters of the extended ASCII table) can be selected: the font type is specified with font data. A special `EXT` font type represents upper 128 characters of the extended ASCII table and cannot be use alone: use it to change glyphs of the upper part of the current font.  
 - `IOCTL ST7565_SPI, ZONEWIDTH, <numeric_value>` - set print zone width (default is 8 characters)  
 - `IOCTL ST7565_SPI, INVERT, ON | OFF` - inverts colors  
-- `IOCTL ST7565_SPI, START` - initializes SPI, resets LCD driver chip, applies display initialization parameters (set with `INIT` command), etc. After the command execution display is ready to operate.  
+- `IOCTL ST7565_SPI, START, NORMAL | ROTATE180` - initializes SPI, resets LCD driver chip, applies display initialization parameters (set with `INIT` command), etc. After the command execution display is ready to operate.  
 - `IOCTL ST7565_SPI, STOP` - completes current SPI transmission, releases slave SPI device (display driver chip).  
 - `IOCTL ST7565_SPI, ENABLE` - enables SPI bus.  
 - `IOCTL ST7565_SPI, DISABLE` - disables SPI bus.  

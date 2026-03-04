@@ -1,0 +1,23 @@
+; divides unsigned 32-bit integer by 10
+; A1 - dividend, returns 32-bit quotient in A1 and remainder in A0
+:__LIB_AUX_DIV10
+ASM
+LI A0, 0 ; remainder
+LI T1, -1 ; counter
+LI T2, 10 ; divisor
+
+:::__LBL_DIV_LOOP
+SLTI T0, A1, 0 ; T0 = (A1 < 0)
+SLLI A1, A1, 1
+SLLI A0, A0, 1
+ADD A0, A0, T0
+BLT A0, T2, ::__LBL_TEST_LOOP
+ADDI A0, A0, -10
+ADDI A1, A1, 1
+
+:::__LBL_TEST_LOOP
+SLLI T1, T1, 1
+BNE T1, ZERO, ::__LBL_DIV_LOOP
+
+RET
+ENDASM

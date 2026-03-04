@@ -1,6 +1,6 @@
 /*
  Intermediate code compiler
- Copyright (c) 2021-2024 Nikolay Pletnev
+ Copyright (c) 2021-2026 Nikolay Pletnev
  MIT license
 
  c1errors.cpp: error messages and error reporting functions
@@ -102,6 +102,7 @@ static const std::string c1_wrn_msgs[] =
 	"",
 	"unknown MCU name",
 	"unknown MCU extensions",
+	"value returned by a function is not used",
 
 	"the last message"
 };

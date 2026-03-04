@@ -17,6 +17,7 @@ INTERRUPTS,    0,  INL,      ,        ,         ,         ,    TRUE,        BYTE
 CLOCKSOURCE,   1,  CALL,     ,        ,         ,         ,    TRUE,        WORD,      ,          TRUE,        6,       HSI,0xE100,   HSI16,0xE100,  HSI8,0xE111,   LSI,0xD203,    HSE16,0xB400,  HSE8,0xB401
 WAIT,          2,  INL,      ,        ,         ,         ,    TRUE,        BYTE,      ,          TRUE,        1,       INTERRUPT,0
 DELAYMS,       3,  CALL,     ,        ,         ,         ,    TRUE,        BYTE,      ,          FALSE
+RESET,         4,  INL,      ,        ,         ,         ,    FALSE
 
 [TIM5]
 PRESCALER,     0,  INL,      ,        ,         ,         ,    TRUE,        BYTE,      ,          TRUE,        16,      DIV1,0, DIV2,1, DIV4,2, DIV8,3, DIV16,4, DIV32,5, DIV64,6, DIV128,7, DIV256,8, DIV512,9, DIV1024,10, DIV2048,11, DIV4096,12, DIV8192,13, DIV16384,14, DIV32768,15
@@ -71,7 +72,7 @@ INIT,          3,  INL,      ,        ,         ,                    ,          
 FONT,          4,  CALL,     ,        ,         ,                    ,          TRUE,        VARREF,    _ST7565,   FALSE
 ZONEWIDTH,     5,  INL,      ,        ,         ,                    ,          TRUE,        BYTE,      IMR,       FALSE
 INVERT,        6,  INL,      ,        ,         ,                    ,          TRUE,        BYTE,      ,          TRUE,        4,       ON,0xFF, OFF,0, ENABLE,0xFF, DISABLE,0,                                                   ON
-START,         7,  CALL,     ,        ,         ,                    ,          FALSE
+START,         7,  CALL,     ,        ,         ,                    ,          TRUE,        BYTE,      ,          TRUE,        2,       NORMAL,0, ROTATE180,1,                                                                    NORMAL
 STOP,          8,  INL,      ,        ,         ,                    ,          FALSE
 ENABLE,        9,  INL,      ,        ,         ,                    ,          FALSE
 DISABLE,       10, INL,      ,        ,         ,                    ,          FALSE

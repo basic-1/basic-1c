@@ -1,6 +1,6 @@
 /*
  BASIC1 compiler
- Copyright (c) 2021-2024 Nikolay Pletnev
+ Copyright (c) 2021-2026 Nikolay Pletnev
  MIT license
 
  b1cmp.cpp: BASIC1 compiler helper classes
@@ -448,6 +448,19 @@ bool B1CUtils::is_src(const B1_CMP_CMD &cmd, const std::wstring &val)
 		return false;
 	}
 
+	if(cmd.cmd == L"CALL")
+	{
+		for(auto a = cmd.args.begin() + 1; a != cmd.args.end(); a++)
+		{
+			if((*a)[0].value == val)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	if(cmd.args.size() == 2)
 	{
 		for(auto &op: B1CUtils::_un_ops)
@@ -698,6 +711,22 @@ bool B1CUtils::is_sub_or_arg(const B1_CMP_CMD &cmd, const std::wstring &val)
 		return false;
 	}
 
+	if(cmd.cmd == L"CALL")
+	{
+		for(auto a = cmd.args.cbegin() + 1; a != cmd.args.cend(); a++)
+		{
+			for(auto s = a->cbegin() + 1; s != a->cend(); s++)
+			{
+				if(s->value == val)
+				{
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
 	if(cmd.args.size() == 2)
 	{
 		for(auto &op: B1CUtils::_un_ops)
@@ -894,6 +923,22 @@ bool B1CUtils::is_used(const B1_CMP_CMD &cmd, const std::wstring &val)
 		if(cmd.args[0][1].value == val)
 		{
 			return true;
+		}
+
+		return false;
+	}
+
+	if(cmd.cmd == L"CALL")
+	{
+		for(auto a = cmd.args.begin() + 1; a != cmd.args.end(); a++)
+		{
+			for(const auto &aa: *a)
+			{
+				if(aa.value == val)
+				{
+					return true;
+				}
+			}
 		}
 
 		return false;
@@ -1166,6 +1211,24 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const std::wstring &val, const B1_CM
 		return false;
 	}
 
+	if(cmd.cmd == L"CALL")
+	{
+		for(auto a = cmd.args.begin() + 1; a != cmd.args.end(); a++)
+		{
+			if((*a)[0].value == val)
+			{
+				*a = arg;
+				replaced = true;
+				if(count_replaced != nullptr)
+				{
+					*count_replaced = *count_replaced + 1;
+				}
+			}
+		}
+
+		return replaced;
+	}
+
 	if(cmd.args.size() == 2)
 	{
 		for(auto &op: B1CUtils::_un_ops)
@@ -1347,6 +1410,24 @@ bool B1CUtils::replace_src(B1_CMP_CMD &cmd, const B1_CMP_ARG &src_arg, const B1_
 				if(count_replaced != nullptr)
 				{
 					*count_replaced = 1;
+				}
+				replaced = true;
+			}
+		}
+
+		return replaced;
+	}
+
+	if(cmd.cmd == L"CALL")
+	{
+		for(auto a = cmd.args.begin() + 1; a != cmd.args.end(); a++)
+		{
+			if(*a == src_arg)
+			{
+				*a = arg;
+				if(count_replaced != nullptr)
+				{
+					*count_replaced = *count_replaced + 1;
 				}
 				replaced = true;
 			}
@@ -1573,6 +1654,22 @@ bool B1CUtils::replace_src_with_subs(B1_CMP_CMD &cmd, const std::wstring &val, c
 		processed = true;
 	}
 
+	if(!processed && cmd.cmd == L"CALL")
+	{
+		for(auto a = cmd.args.begin() + 1; a != cmd.args.end(); a++)
+		{
+			for(auto aa = a->begin(); aa != a->end(); aa++)
+			{
+				if(aa->value == val)
+				{
+					to_replace.push_back(&*aa);
+				}
+			}
+		}
+
+		processed = true;
+	}
+
 	if(!processed && cmd.args.size() == 2)
 	{
 		for(auto &op: B1CUtils::_un_ops)
@@ -1766,6 +1863,20 @@ bool B1CUtils::arg_is_src(const B1_CMP_CMD &cmd, const B1_CMP_ARG &arg)
 		if(cmd.args.size() > 2 && cmd.args[2] == arg)
 		{
 			return true;
+		}
+
+		return false;
+	}
+
+	if(cmd.cmd == L"CALL")
+	{
+
+		for(auto a = cmd.args.cbegin() + 1; a != cmd.args.cend(); a++)
+		{
+			if(*a == arg)
+			{
+				return true;
+			}
 		}
 
 		return false;

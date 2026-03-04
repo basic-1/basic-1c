@@ -17,6 +17,7 @@ INTERRUPTS,    0,  INL,      ,        ,         ,         ,    TRUE,        BYTE
 CLOCKSOURCE,   1,  CALL,     ,        ,         ,         ,    TRUE,        WORD,      ,          TRUE,        7,       HSI,0x0100,   HSI16,0x0100,  HSI8,0x0111,   LSI,0x0203,    HSE16,0x0400,  HSE8,0x0401, LSE,0x0802
 WAIT,          2,  INL,      ,        ,         ,         ,    TRUE,        BYTE,      ,          TRUE,        1,       INTERRUPT,0
 DELAYMS,       3,  CALL,     ,        ,         ,         ,    TRUE,        BYTE,      ,          FALSE
+RESET,         4,  INL,      ,        ,         ,         ,    FALSE
 
 [TIM2]
 PRESCALER,     0,  INL,      ,        ,         ,         ,    TRUE,        BYTE,      ,          TRUE,        8,      DIV1,0, DIV2,1, DIV4,2, DIV8,3, DIV16,4, DIV32,5, DIV64,6, DIV128,7
@@ -71,7 +72,7 @@ INIT,          3,  INL,      ,        ,         ,                    ,          
 FONT,          4,  CALL,     ,        ,         ,                    ,          TRUE,        VARREF,    _ST7565,   FALSE
 ZONEWIDTH,     5,  INL,      ,        ,         ,                    ,          TRUE,        BYTE,      IMR,       FALSE
 INVERT,        6,  INL,      ,        ,         ,                    ,          TRUE,        BYTE,      ,          TRUE,        4,       ON,0xFF, OFF,0, ENABLE,0xFF, DISABLE,0,                                                   ON
-START,         7,  CALL,     ,        ,         ,                    ,          FALSE
+START,         7,  CALL,     ,        ,         ,                    ,          TRUE,        BYTE,      ,          TRUE,        2,       NORMAL,0, ROTATE180,1,                                                                    NORMAL
 STOP,          8,  INL,      ,        ,         ,                    ,          FALSE
 ENABLE,        9,  INL,      ,        ,         ,                    ,          FALSE
 DISABLE,       10, INL,      ,        ,         ,                    ,          FALSE

@@ -1576,6 +1576,106 @@ C1_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_offs
 	return C1_T_ERROR::C1_RES_OK;
 }
 
+C1_T_ERROR C1STM8Compiler::stm8_load_fn_args(const B1_CMP_FN *fn, const B1_CMP_ARG &arg, int &rgs_size_in_stack)
+{
+	int arg_ind = 0;
+
+	// only one argument (or the first argument of standard function), pass the value in registers
+	if(fn->args.size() == 1 || fn->isstdfn)
+	{
+		arg_ind = 1;
+	}
+
+	// transfer arguments in stack, starting from the first one
+	for(; arg_ind < fn->args.size(); arg_ind++)
+	{
+		LVT lvt = LVT::LVT_NONE;
+		std::wstring res_val;
+
+		const auto &farg = fn->args[arg_ind];
+
+		// for BYTE type try to use memref
+		if(farg.type == B1Types::B1T_BYTE)
+		{
+			auto err = stm8_load(arg[arg_ind + 1], B1Types::B1T_BYTE, LVT::LVT_MEMREF, nullptr, &res_val);
+			if(err == C1_T_ERROR::C1_RES_OK)
+			{
+				add_op(*_curr_code_sec, L"PUSH (" + res_val + L")", false); //3B LONG_ADDRESS
+				_stack_ptr++;
+				rgs_size_in_stack++;
+				continue;
+			}
+		}
+
+		auto err = stm8_load(arg[arg_ind + 1], farg.type, LVT::LVT_REG | LVT::LVT_IMMVAL, &lvt, &res_val);
+		if(err != C1_T_ERROR::C1_RES_OK)
+		{
+			return err;
+		}
+
+		if(lvt == LVT::LVT_IMMVAL)
+		{
+			if(farg.type == B1Types::B1T_BYTE)
+			{
+				add_op(*_curr_code_sec, L"PUSH " + res_val, false); //4B BYTE_VALUE
+				_stack_ptr++;
+				rgs_size_in_stack++;
+			}
+			else
+			{
+				add_op(*_curr_code_sec, L"PUSH " + res_val + L".ll", false); //4B BYTE_VALUE
+				add_op(*_curr_code_sec, L"PUSH " + res_val + L".lh", false); //4B BYTE_VALUE
+				_stack_ptr += 2;
+				rgs_size_in_stack += 2;
+
+				if(farg.type == B1Types::B1T_LONG)
+				{
+					add_op(*_curr_code_sec, L"PUSH " + res_val + L".hl", false); //4B BYTE_VALUE
+					add_op(*_curr_code_sec, L"PUSH " + res_val + L".hh", false); //4B BYTE_VALUE
+					_stack_ptr += 2;
+					rgs_size_in_stack += 2;
+				}
+			}
+		}
+		else
+		{
+			if(farg.type == B1Types::B1T_BYTE)
+			{
+				add_op(*_curr_code_sec, L"PUSH A", false); //88
+				_stack_ptr++;
+				rgs_size_in_stack++;
+			}
+			else
+			{
+				add_op(*_curr_code_sec, L"PUSHW X", false); //89
+				_stack_ptr += 2;
+				rgs_size_in_stack += 2;
+
+				if(farg.type == B1Types::B1T_LONG)
+				{
+					add_op(*_curr_code_sec, L"PUSHW Y", false); //90 89
+					_stack_ptr += 2;
+					rgs_size_in_stack += 2;
+				}
+			}
+		}
+	}
+
+	// only one argument (or the first argument of standard function), pass the value in registers
+	if(fn->args.size() == 1 || fn->isstdfn)
+	{
+		LVT lvt = LVT::LVT_NONE;
+		std::wstring res_val;
+		auto err = stm8_load(arg[1], fn->args[0].type, LVT::LVT_REG, &lvt, &res_val);
+		if(err != C1_T_ERROR::C1_RES_OK)
+		{
+			return err;
+		}
+	}
+
+	return C1_T_ERROR::C1_RES_OK;
+}
+
 C1_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types req_type, LVT req_valtype, LVT *res_valtype /*= nullptr*/, std::wstring *res_val /*= nullptr*/, bool *volatile_var /*= nullptr*/)
 {
 	if(arg.size() == 1)
@@ -2178,99 +2278,10 @@ C1_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types req_ty
 		 
 		// arguments size in stack
 		int args_size = 0;
-		int arg_ind = 0;
-
-		// only one argument (or the first argument of standard function), pass the value in registers
-		if(fn->args.size() == 1 || fn->isstdfn)
+		auto err = stm8_load_fn_args(fn, arg, args_size);
+		if(err != C1_T_ERROR::C1_RES_OK)
 		{
-			arg_ind = 1;
-		}
-
-		// transfer arguments in stack, starting from the first one
-		for(; arg_ind < fn->args.size(); arg_ind++)
-		{
-			LVT lvt = LVT::LVT_NONE;
-			std::wstring res_val;
-
-			const auto &farg = fn->args[arg_ind];
-
-			// for BYTE type try to use memref
-			if(farg.type == B1Types::B1T_BYTE)
-			{
-				auto err = stm8_load(arg[arg_ind + 1], B1Types::B1T_BYTE, LVT::LVT_MEMREF, nullptr, &res_val);
-				if(err == C1_T_ERROR::C1_RES_OK)
-				{
-					add_op(*_curr_code_sec, L"PUSH (" + res_val + L")", false); //3B LONG_ADDRESS
-					_stack_ptr++;
-					args_size++;
-					continue;
-				}
-			}
-
-			auto err = stm8_load(arg[arg_ind + 1], farg.type, LVT::LVT_REG | LVT::LVT_IMMVAL, &lvt, &res_val);
-			if(err != static_cast<C1_T_ERROR>(B1_RES_OK))
-			{
-				return err;
-			}
-
-			if(lvt == LVT::LVT_IMMVAL)
-			{
-				if(farg.type == B1Types::B1T_BYTE)
-				{
-					add_op(*_curr_code_sec, L"PUSH " + res_val, false); //4B BYTE_VALUE
-					_stack_ptr++;
-					args_size++;
-				}
-				else
-				{
-					add_op(*_curr_code_sec, L"PUSH " + res_val + L".ll", false); //4B BYTE_VALUE
-					add_op(*_curr_code_sec, L"PUSH " + res_val + L".lh", false); //4B BYTE_VALUE
-					_stack_ptr += 2;
-					args_size += 2;
-
-					if(farg.type == B1Types::B1T_LONG)
-					{
-						add_op(*_curr_code_sec, L"PUSH " + res_val + L".hl", false); //4B BYTE_VALUE
-						add_op(*_curr_code_sec, L"PUSH " + res_val + L".hh", false); //4B BYTE_VALUE
-						_stack_ptr += 2;
-						args_size += 2;
-					}
-				}
-			}
-			else
-			{
-				if(farg.type == B1Types::B1T_BYTE)
-				{
-					add_op(*_curr_code_sec, L"PUSH A", false); //88
-					_stack_ptr++;
-					args_size++;
-				}
-				else
-				{
-					add_op(*_curr_code_sec, L"PUSHW X", false); //89
-					_stack_ptr += 2;
-					args_size += 2;
-
-					if(farg.type == B1Types::B1T_LONG)
-					{
-						add_op(*_curr_code_sec, L"PUSHW Y", false); //90 89
-						_stack_ptr += 2;
-						args_size += 2;
-					}
-				}
-			}
-		}
-
-		// only one argument (or the first argument of standard function), pass the value in registers
-		if(fn->args.size() == 1 || fn->isstdfn)
-		{
-			LVT lvt = LVT::LVT_NONE;
-			std::wstring res_val;
-			auto err = stm8_load(arg[1], fn->args[0].type, LVT::LVT_REG, &lvt, &res_val);
-			if(err != static_cast<C1_T_ERROR>(B1_RES_OK))
-			{
-				return err;
-			}
+			return err;
 		}
 
 		if(req_valtype & LVT::LVT_REG)
@@ -5168,7 +5179,49 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 				_comment = Utils::str_trim(_src_lines[cmd.src_line_id]);
 			}
 
+			// arguments size in stack
+			int args_size = 0;
+
+			if(cmd.args.size() > 1)
+			{
+				B1_CMP_ARG fnarg;
+
+				fnarg.emplace_back(cmd.args[0][0].value);
+				for(auto a = cmd.args.begin() + 1; a != cmd.args.end(); a++)
+				{
+					if(a->size() != 1)
+					{
+						return C1_T_ERROR::C1_RES_ENOTIMP;
+					}
+					fnarg.emplace_back((*a)[0]);
+				}
+
+				auto fn = get_fn(fnarg);
+				if(fn == nullptr)
+				{
+					return static_cast<C1_T_ERROR>(B1_RES_EUNKIDENT);
+				}
+
+				if(fn->rettype != B1Types::B1T_NONE)
+				{
+					_warnings.push_back(std::make_tuple(GetCurrLineNum(), GetCurrFileName(), C1_T_WARNING::C1_WRN_WFNRVALIGN));
+				}
+
+				auto err = stm8_load_fn_args(fn, fnarg, args_size);
+				if(err != C1_T_ERROR::C1_RES_OK)
+				{
+					return err;
+				}
+			}
+
 			add_call_op(cmd.args[0][0].value);
+
+			if(args_size != 0)
+			{
+				// cleanup stack
+				add_op(*_curr_code_sec, L"ADDW SP, " + Utils::str_tohex16(args_size), false); //5B BYTE_VALUE
+				_stack_ptr -= args_size;
+			}
 
 			_cmp_active = false;
 			_retval_active = false;
@@ -9018,7 +9071,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 
 					for(auto next = std::next(next1); next != cs.cend(); next++)
 					{
-						auto next_ao = static_cast<B1_ASM_OP_STM8*>(next->get());
+						auto next_ao = static_cast<B1_ASM_OP_STM8 *>(next->get());
 						if(next_ao->_type == AOT::AOT_LABEL)
 						{
 							break;
@@ -9178,7 +9231,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 							break;
 						}
 
-						next_ao = static_cast<B1_ASM_OP_STM8*>(nextn->get());
+						next_ao = static_cast<B1_ASM_OP_STM8 *>(nextn->get());
 						if(next_ao->_type == AOT::AOT_LABEL)
 						{
 							proceed = true;

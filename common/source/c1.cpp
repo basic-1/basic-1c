@@ -1187,6 +1187,19 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			}
 
 			args.push_back(tv.value);
+
+			if(cmd == L"CALL")
+			{
+				while(offset != std::wstring::npos)
+				{
+					err = get_arg(tmpline, arg, offset);
+					if(err != C1_T_ERROR::C1_RES_OK)
+					{
+						return err;
+					}
+					args.push_back(arg);
+				}
+			}
 		}
 		else
 		if(cmd == L"ERR")
@@ -1709,6 +1722,15 @@ C1_T_ERROR C1Compiler::read_and_check_vars(iterator begin, iterator end, bool in
 			if(cmd.cmd == L"CALL")
 			{
 				_sub_entry_labels.insert(cmd.args[0][0].value);
+
+				for(auto a = cmd.args.begin() + 1; a != cmd.args.end(); a++)
+				{
+					auto err = check_arg(*a);
+					if(err != C1_T_ERROR::C1_RES_OK)
+					{
+						return err;
+					}
+				}
 			}
 
 			continue;
@@ -2275,6 +2297,20 @@ C1_T_ERROR C1Compiler::process_imm_str_values(const_iterator begin, const_iterat
 					{
 						return err;
 					}
+				}
+			}
+
+			continue;
+		}
+
+		if(cmd.cmd == L"CALL")
+		{
+			for(auto a = cmd.args.begin() + 1; a != cmd.args.end(); a++)
+			{
+				auto err = process_imm_str_value(*a);
+				if(err != C1_T_ERROR::C1_RES_OK)
+				{
+					return err;
 				}
 			}
 

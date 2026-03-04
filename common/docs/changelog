@@ -1,3 +1,13 @@
+b1c (1.0.0-58) unstable; urgency=low
+
+  * IOCTL CPU, RESET command added
+  * ST7565 driver: 180 degree rotated output is possible now
+  * now c1 CALL statement can call functions with arguments
+  * NONE data type added to use with c1 DEF statement as return type
+  * RISC-V library files added (for STR$, SET$, LCASE$ and UCASE$ functions)
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Wed, 04 Mar 2026 20:54:01 +0300
+
 b1c (1.0.0-57) unstable; urgency=low
 
   * added support for IOCTL functions

@@ -1,0 +1,36 @@
+; SET$(<string>, <length>): creates a string of length <length> and sets all its characters to the first character of <string>
+; A1 - string address, A2 - new string length, returns resulting string in A0
+:__LIB_STR_SET
+ASM
+ADDI SP, SP, -16
+SW RA, 8(SP)
+SW A3, 4(SP)
+SW A1, 0(SP)
+
+LI A3, 0 ; character to fill the string with
+BEQ A1, ZERO, ::__LBL_ALLOC_MEM
+LBU A3, 1(A1)
+BEQ A3, ZERO, ::__LBL_ALLOC_MEM
+LBU A3, 2(A1)
+
+:::__LBL_ALLOC_MEM
+CALL __LIB_STR_RLS
+ADDI A1, A2, 2 ; memory block size for the new string
+CALL __LIB_MEM_ALC
+BEQ A0, ZERO, ::__LBL_EXIT
+
+ADDI A1, A0, 2
+CALL __LIB_MEM_SET
+ADDI A0, A0, -1
+SB A2, 0(A0)
+ADDI A0, A0, -1
+LI A1, 1
+SB A1, 0(A0)
+
+:::__LBL_EXIT
+LW A1, 0(SP)
+LW A3, 4(SP)
+LW RA, 8(SP)
+ADDI SP, SP, 16
+RET
+ENDASM
