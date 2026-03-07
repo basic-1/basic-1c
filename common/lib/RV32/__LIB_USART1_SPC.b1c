@@ -1,0 +1,27 @@
+; SPC(n) PRINT function
+; A1 - number of spaces to write
+:__LIB_USART1_SPC
+ASM
+BEQ A1, ZERO, ::__LBL_EXIT
+
+ADDI SP, SP, -16
+SW A1, 0(SP)
+SW A2, 4(SP)
+SW RA, 8(SP)
+
+MV A2, A1
+LI A1, 32
+
+:::__LBL_WRITE_SPC
+CALL __LIB_USART1_OUT_CHR
+ADDI A2, A2, -1
+BNE A2, ZERO, ::__LBL_WRITE_SPC
+
+LW A1, 0(SP)
+LW A2, 4(SP)
+LW RA, 8(SP)
+ADDI SP, SP, 16
+
+:::__LBL_EXIT
+RET
+ENDASM

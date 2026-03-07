@@ -1,0 +1,58 @@
+; returns substring of a source string
+; A1 - string address, A2 - 1-based starting position, A3 - num. characters to copy, returns substring in A0
+:__LIB_STR_MID
+ASM
+ADDI SP, SP, -16
+SW A3, 12(SP)
+SW A2, 8(SP)
+SW A1, 4(SP)
+SW RA, 0(SP)
+
+LI A0, 0 ; empty string
+BEQ A1, ZERO, ::__LBL_EXIT
+LBU T1, 1(A1) ; string length
+BEQ T1, ZERO, ::__LBL_RLS_EXIT
+
+:::__LBL_CHK_ST_POS
+; if(start == 0 || start > init_len) return ""
+BEQ A2, ZERO, ::__LBL_RLS_EXIT
+SUB T2, T1, A2 ; T2 = init_len - start
+BLT T2, ZERO, ::__LBL_RLS_EXIT
+; to_copy = min(num_copy, init_len - start + 1)
+ADDI T2, T2, 1
+BLT T2, A3, ::__LBL_CHK_NUM_CHR
+MV T2, A3
+
+:::__LBL_CHK_NUM_CHR
+; if(init_len == to_copy) return init_str
+MV A0, A1
+BEQ T1, T2, ::__LBL_EXIT
+ADDI A1, T2, 2
+CALL __LIB_MEM_ALC
+BEQ A0, ZERO, ::__LBL_RLS_EXIT
+LI A3, 1
+SB A3, 0(A0)
+ADDI A3, A1, -2
+SB A3, 1(A0) ; new string length
+ADDI A1, A0, 2 ; dst address
+LW A2, 4(SP) ; src string
+ADDI A2, A2, 1
+LW A0, 8(SP) ; starting position
+ADD A2, A2, A0 ; src data address
+CALL __LIB_MEM_CPY
+ADDI A0, A0, -2
+
+:::__LBL_RLS_EXIT
+MV A3, A0
+LW A1, 4(SP)
+CALL __LIB_STR_RLS
+MV A0, A3
+
+:::__LBL_EXIT
+LW RA, 0(SP)
+LW A1, 4(SP)
+LW A2, 8(SP)
+LW A3, 12(SP)
+ADDI SP, SP, 16
+RET
+ENDASM

@@ -1,0 +1,95 @@
+INI,__LIB_ERR_LAST_ERR
+; returns position of the first occurrence of a string in another string (1-based) or zero if the string is not found
+; A1 - 1-based starting position, A2 - string to search in, A3 - string to search for, returns result in A0
+:__LIB_STR_INS
+ASM
+ADDI SP, SP, -32
+SW S1, 16(SP)
+SW A3, 12(SP)
+SW A2, 8(SP)
+SW A1, 4(SP)
+SW RA, 0(SP)
+
+BNE A1, ZERO, ::__LBL_START_POS_OK
+LI A0, B1C_RTE_STR_WRONG_INDEX
+SB A0, __LIB_ERR_LAST_ERR
+CALL __LIB_ERR_HANDLER
+LI A0, 0
+J ::__LBL_RLS_RET
+
+:::__LBL_START_POS_OK
+LI A0, 0
+BEQ A2, ZERO, ::__LBL_RLS_RET
+LBU S1, 1(A2)
+BLTU S1, A1, ::__LBL_RLS_RET
+SUB S1, S1, A1
+ADDI S1, S1, 1 ; len1 = len(search_in) - start_pos + 1
+; add start_pos to search_in string data address
+LI A0, 1
+BEQ A3, ZERO, ::__LBL_RLS_RET
+LBU A1, 1(A3) ; len2
+BEQ A1, ZERO, ::__LBL_RLS_RET
+SUB S1, S1, A1 ; len1 -= len2
+LI A0, 0
+BLT S1, ZERO, ::__LBL_RLS_RET
+MV A0, S1
+LI RA, 0
+
+:::__LBL_SRCH_LOOP
+LW A2, 8(SP)
+LW S1, 4(SP)
+ADD A2, A2, S1
+ADD A2, A2, RA
+
+:::__LBL_CMP_LOOP
+LBU T1, 1(A2)
+SLTI S1, T1, 97 ; 'a'
+BNE S1, ZERO, ::__LBL_GET_CHR2
+SLTI S1, T1, 123 ; 'z' + 1
+BEQ S1, ZERO, ::__LBL_GET_CHR2
+ADDI T1, T1, -32
+
+:::__LBL_GET_CHR2
+LBU T2, 2(A3)
+SLTI S1, T2, 97 ; 'a'
+BNE S1, ZERO, ::__LBL_CMP_CHARS
+SLTI S1, T2, 123 ; 'z' + 1
+BEQ S1, ZERO, ::__LBL_CMP_CHARS
+ADDI T2, T2, -32
+
+:::__LBL_CMP_CHARS
+BNE T1, T2, ::__LBL_NXT_SUBSTR
+ADDI A2, A2, 1
+ADDI A3, A3, 1
+ADDI A1, A1, -1
+BNE A1, ZERO, ::__LBL_CMP_LOOP
+; the string is found
+LW A0, 4(SP)
+ADD A0, A0, RA
+J ::__LBL_RLS_RET
+
+:::__LBL_NXT_SUBSTR
+BEQ A0, ZERO, ::__LBL_RLS_RET ; not found
+ADDI A0, A0, -1
+ADDI RA, RA, 1
+LW A3, 12(SP)
+LBU A1, 1(A3) ; len2
+J ::__LBL_SRCH_LOOP
+
+:::__LBL_RLS_RET
+MV A2, A0
+LW A1, 8(SP)
+CALL __LIB_STR_RLS
+LW A1, 12(SP)
+CALL __LIB_STR_RLS
+MV A0, A2
+
+:::__LBL_EXIT
+LW RA, 0(SP)
+LW A1, 4(SP)
+LW A2, 8(SP)
+LW A3, 12(SP)
+LW S1, 16(SP)
+ADDI SP, SP, 32
+RET
+ENDASM

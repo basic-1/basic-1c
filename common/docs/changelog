@@ -1,3 +1,12 @@
+b1c (1.0.0-59) unstable; urgency=low
+
+  * STM8L001J3M3 MCU support added
+  * reset.bsc example
+  * RISC-V library files added (for MID$ and INSTR functions)
+  * implemented a part of UART library for RISC-V CH32V003 MCUs
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Sat, 07 Mar 2026 15:43:28 +0300
+
 b1c (1.0.0-58) unstable; urgency=low
 
   * IOCTL CPU, RESET command added

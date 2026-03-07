@@ -1,0 +1,8 @@
+; bit 0 - print new line on reaching margin (enabled by default)
+; bit 1 - input echo (enabled by default)
+; bit 2 - RX (enabled by default)
+; bit 3 - TX (enabled by default)
+; bit 4 - simplex mode (duplex is default)
+; bit 6 - configure GPIO pins (enabled by default)
+; bits 5, 7 - reserved
+=,79<BYTE>,__LIB_USART1_OPT<BYTE>

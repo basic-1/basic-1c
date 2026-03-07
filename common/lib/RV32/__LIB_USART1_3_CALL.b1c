@@ -1,0 +1,33 @@
+INI,__LIB_USART1_NL_LEN
+INI,__LIB_USART1_NL_CHRS
+
+; configure USART1 new-line sequence
+; A1 - new sequence string
+:__LIB_USART1_3_CALL
+ASM
+ADDI SP, SP, -16
+SW RA, 0(SP)
+
+LI A0, 0
+BEQ A1, ZERO, ::__LBL_STR_LEN_OK
+LBU A0, 1(A1) ; string length
+LI T1, 3
+BLTU A0, T1, ::__LBL_STR_LEN_OK
+LI A0, 2 ; use 2 chars at most
+
+:::__LBL_STR_LEN_OK
+SB A0, __LIB_USART1_NL_LEN
+BEQ A0, ZERO, ::__LBL_EXIT
+LBU T1, 2(A1)
+SB T1, __LIB_USART1_NL_CHRS + 1
+ADDI A0, A0, -1
+BEQ A0, ZERO, ::__LBL_EXIT
+LBU T1, 3(A1)
+SB T1, __LIB_USART1_NL_CHRS
+
+:::__LBL_EXIT
+CALL __LIB_STR_RLS
+LW RA, 0(SP)
+ADDI SP, SP, 16
+RET
+ENDASM

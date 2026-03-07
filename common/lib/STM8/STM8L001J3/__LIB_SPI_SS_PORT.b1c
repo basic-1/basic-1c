@@ -1,0 +1,3 @@
+; SPI slave select pin port base address (default is port of NSS pin of corresponding MCU)
+; no default NSS pin
+GA,__LIB_SPI_SS_PORT,WORD

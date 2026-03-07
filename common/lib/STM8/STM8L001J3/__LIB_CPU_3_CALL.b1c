@@ -1,0 +1,40 @@
+; CPU DELAYMS
+; A - delay time in milliseconds
+INI,__LIB_CPU_OPT
+
+:__LIB_CPU_3_CALL
+ASM
+TNZ A
+JREQ ::__LBL_EXIT
+
+; HSI oscillator
+LDW X, 42 * 8 * 16 ; 16 MHz
+PUSH A
+LD A, (__LIB_CPU_OPT)
+AND A, 3
+JREQ ::__LBL_DO_DELAY
+SRLW X ; 8 MHz
+DEC A
+JREQ ::__LBL_DO_DELAY
+SRLW X ; 4 MHz
+DEC A
+JREQ ::__LBL_DO_DELAY
+SRLW X ; 2 MHz
+
+:::__LBL_DO_DELAY
+POP A
+PUSHW X
+
+:::__LBL_DELAY_LOOP
+LDW X, (1, SP) ; 2
+
+:::__LBL_1_MS_LOOP
+DECW X ; 1
+JRNE ::__LBL_1_MS_LOOP ; 1/2
+DEC A ; 1
+JRNE ::__LBL_DELAY_LOOP ; 1/2
+POPW X
+
+:::__LBL_EXIT
+RET
+ENDASM

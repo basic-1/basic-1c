@@ -1,0 +1,6 @@
+; CPU RESET
+ASM
+DB 0x75 ; invalid opcode reset
+:::__LBL_WAIT_RESET
+JRA ::__LBL_WAIT_RESET
+ENDASM

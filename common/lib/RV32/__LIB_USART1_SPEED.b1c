@@ -1,0 +1,2 @@
+; 9600 baud by default
+=,0x13880683<LONG>,__LIB_USART1_SPEED<LONG>

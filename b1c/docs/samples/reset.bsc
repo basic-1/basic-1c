@@ -1,0 +1,13 @@
+REM MCU software reset
+
+IOCTL UART, ENABLE
+IOCTL UART, START
+
+PRINT "start"
+
+WHILE 1 > 0
+INPUT "press <Enter> to reset... ", S$
+IOCTL CPU, RESET
+WEND
+
+END

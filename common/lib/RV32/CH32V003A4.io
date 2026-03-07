@@ -21,3 +21,17 @@ DISABLE,       2,  INL,      ,        ,         __LIB_GPIO_DIS_INL,  ,          
 ^SETPIN[0-7]$, 3,  INL,      ,        ,         __LIB_GPIO_SET_INL,  ,                FALSE
 ^CLRPIN[0-7]$, 4,  INL,      ,        ,         __LIB_GPIO_CLR_INL,  ,                FALSE
 ^INVPIN[0-7]$, 5,  INL,      ,        ,         __LIB_GPIO_INV_INL,  ,                FALSE
+
+[USART1]
+; name         id  call_type ret_type placement file_name mask accept_data  data_type  extra_data predef_only  val_num  val0_name,val0_value...                                                                    def_val
+INPUTECHO,     0,  INL,      ,        ,         ,         2,   TRUE,        BYTE,      ,          TRUE,        4,       ON,2,         OFF,0,         ENABLE,2,      DISABLE,0
+TRANSMODE,     0,  INL,      ,        ,         ,         16,  TRUE,        BYTE,      ,          TRUE,        2,       DUPLEX,0,     SIMPLEX,16
+CFGPINS,       0,  INL,      ,        ,         ,         64,  TRUE,        BYTE,      ,          TRUE,        4,       ON,64,        OFF,0,         ENABLE,64,     DISABLE,0,                                     ON
+SPEED,         1,  INL,      ,        ,         ,         ,    TRUE,        LONG,      ,          TRUE,        6,       9600,0x13880683, 14400,0x0D050457, 19200,0x09C40341, 38400,0x04E201A1, 57600,0x03410118, 115200,0x01A1008B
+NEWLINE,       3,  CALL,     ,        ,         ,         ,    TRUE,        STRING,    ,          FALSE
+MARGIN,        4,  INL,      ,        ,         ,         ,    TRUE,        BYTE,      IR,        FALSE
+ZONEWIDTH,     5,  INL,      ,        ,         ,         ,    TRUE,        BYTE,      IR,        FALSE
+START,         6,  CALL,     ,        ,         ,         ,    TRUE,        BYTE,      ,          TRUE,        2,       RX,4,         TX,8,                                                                        TX
+STOP,          7,  CALL,     ,        ,         ,         ,    FALSE
+ENABLE,        8,  INL,      ,        ,         ,         ,    FALSE
+DISABLE,       9,  INL,      ,        ,         ,         ,    FALSE
