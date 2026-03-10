@@ -1,0 +1,19 @@
+; returns the left part of a string
+; A1 - string address, A2 - characters to return, returns substring in A0
+:__LIB_STR_LEFT
+ASM
+ADDI SP, SP, -16
+SW A3, 8(SP)
+SW A2, 4(SP)
+SW RA, 0(SP)
+
+MV A3, A2
+LI A2, 1
+CALL __LIB_STR_MID
+
+LW RA, 0(SP)
+LW A2, 4(SP)
+LW A3, 8(SP)
+ADDI SP, SP, 16
+RET
+ENDASM

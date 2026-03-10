@@ -46,6 +46,8 @@ DISABLE,       2,  INL,      ,        ,         __LIB_GPIO_DIS_INL,  ,          
 ^SETPIN[0-7]$, 3,  INL,      ,        ,         __LIB_GPIO_SET_INL,  ,          FALSE
 ^CLRPIN[0-7]$, 4,  INL,      ,        ,         __LIB_GPIO_CLR_INL,  ,          FALSE
 ^INVPIN[0-7]$, 5,  INL,      ,        ,         __LIB_GPIO_INV_INL,  ,          FALSE
+^GETPIN[0-7]$, 6,  INL,      BYTE,    ,         __LIB_GPIO_GET_INL,  ,          FALSE
+GETPINS,       7,  INL,      BYTE,    ,         __LIB_GPIO_GETA_INL, ,          FALSE
 
 [SPI1]
 ; name         id  call_type ret_type placement file_name            mask       accept_data  data_type  extra_data predef_only  val_num  val0_name,val0_value...                                                                   def_val

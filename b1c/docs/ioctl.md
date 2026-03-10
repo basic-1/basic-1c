@@ -32,6 +32,8 @@
 - `IOCTL PX, SETPINY` - set single pin (set to high logic level)  
 - `IOCTL PX, CLRPINY` - clear single pin (set to low logic level)  
 - `IOCTL PX, INVPINY` - invert pin state  
+- `IOCTL (PX, GETPINY)` - read pin input, returns 0 or 1  
+- `IOCTL (PX, GETPINS)` - read all port pins, returns a BYTE value where every bit value corresponds to the pin state  
 - `IOCTL PX, ENABLE` - enable GPIO port  
 - `IOCTL PX, DISABLE` - disable GPIO port  
   
@@ -42,6 +44,9 @@ Here `PX` stands for GPIO port name (e.g. `PA` for port A) and command names sho
 `IOCTL PB, ENABLE`  
 `IOCTL PB, CFGPIN5, OUT_PUSHPULL_FAST`  
 `IOCTL PB, CLRPIN5`  
+  
+`REM read pin 0 of port A and go to the line 100 if the pin state is low`  
+`IF IOCTL(PA, GETPIN0) = 0 THEN GOTO 100`  
   
 ### UART  
   
@@ -105,7 +110,7 @@ Here `PX` stands for GPIO port name (e.g. `PA` for port A) and command names sho
 - `IOCTL SPI, STOP` - stop SPI communication  
 - `IOCTL SPI, ENABLE` - enable SPI  
 - `IOCTL SPI, DISABLE` - disable SPI  
-- `IOCTL(SPI, ISACTIVE)` - return SPI activity status: 0 - SPI is inactive, 1 - SPI is active  
+- `IOCTL (SPI, ISACTIVE)` - return SPI activity status: 0 - SPI is inactive, 1 - SPI is active  
   
 **Example:**  
 `IOCTL SPI, ENABLE`  

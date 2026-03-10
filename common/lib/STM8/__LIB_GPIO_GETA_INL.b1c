@@ -1,0 +1,3 @@
+ASM
+LD A, ({DEV_NAME}_IDR)
+ENDASM

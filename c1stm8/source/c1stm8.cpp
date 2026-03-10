@@ -1586,76 +1586,118 @@ C1_T_ERROR C1STM8Compiler::stm8_load_fn_args(const B1_CMP_FN *fn, const B1_CMP_A
 		arg_ind = 1;
 	}
 
-	// transfer arguments in stack, starting from the first one
-	for(; arg_ind < fn->args.size(); arg_ind++)
+	bool reuse_stk = true;
+	//                    off      size
+	std::vector<std::pair<int32_t, int32_t>> stk_offs;
+
+	for(int a = arg_ind; a < fn->args.size(); a++)
 	{
-		LVT lvt = LVT::LVT_NONE;
-		std::wstring res_val;
+		std::wstring stk_off;
+		int32_t n, s;
 
-		const auto &farg = fn->args[arg_ind];
-
-		// for BYTE type try to use memref
-		if(farg.type == B1Types::B1T_BYTE)
-		{
-			auto err = stm8_load(arg[arg_ind + 1], B1Types::B1T_BYTE, LVT::LVT_MEMREF, nullptr, &res_val);
-			if(err == C1_T_ERROR::C1_RES_OK)
-			{
-				add_op(*_curr_code_sec, L"PUSH (" + res_val + L")", false); //3B LONG_ADDRESS
-				_stack_ptr++;
-				rgs_size_in_stack++;
-				continue;
-			}
-		}
-
-		auto err = stm8_load(arg[arg_ind + 1], farg.type, LVT::LVT_REG | LVT::LVT_IMMVAL, &lvt, &res_val);
+		auto err = stm8_load(arg[a + 1], fn->args[a].type, LVT::LVT_STKREF, nullptr, &stk_off);
 		if(err != C1_T_ERROR::C1_RES_OK)
 		{
-			return err;
+			reuse_stk = false;
+			break;
 		}
-
-		if(lvt == LVT::LVT_IMMVAL)
+		if(Utils::str2int32(stk_off, n) != B1_RES_OK)
 		{
+			reuse_stk = false;
+			break;
+		}
+		B1CUtils::get_asm_type(fn->args[a].type, nullptr, &s);
+		stk_offs.emplace_back(std::make_pair(n, s));
+	}
+
+	if(reuse_stk)
+	{
+		int32_t off = 1;
+
+		for(auto so = stk_offs.crbegin(); so != stk_offs.crend(); so++)
+		{
+			if(so->first != off)
+			{
+				reuse_stk = false;
+				break;
+			}
+			off += so->second;
+		}
+	}
+
+	if(!reuse_stk)
+	{
+		// transfer arguments in stack, starting from the first one
+		for(; arg_ind < fn->args.size(); arg_ind++)
+		{
+			LVT lvt = LVT::LVT_NONE;
+			std::wstring res_val;
+
+			const auto &farg = fn->args[arg_ind];
+
+			// for BYTE type try to use memref
 			if(farg.type == B1Types::B1T_BYTE)
 			{
-				add_op(*_curr_code_sec, L"PUSH " + res_val, false); //4B BYTE_VALUE
-				_stack_ptr++;
-				rgs_size_in_stack++;
-			}
-			else
-			{
-				add_op(*_curr_code_sec, L"PUSH " + res_val + L".ll", false); //4B BYTE_VALUE
-				add_op(*_curr_code_sec, L"PUSH " + res_val + L".lh", false); //4B BYTE_VALUE
-				_stack_ptr += 2;
-				rgs_size_in_stack += 2;
-
-				if(farg.type == B1Types::B1T_LONG)
+				auto err = stm8_load(arg[arg_ind + 1], B1Types::B1T_BYTE, LVT::LVT_MEMREF, nullptr, &res_val);
+				if(err == C1_T_ERROR::C1_RES_OK)
 				{
-					add_op(*_curr_code_sec, L"PUSH " + res_val + L".hl", false); //4B BYTE_VALUE
-					add_op(*_curr_code_sec, L"PUSH " + res_val + L".hh", false); //4B BYTE_VALUE
-					_stack_ptr += 2;
-					rgs_size_in_stack += 2;
+					add_op(*_curr_code_sec, L"PUSH (" + res_val + L")", false); //3B LONG_ADDRESS
+					_stack_ptr++;
+					rgs_size_in_stack++;
+					continue;
 				}
 			}
-		}
-		else
-		{
-			if(farg.type == B1Types::B1T_BYTE)
+
+			auto err = stm8_load(arg[arg_ind + 1], farg.type, LVT::LVT_REG | LVT::LVT_IMMVAL, &lvt, &res_val);
+			if(err != C1_T_ERROR::C1_RES_OK)
 			{
-				add_op(*_curr_code_sec, L"PUSH A", false); //88
-				_stack_ptr++;
-				rgs_size_in_stack++;
+				return err;
+			}
+
+			if(lvt == LVT::LVT_IMMVAL)
+			{
+				if(farg.type == B1Types::B1T_BYTE)
+				{
+					add_op(*_curr_code_sec, L"PUSH " + res_val, false); //4B BYTE_VALUE
+					_stack_ptr++;
+					rgs_size_in_stack++;
+				}
+				else
+				{
+					add_op(*_curr_code_sec, L"PUSH " + res_val + L".ll", false); //4B BYTE_VALUE
+					add_op(*_curr_code_sec, L"PUSH " + res_val + L".lh", false); //4B BYTE_VALUE
+					_stack_ptr += 2;
+					rgs_size_in_stack += 2;
+
+					if(farg.type == B1Types::B1T_LONG)
+					{
+						add_op(*_curr_code_sec, L"PUSH " + res_val + L".hl", false); //4B BYTE_VALUE
+						add_op(*_curr_code_sec, L"PUSH " + res_val + L".hh", false); //4B BYTE_VALUE
+						_stack_ptr += 2;
+						rgs_size_in_stack += 2;
+					}
+				}
 			}
 			else
 			{
-				add_op(*_curr_code_sec, L"PUSHW X", false); //89
-				_stack_ptr += 2;
-				rgs_size_in_stack += 2;
-
-				if(farg.type == B1Types::B1T_LONG)
+				if(farg.type == B1Types::B1T_BYTE)
 				{
-					add_op(*_curr_code_sec, L"PUSHW Y", false); //90 89
+					add_op(*_curr_code_sec, L"PUSH A", false); //88
+					_stack_ptr++;
+					rgs_size_in_stack++;
+				}
+				else
+				{
+					add_op(*_curr_code_sec, L"PUSHW X", false); //89
 					_stack_ptr += 2;
 					rgs_size_in_stack += 2;
+
+					if(farg.type == B1Types::B1T_LONG)
+					{
+						add_op(*_curr_code_sec, L"PUSHW Y", false); //90 89
+						_stack_ptr += 2;
+						rgs_size_in_stack += 2;
+					}
 				}
 			}
 		}
@@ -4248,18 +4290,39 @@ C1_T_ERROR C1STM8Compiler::stm8_write_ioctl_fn(const B1_CMP_ARG &arg)
 		return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
 	}
 
+	auto file_name = iocmd.file_name;
+	if(file_name.empty())
+	{
+		file_name = L"__LIB_" + dev_name + L"_" + std::to_wstring(iocmd.id) + ((iocmd.call_type == Settings::IoCmd::IoCmdCallType::CT_CALL) ? L"_CALL" : L"_INL");
+	}
+
 	if(iocmd.call_type == Settings::IoCmd::IoCmdCallType::CT_CALL)
 	{
-		auto file_name = iocmd.file_name;
-		if(file_name.empty())
-		{
-			file_name = L"__LIB_" + dev_name + L"_" + std::to_wstring(iocmd.id) + L"_CALL";
-		}
 		add_call_op(file_name);
 	}
 	else
 	{
-		return C1_T_ERROR::C1_RES_ENOTIMP;
+		// inline code
+		std::map<std::wstring, std::wstring> params =
+		{
+			{ L"DEV_NAME", dev_name },
+			{ L"ID", std::to_wstring(iocmd.id) },
+			{ L"CMD_NAME", cmd_name },
+		};
+
+		auto err = load_inline(0, file_name, end(), params, nullptr, true);
+		if(err != C1_T_ERROR::C1_RES_OK)
+		{
+			return err;
+		}
+
+		err = write_inline_asm_cmd(back());
+		if(err != C1_T_ERROR::C1_RES_OK)
+		{
+			return err;
+		}
+
+		pop_back();
 	}
 
 	return C1_T_ERROR::C1_RES_OK;
@@ -4936,38 +4999,10 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 				_comment = Utils::str_trim(_src_lines[cmd.src_line_id]);
 			}
 
-			for(const auto &a: cmd.args)
+			auto err = write_inline_asm_cmd(cmd);
+			if(err != C1_T_ERROR::C1_RES_OK)
 			{
-				auto trimmed = Utils::str_trim(a[0].value);
-				if(!trimmed.empty())
-				{
-					if(trimmed.front() == L':')
-					{
-						add_lbl(*_curr_code_sec, _curr_code_sec->cend(), trimmed.substr(1), true, true);
-					}
-					else
-					if(trimmed.front() == L';')
-					{
-						_comment = trimmed.substr(1);
-					}
-					else
-					if(trimmed.length() >= 2)
-					{
-						auto first2 = trimmed.substr(0, 2);
-						if(first2 == L"DB" || first2 == L"DW" || first2 == L"DD")
-						{
-							add_data(*_curr_code_sec, _curr_code_sec->cend(), trimmed, true, true);
-						}
-						else
-						{
-							add_op(*_curr_code_sec, trimmed, true, true);
-						}
-					}
-					else
-					{
-						return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
-					}
-				}
+				return err;
 			}
 
 			_cmp_active = false;
@@ -6770,7 +6805,7 @@ bool C1STM8Compiler::is_arithm_op(const B1_ASM_OP_STM8 &ao, int32_t &size, bool 
 	}
 	else
 	if(op == L"LD" || op == L"ADD" || op == L"SUB" || op == L"ADC" || op == L"SBC" || op == L"INC" || op == L"DEC" || op == L"NEG" || op == L"AND" || op == L"OR" || op == L"XOR" || op == L"CPL"
-		|| op == L"CLR" || op == L"SLL" || op == L"SLA" || op == L"SRL" || op == L"SRA")
+		|| op == L"CLR" || op == L"SLL" || op == L"SLA" || op == L"SRL" || op == L"SRA" || op == L"RLC")
 	{
 		size = 1;
 		res = true;
@@ -7918,7 +7953,7 @@ C1_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 			continue;
 		}
 
-		if(ao._is_inline || !ao.Parse())
+		if(!ao.Parse())
 		{
 			i++;
 			continue;
@@ -8162,28 +8197,20 @@ C1_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 		{
 			// LDW X, smth not reg
 			// -TNZW X
-			if (!(ao._op == L"LDW" && (ao._args[1] == L"X" || ao._args[1] == L"Y" || ao._args[1] == L"SP")))
-			{
-				cs.erase(next1);
-
-				update_opt_rule_usage_stat(rule_id);
-				changed = true;
-				continue;
-			}
+			cs.erase(next1);
+			update_opt_rule_usage_stat(rule_id);
+			changed = true;
+			continue;
 		}
 		else
 		if(!aon1._volatile && i_arithm_op && i_size == 1 && aon1._op == L"TNZ" && ao._args[0] == aon1._args[0])
 		{
 			// LD A, smth not reg
 			// -TNZ A
-			if (!(ao._op == L"LD" && (ao._args[1] == L"XL" || ao._args[1] == L"YL" || ao._args[1] == L"XH" || ao._args[1] == L"YH")))
-			{
-				cs.erase(next1);
-
-				update_opt_rule_usage_stat(rule_id);
-				changed = true;
-				continue;
-			}
+			cs.erase(next1);
+			update_opt_rule_usage_stat(rule_id);
+			changed = true;
+			continue;
 		}
 
 		auto next2 = std::next(next1);

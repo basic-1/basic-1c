@@ -168,8 +168,8 @@ protected:
 	C1_T_ERROR get_arg(const std::wstring &str, B1_CMP_ARG &arg, size_t &next_off) const;
 	virtual C1_T_ERROR process_asm_cmd(const std::wstring &line) = 0;
 	C1_T_ERROR replace_inline(std::wstring &line, const std::map<std::wstring, std::wstring> &inl_params, bool &empty_val) const;
-	C1_T_ERROR load_inline(size_t offset, const std::wstring &line, iterator load_at, const std::map<std::wstring, std::wstring> &inl_params = std::map<std::wstring, std::wstring>(), const B1_CMP_CMD *orig_cmd = nullptr);
-	C1_T_ERROR load_next_command(const std::wstring &line, const_iterator pos);
+	C1_T_ERROR load_inline(size_t offset, const std::wstring &line, iterator load_at, const std::map<std::wstring, std::wstring> &inl_params = std::map<std::wstring, std::wstring>(), const B1_CMP_CMD *orig_cmd = nullptr, bool pure_asm = false);
+	C1_T_ERROR load_next_command(const std::wstring &line, const_iterator pos, bool pure_asm);
 
 	const B1_CMP_FN *get_fn(const B1_TYPED_VALUE &val) const;
 	const B1_CMP_FN *get_fn(const B1_CMP_ARG &arg) const;
@@ -189,6 +189,8 @@ protected:
 	B1_ASM_OPS::iterator add_data(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, const std::wstring &data, bool is_volatile, bool is_inline = false);
 	B1_ASM_OPS::iterator add_op(B1_ASM_OPS &sec, B1_ASM_OPS::const_iterator where, const std::wstring &op, bool is_volatile, bool is_inline = false);
 	B1_ASM_OPS::iterator add_op(B1_ASM_OPS &sec, const std::wstring &op, bool is_volatile, bool is_inline = false);
+
+	C1_T_ERROR write_inline_asm_cmd(const B1_CMP_CMD &cmd);
 
 	virtual C1_T_ERROR add_data_def(const std::wstring &name, const std::wstring &asmtype, int32_t rep, bool is_volatile);
 	virtual C1_T_ERROR write_data_sec(bool code_init);

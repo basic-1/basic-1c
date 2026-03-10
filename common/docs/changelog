@@ -1,3 +1,11 @@
+b1c (1.0.0-60) unstable; urgency=low
+
+  * inline IOCTL functions
+  * GPIO GETPINx and GETPINS functions implemented (e.g. IOCTL(PA, GETPIN1))
+  * more RISC-V library functions added (LTRIM$, RTRIM$, LEFT$, RIGHT$)
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Tue, 10 Mar 2026 18:29:11 +0300
+ 
 b1c (1.0.0-59) unstable; urgency=low
 
   * STM8L001J3M3 MCU support added

@@ -382,7 +382,7 @@ C1_T_ERROR C1Compiler::replace_inline(std::wstring &line, const std::map<std::ws
 	return C1_T_ERROR::C1_RES_OK;
 }
 
-C1_T_ERROR C1Compiler::load_inline(size_t offset, const std::wstring &line, iterator load_at, const std::map<std::wstring, std::wstring> &inl_params, const B1_CMP_CMD *orig_cmd)
+C1_T_ERROR C1Compiler::load_inline(size_t offset, const std::wstring &line, iterator load_at, const std::map<std::wstring, std::wstring> &inl_params, const B1_CMP_CMD *orig_cmd, bool pure_asm)
 {
 	B1_TYPED_VALUE tv;
 
@@ -467,7 +467,7 @@ C1_T_ERROR C1Compiler::load_inline(size_t offset, const std::wstring &line, iter
 			continue;
 		}
 
-		err = load_next_command(inl_line, load_at);
+		err = load_next_command(inl_line, load_at, pure_asm);
 		if(err != C1_T_ERROR::C1_RES_OK)
 		{
 			break;
@@ -493,6 +493,11 @@ C1_T_ERROR C1Compiler::load_inline(size_t offset, const std::wstring &line, iter
 	if(err != C1_T_ERROR::C1_RES_OK)
 	{
 		return err;
+	}
+
+	if(pure_asm)
+	{
+		return C1_T_ERROR::C1_RES_OK;
 	}
 
 	start = (start == end()) ? begin() : std::next(start);
@@ -524,7 +529,7 @@ C1_T_ERROR C1Compiler::load_inline(size_t offset, const std::wstring &line, iter
 	return err;
 }
 
-C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterator pos)
+C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterator pos, bool pure_asm)
 {
 	auto b = line.cbegin();
 	auto e = line.cend();
@@ -571,6 +576,11 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			}
 			else
 			{
+				if(pure_asm)
+				{
+					return C1_T_ERROR::C1_RES_EINTERR;
+				}
+
 				emit_label(lname, pos, true);
 			}
 
@@ -613,11 +623,6 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			return C1_T_ERROR::C1_RES_EINVCMDNAME;
 		}
 
-		if(cmd != L"DAT")
-		{
-			_last_dat_namespace.clear();
-		}
-
 		if(cmd == L"ASM")
 		{
 			_asm_stmt_it = emit_inline_asm(pos);
@@ -630,6 +635,16 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			}
 
 			return C1_T_ERROR::C1_RES_OK;
+		}
+
+		if(pure_asm)
+		{
+			return C1_T_ERROR::C1_RES_EINTERR;
+		}
+
+		if(cmd != L"DAT")
+		{
+			_last_dat_namespace.clear();
 		}
 
 		if(cmd == L"DEF")
@@ -2370,6 +2385,45 @@ B1_ASM_OPS::iterator C1Compiler::add_op(B1_ASM_OPS &sec, const std::wstring &op,
 	return add_op(sec, sec.cend(), op, is_volatile, is_inline);
 }
 
+C1_T_ERROR C1Compiler::write_inline_asm_cmd(const B1_CMP_CMD &cmd)
+{
+	for(auto &a:cmd.args)
+	{
+		auto trimmed = Utils::str_trim(a[0].value);
+		if(!trimmed.empty())
+		{
+			if(trimmed.front() == L':')
+			{
+				add_lbl(*_curr_code_sec, _curr_code_sec->cend(), trimmed.substr(1), true, true);
+			}
+			else
+			if(trimmed.front() == L';')
+			{
+				_comment = trimmed.substr(1);
+			}
+			else
+			if(trimmed.length() >= 2)
+			{
+				auto first2 = trimmed.substr(0, 2);
+				if(first2 == L"DB" || first2 == L"DW" || first2 == L"DD")
+				{
+					add_data(*_curr_code_sec, _curr_code_sec->cend(), trimmed, true, true);
+				}
+				else
+				{
+					add_op(*_curr_code_sec, trimmed, true, true);
+				}
+			}
+			else
+			{
+				return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
+			}
+		}
+	}
+
+	return C1_T_ERROR::C1_RES_OK;
+}
+
 C1_T_ERROR C1Compiler::add_data_def(const std::wstring &name, const std::wstring &asmtype, int32_t rep, bool is_volatile)
 {
 	add_lbl(_data_sec, _data_sec.cend(), name, is_volatile);
@@ -2900,7 +2954,7 @@ C1_T_ERROR C1Compiler::Load(const std::vector<std::string> &file_names)
 
 			_curr_line_cnt++;
 
-			err = load_next_command(line, cend());
+			err = load_next_command(line, cend(), false);
 			if(err != C1_T_ERROR::C1_RES_OK)
 			{
 				break;

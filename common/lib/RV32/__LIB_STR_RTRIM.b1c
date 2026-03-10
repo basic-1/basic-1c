@@ -1,0 +1,33 @@
+; returns a copy of the string without trailing spaces
+; A1 - string address, returns trimmed string in A0
+:__LIB_STR_RTRIM
+ASM
+ADDI SP, SP, -16
+SW A3, 8(SP)
+SW A2, 4(SP)
+SW RA, 0(SP)
+
+MV A0, A1
+BEQ A1, ZERO, ::__LBL_RET
+LBU A3, 1(A1) ; string length
+BEQ A3, ZERO, ::__LBL_RET
+
+:::__LBL_FND_SPC_LOOP
+ADD A0, A1, A3
+LBU A2, 1(A0)
+ADDI A2, A2, -32
+BNE A2, ZERO, ::__LBL_TRIM
+ADDI A3, A3, -1
+BNE A3, ZERO, ::__LBL_FND_SPC_LOOP
+
+:::__LBL_TRIM
+LI A2, 1
+CALL __LIB_STR_MID
+
+:::__LBL_RET
+LW RA, 0(SP)
+LW A2, 4(SP)
+LW A3, 8(SP)
+ADDI SP, SP, 16
+RET
+ENDASM
