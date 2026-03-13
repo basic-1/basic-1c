@@ -1,0 +1,27 @@
+; divides two unsigned 8-bit integers
+; A1 - dividend, A2 - divisor, returns quotient and remainder in A0 (xxxxrrqq)
+:__LIB_AUX_DIV8
+ASM
+LI A0, 0  ; remainder
+MV T0, A1 ; dividend/quotient
+LI T1, 8  ; counter
+
+:::__LBL_DIV_LOOP
+SRLI T2, T0, 7
+ANDI T2, T2, 1   ; T2 <- T0.7
+SLLI T0, T0, 1
+SLLI A0, A0, 1
+ADD A0, A0, T2
+BLT A0, A2, ::__LBL_TEST_LOOP
+SUB A0, A0, A2
+ADDI T0, T0, 1
+
+:::__LBL_TEST_LOOP
+ADDI T1, T1, -1
+BNE T1, ZERO, ::__LBL_DIV_LOOP
+
+SLLI A0, A0, 8
+ANDI T0, T0, 0xFF
+OR A0, A0, T0
+RET
+ENDASM

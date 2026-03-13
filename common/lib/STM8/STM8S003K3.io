@@ -30,6 +30,7 @@ STOP,          6,  INL,      ,        ,         ,         ,    FALSE
 ENABLE,        7,  INL,      ,        ,         ,         ,    FALSE
 DISABLE,       8,  INL,      ,        ,         ,         ,    FALSE
 ONUPDOVF,      9,  INL,      ,        END,      ,         ,    TRUE,        LABEL,     ,          FALSE
+GETCNT,       10,  INL,      WORD,    ,         ,         ,    FALSE
 
 [PA,PB,PC,PD,PE,PF]
 ; name         id  call_type ret_type placement file_name            mask       accept_data  data_type  extra_data predef_only  val_num  val0_name,val0_value...

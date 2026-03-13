@@ -1,0 +1,48 @@
+INI,__LIB_STR_SET_SPC
+
+; A1 - string address, A2 - new string length, A3 == 0 stands for LSET$, A3 != 0 - RSET$, returns justified string in A0
+:__LIB_STR_LRSET
+ASM
+LI T1, 0
+BEQ A1, ZERO, ::__LBL_CHK_SLEN
+LBU T1, 1(A1)
+
+:::__LBL_CHK_SLEN
+MV A0, A1
+BGE T1, A2, ::__LBL_RET
+
+ADDI SP, SP, -16
+SW RA, 8(SP)
+SW A2, 4(SP)
+SW A1, 0(SP)
+
+LA A1, __LIB_STR_SET_SPC
+SUB A2, A2, T1
+CALL __LIB_STR_SET
+BEQ A0, ZERO, ::__LBL_REL_EXIT
+LW A1, 0(SP)
+MV A2, A0
+BNE A3, ZERO, ::__LBL_APPEND
+; LSET$
+MV A2, A1
+MV A1, A0
+
+:::__LBL_APPEND
+CALL __LIB_STR_APD
+J ::__LBL_EXIT
+
+:::__LBL_REL_EXIT
+MV A2, A0
+LW A1, 0(SP)
+CALL __LIB_STR_RLS
+MV A0, A2
+
+:::__LBL_EXIT
+LW A1, 0(SP)
+LW A2, 4(SP)
+LW RA, 8(SP)
+ADDI SP, SP, 16
+
+:::__LBL_RET
+RET
+ENDASM

@@ -1,0 +1,15 @@
+; A1 - string address, A2 - new string length, returns justified string in A0
+:__LIB_STR_RSET
+ASM
+ADDI SP, SP, -16
+SW RA, 4(SP)
+SW A3, 0(SP)
+
+LI A3, 1
+CALL __LIB_STR_LRSET
+
+LW A3, 0(SP)
+LW RA, 4(SP)
+ADDI SP, SP, 16
+RET
+ENDASM

@@ -71,12 +71,15 @@ Here `PX` stands for GPIO port name (e.g. `PA` for port A) and command names sho
   
 ### TIMER  
   
+Implements 16-bit timer  
+  
 - `IOCTL TIMER, PRESCALER, DIV1 | DIV2 | DIV4 | DIV8 | DIV16 | DIV32 | DIV64 | DIV128 | DIV256 | DIV512 | DIV1024 | DIV2048 | DIV4096 | DIV8192 | DIV16384 | DIV32768` - set timer clock prescaler (frequency divisor)  
 - `IOCTL TIMER, VALUE, <numeric_value>` - set timer counter  
 - `IOCTL TIMER, PERIODMS, <numeric_value>` - set timer period in ms (tries setting prescaler and value automatically)  
 - `IOCTL TIMER, INTERRUPT, ON | OFF` - enable or disable timer update interrupt (disabled by default)  
 - `IOCTL TIMER, CLRINTFLAG` - clear update interrupt flag  
 - `IOCTL TIMER, ONUPDOVF, <line_number>` - use BASIC subroutine starting from the specified line number as a handler for timer's update/overflow interrupt, the handler automatically clears update interrupt flag (see previous command description)  
+- `IOCTL (TIMER, GETCNT)` - returns the current value of the timer's counter (16-bit unsigned value)  
 - `IOCTL TIMER, START` - start timer  
 - `IOCTL TIMER, STOP` - stop timer  
 - `IOCTL TIMER, ENABLE` - enable timer  

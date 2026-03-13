@@ -1,0 +1,177 @@
+INI,__LIB_USART1_OPT
+INI,__LIB_ERR_LAST_ERR
+
+; reads a string from USART1
+; returns string in A0
+:__LIB_USART1_IN
+ASM
+ADDI SP, SP, -32
+SW A1, 0(SP)
+SW A2, 4(SP)
+SW A3, 8(SP)
+SW A4, 12(SP)
+SW A5, 16(SP)
+SW S1, 20(SP)
+SW RA, 24(SP)
+
+LI S1, 0 ; memory block address (blk)
+LI A2, 0 ; memory block size (blk_size)
+LI A3, 8 ; quoted string mark (qs: 0), opened quote mark (q: 1), blank character mark (isspc: 2), skip leading spaces mark (skip: 3)
+LI A4, 2 ; the next writing position (i)
+LI A5, 0 ; trailing spaces number (spcnum)
+
+:::__LBL_READ_LOOP
+; read the next byte
+LW A0, USART1_STATR
+ANDI A0, A0, USART1_STATR_RXNE
+BEQ A0, ZERO, ::__LBL_READ_LOOP ; wait for RXNE
+LBU A1, USART1_DATAR
+LI T1, 0x8 ; backspace
+BEQ A1, T1, ::__LBL_READ_LOOP
+LI T1, 0x7F ; another backspace
+BEQ A1, T1, ::__LBL_READ_LOOP
+LBU A0, __LIB_USART1_OPT
+ANDI A0, A0, 2 ; input echo
+BEQ A0, ZERO, ::__LBL_NO_IN_ECHO
+CALL __LIB_USART1_OUT_CHR
+
+:::__LBL_NO_IN_ECHO
+ORI A3, A3, 4 ; isspc = 1
+LI T1, 0x20 ; space character
+BEQ A1, T1, ::__LBL_SPC
+LI T1, 0x9 ; tab character
+BEQ A1, T1, ::__LBL_SPC
+ANDI A3, A3, !4 ; isspc = 0
+
+:::__LBL_SPC
+ANDI A0, A3, 8 ; skip
+BEQ A0, ZERO, ::__LBL_LEAD_SPC_SKIPPED
+ANDI A0, A3, 4 ; isspc
+BNE A0, ZERO, ::__LBL_READ_LOOP
+LI T1, 0x22 ; double quote
+BNE A1, T1, ::__LBL_LEAD_SPC_SKIPPED
+ORI A3, A3, 1 ; qs = 1
+
+:::__LBL_LEAD_SPC_SKIPPED
+ANDI A3, A3, !8 ; skip = 0
+LI T1, 0x2C ; comma
+BEQ A1, T1, ::__LBL_TST_INPUT_END
+LI T1, 0xD ; new line
+BNE A1, T1, ::__LBL_CONT_INPUT
+
+:::__LBL_TST_INPUT_END
+ANDI A0, A3, 1 + 2 ; qs + q
+SLTIU A0, A0, 1 + 2
+BNE A0, ZERO, ::__LBL_INPUT_END
+;BEQ A0, ZERO, ::__LBL_INPUT_END
+LI T1, 0xD ; new line
+BNE A1, T1, ::__LBL_CONT_INPUT
+LI A0, B1C_RTE_STR_INVALID
+J ::__LBL_CHK_ERR
+
+:::__LBL_INPUT_END
+BEQ S1, ZERO, ::__LBL_EXIT
+; trim trailing spaces
+SUB A0, A4, A5 ; A0 = i - spcnum
+ANDI T1, A3, 1 ; qs
+SUB A0, A0, T1 ; if(qs) A0--
+LI T1, 2
+BNE A0, T1, ::__LBL_CORRECT_SIZE
+; empty string, free allocated memory
+LI A0, 0
+J ::__LBL_CHK_ERR
+
+:::__LBL_CORRECT_SIZE
+; not empty string, correct block size
+MV A1, S1
+MV A2, A0
+ADDI A0, A0, -2
+SB A0, 1(S1) ; string length
+LI A0, 1
+SB A0, 0(S1) ; string usage counter
+CALL __LIB_MEM_RLC
+MV S1, A0
+BNE S1, ZERO, ::__LBL_EXIT
+MV S1, A1 ; address of the block prior to reallocation attempt
+LI A0, 0
+J ::__LBL_CHK_ERR
+
+:::__LBL_CONT_INPUT
+ANDI A0, A3, 1 ; qs
+BEQ A0, ZERO, ::__LBL_NOT_QS
+LI T1, 0x22 ; double quote
+BNE A1, T1, ::__LBL_CHK_QS_VALID
+ANDI A0, A3, 2 ; q
+BNE A0, ZERO, ::__LBL_OPENED_QS
+ORI A3, A3, 2 ; q=1
+LI A5, 0 ; spcnum = 0
+J ::__LBL_READ_LOOP
+
+:::__LBL_OPENED_QS
+ANDI A3, A3, !2 ; q=0
+J ::__LBL_NOT_QS
+
+:::__LBL_CHK_QS_VALID
+ANDI A0, A3, 2 ; q
+BNE A0, ZERO, ::__LBL_NOT_QS
+ANDI A0, A3, 4 ; isspc
+BNE A0, ZERO, ::__LBL_NOT_QS
+LI A0, B1C_RTE_STR_INVALID
+J ::__LBL_CHK_ERR
+
+:::__LBL_NOT_QS
+SW A1, 28(SP) ; save the character
+BLTU A4, A2, ::__LBL_BLK_SIZE_OK ; if(blk_size > i)
+LI A0, B1C_MAX_STR_LEN - 16
+BGEU A0, A2, ::__LBL_STR_LEN_OK ; if(blk_size <= B1C_MAX_STR_LEN - 16)
+LI A0, B1C_RTE_STR_TOOLONG
+J ::__LBL_CHK_ERR
+
+:::__LBL_STR_LEN_OK
+ADDI A2, A2, 16 ; blk_size += 16
+SW A1, 28(SP) ; save the character
+MV A1, S1
+CALL __LIB_MEM_RLC
+MV S1, A0
+BNE S1, ZERO, ::__LBL_BLK_SIZE_OK
+MV S1, A1 ; previous block address to free
+LI A0, 0
+J ::__LBL_CHK_ERR
+
+:::__LBL_BLK_SIZE_OK
+LW A1, 28(SP) ; load previously saved character
+ADDI A5, A5, 1 ; spcnum++
+ANDI A0, A3, 4 ; isspc
+BNE A0, ZERO, ::__LBL_SPC1
+LI A5, 0 ; spcnum = 0
+
+:::__LBL_SPC1
+ADD A0, S1, A4
+SB A1, 0(A0) ; *(blk + i) = c
+ADDI A4, A4, 1 ; i++
+J ::__LBL_READ_LOOP
+
+:::__LBL_CHK_ERR
+; here A0 = error code (zero value - error is already reported), S1 - string memory block address to free
+BEQ A0, ZERO, ::__LBL_FRE_MEM
+SB A0, __LIB_ERR_LAST_ERR
+CALL __LIB_ERR_HANDLER
+
+:::__LBL_FRE_MEM
+MV A1, S1
+CALL __LIB_MEM_FRE
+LI S1, 0
+
+:::__LBL_EXIT
+MV A0, S1
+
+LW A1, 0(SP)
+LW A2, 4(SP)
+LW A3, 8(SP)
+LW A4, 12(SP)
+LW A5, 16(SP)
+LW S1, 20(SP)
+LW RA, 24(SP)
+ADDI SP, SP, 32
+RET
+ENDASM

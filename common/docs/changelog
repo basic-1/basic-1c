@@ -1,3 +1,11 @@
+b1c (1.0.0-61) unstable; urgency=low
+
+  * IOCTL(TIMER, GETCNT) function implemented
+  * more RISC-V library functions added (LSET$, RSET$)
+  * the rest of CH32V003 UART library
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Fri, 13 Mar 2026 21:02:37 +0300
+
 b1c (1.0.0-60) unstable; urgency=low
 
   * inline IOCTL functions
