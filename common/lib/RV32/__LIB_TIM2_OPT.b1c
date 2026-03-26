@@ -1,0 +1,2 @@
+; bit 0 - enable timer overflow interrupt (enabled by default)
+=,1<BYTE>,__LIB_TIM2_OPT<BYTE>

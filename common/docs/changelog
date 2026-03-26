@@ -1,3 +1,11 @@
+b1c (1.0.0-62) unstable; urgency=low
+
+  * more optimizer rules
+  * CH32V003 TIMER functions added
+  * CH32V003J4M6 MCU support added
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Thu, 26 Mar 2026 21:25:53 +0300
+
 b1c (1.0.0-61) unstable; urgency=low
 
   * IOCTL(TIMER, GETCNT) function implemented
