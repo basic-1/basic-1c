@@ -1,0 +1,3 @@
+; SPI slave select pin number (default is NSS pin of corresponding MCU)
+; NSS pin is PC1
+=,0x1<BYTE>,__LIB_SPI1_SS_PIN<BYTE>

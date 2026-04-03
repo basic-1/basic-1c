@@ -1,0 +1,13 @@
+INI,__LIB_SPI1_SS_PIN
+INI,__LIB_SPI1_SS_PORT
+
+; set NSS pin low
+:__LIB_SPI1_NSS_LO
+ASM
+LBU A0, __LIB_SPI1_SS_PIN ; pin number
+LI T1, 1
+SLL T1, T1, A0 ; pin mask
+LW A0, __LIB_SPI1_SS_PORT
+SW T1, 0x14(A0) ; GPIOx_BCR
+RET
+ENDASM

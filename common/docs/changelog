@@ -1,3 +1,11 @@
+b1c (1.0.0-63) unstable; urgency=low
+
+  * more general names for GPIO pin configuration constants (IN_FLOAT, etc.)
+  * initial RTC support added (for STM8Lx5x MCUs)
+  * some CH32V003 SPI subroutines added
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Fri, 03 Apr 2026 18:17:08 +0300
+
 b1c (1.0.0-62) unstable; urgency=low
 
   * more optimizer rules

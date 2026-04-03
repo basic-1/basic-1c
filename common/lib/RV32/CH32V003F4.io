@@ -50,3 +50,19 @@ ENABLE,        7,  INL,      ,        ,         ,         ,    FALSE
 DISABLE,       8,  INL,      ,        ,         ,         ,    FALSE
 ONUPDOVF,      9,  INL,      ,        END,      ,         ,    TRUE,        LABEL,     ,          FALSE
 GETCNT,       10,  INL,      WORD,    ,         ,         ,    FALSE
+
+[SPI1]
+; name         id  call_type ret_type placement file_name mask       accept_data  data_type  extra_data predef_only  val_num  val0_name,val0_value...                                                                   def_val
+MODE,          0,  INL,      ,        ,         ,         3,         TRUE,        BYTE,      ,          TRUE,        12,      MODE0,0, MODE1,1, MODE2,2, MODE3,3, M0,0, M1,1, M2,2, M3,3, 0,0, 1,1, 2,2, 3,3
+MASTER,        0,  INL,      ,        ,         ,         4,         TRUE,        BYTE,      ,          TRUE,        4,       ON,4, OFF,0, ENABLE,4, DISABLE,0,                                                         ON
+PRESCALER,     0,  INL,      ,        ,         ,         0x38,      TRUE,        BYTE,      ,          TRUE,        8,       DIV2,0, DIV4,8, DIV8,0x10, DIV16,0x18, DIV32,0x20, DIV64,0x28, DIV128,0x30, DIV256,0x38
+FRAMEFMT,      0,  INL,      ,        ,         ,         0x80,      TRUE,        BYTE,      ,          TRUE,        2,       MSBFIRST,0, LSBFIRST,0x80
+TRANSMODE,     1,  INL,      ,        ,         ,         3,         TRUE,        BYTE,      ,          TRUE,        3,       DUPLEX,0, HALFDUPLEX,1, SIMPLEX,2
+CFGPINS,       1,  INL,      ,        ,         ,         4,         TRUE,        BYTE,      ,          TRUE,        4,       ON,4, OFF,0, ENABLE,4, DISABLE,0,                                                         ON
+SSPIN,         2,  INL,      ,        ,         ,         ,          TRUE,        TEXT,      ,          FALSE,       1,       NONE,NONE
+WAIT,          3,  INL,      ,        ,         ,         ,          TRUE,        BYTE,      ,          TRUE,        3,       RXNE,0, TXE,1, NOTBSY,2
+START,         5,  CALL,     ,        ,         ,         ,          TRUE,        BYTE,      ,          TRUE,        2,       RX,0, TX,1,                                                                               TX
+STOP,          6,  CALL,     ,        ,         ,         ,          FALSE
+ENABLE,        7,  INL,      ,        ,         ,         ,          FALSE
+DISABLE,       8,  INL,      ,        ,         ,         ,          FALSE
+ISACTIVE,      9,  CALL,     LONG,    ,         ,         ,          FALSE

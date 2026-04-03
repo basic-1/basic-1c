@@ -8,6 +8,12 @@
 `IOCTL <device_name>, <command_name>[, <command_data>]`  
 `<device_name>` is a name of MCU's peripheral device to send command to. A special device name `CPU` is used to manage MCU core settings and run some low-level commands.  
   
+`IOCTL` and `IOCTL$` functions can be used to read some data from the MCU peripheral device.  
+  
+**Syntax:**  
+`<var_name> = IOCTL(<device_name>[, <command_name>])`  
+`<str_var_name> = IOCTL$(<device_name>[, <command_name>])`  
+  
 ## Available devices and commands  
   
 ### CPU  
@@ -28,7 +34,7 @@
   
 ### GPIO  
   
-- `IOCTL PX, CFGPINY, IN_FLOAT_NOEXTI | IN_FLOAT_EXTI | IN_PULLUP_NOEXTI | IN_PULLUP_EXTI | OUT_OPENDRAIN_SLOW | OUT_OPENDRAIN_FAST | OUT_PUSHPULL_SLOW | OUT_PUSHPULL_FAST` - configure single GPIO port pin.  
+- `IOCTL PX, CFGPINY, IN_FLOAT_NOEXTI | IN_FLOAT_EXTI | IN_PULLUP_NOEXTI | IN_PULLUP_EXTI | OUT_OPENDRAIN_SLOW | OUT_OPENDRAIN_FAST | OUT_PUSHPULL_SLOW | OUT_PUSHPULL_FAST | IN_FLOAT | IN_PULLUP | OUT_OPENDRAIN | OUT_PUSHPULL` - configure single GPIO port pin.  
 - `IOCTL PX, SETPINY` - set single pin (set to high logic level)  
 - `IOCTL PX, CLRPINY` - clear single pin (set to low logic level)  
 - `IOCTL PX, INVPINY` - invert pin state  
@@ -38,6 +44,8 @@
 - `IOCTL PX, DISABLE` - disable GPIO port  
   
 Here `PX` stands for GPIO port name (e.g. `PA` for port A) and command names should specify the port pin (pin number should be the last character of the command, instead of Y character in the patterns above).  
+  
+`IN_FLOAT` value is the synonym for `IN_FLOAT_NOEXTI`, `IN_PULLUP` - `IN_PULLUP_NOEXTI`, `OUT_OPENDRAIN` - `OUT_OPENDRAIN_FAST` and `OUT_PUSHPULL` - `OUT_PUSHPULL_FAST`.  
   
 **Example:**  
 `REM configure pin 5 of port B as output push-pull and write 0 to the pin`  
@@ -223,4 +231,17 @@ Tested displays, back view
 `IOCTL ST7565_SPI, START`  
 `PRINT #ST7565_SPI, "Hello world!"`  
   
+### RTC  
+  
+Real-time clock peripheral device of STM8Lx5x MCUs. Uses LSE oscillator so the corresponding circuit should be implemented (32.768 kHz crystal oscillator with its load capacitors and other components should be connected to the proper MCU pins).  
+  
+`IOCTL RTC, SETDATE, <str_date>` - set the current date, e.g. "2026-04-03" stands for April 3, 2026  
+`IOCTL RTC, SETTIME, <str_time>` - set the current time, e.g. "18:26:00"  
+`IOCTL$ (RTC, GETDATE)` - return the current date in string form  
+`IOCTL$ (RTC, GETTIME)` - return the current time in string form  
+`IOCTL RTC, ENABLE` - start LSE oscillator if necessary and enable RTC system clock  
+`IOCTL RTC, DISABLE` - disable RTC system clock  
+`IOCTL (RTC, ISACTIVE)` - return RTC activity status: 0 - not active, 1 - active. The function returns 1 if LSE is on, RTC system clock is enabled and the current year is not 2000 (year 2000 is treated as an initial value RTC is set to after power-on reset, read corresponding STM8 MCUs reference manual for details)  
+  
+The commands use fixed string date and time format: `YYYY-MM-DD` for dates and `hh:mm:ss` for time. 24-hour time format is the only supported time format for now.  
   

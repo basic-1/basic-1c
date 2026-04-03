@@ -1,0 +1,64 @@
+;RTC SETTIME
+; X - time to set in string format (hh:mm:ss)
+:__LIB_RTC_1_CALL
+ASM
+PUSHW X
+TNZW X
+JREQ ::__LBL_ERR
+JRMI ::__LBL_ROM_STR
+INCW X
+
+:::__LBL_ROM_STR
+LD A, (X) ; get string length
+CP A, 8
+JRNE ::__LBL_ERR
+; get hours
+LD A, (1, X)
+SUB A, 0x30
+AND A, 3 ; not to overwrite AM/PM flag
+SWAP A
+ADD A, (2, X)
+SUB A, 0x30
+PUSH A
+; get minutes
+LD A, (4, X)
+SUB A, 0x30
+SWAP A
+ADD A, (5, X)
+SUB A, 0x30
+PUSH A
+; get seconds
+LD A, (7, X)
+SUB A, 0x30
+SWAP A
+ADD A, (8, X)
+SUB A, 0x30
+; unlock RTC registers
+MOV (RTC_WPR), 0xCA
+MOV (RTC_WPR), 0x53
+BSET (RTC_ISR1), RTC_ISR1_INIT_POS ; start calendar initialization
+
+:::__LBL_WAIT_INIT
+BTJF (RTC_ISR1), RTC_ISR1_INITF_POS, ::__LBL_WAIT_INIT
+; set TR registers
+LD (RTC_TR1), A ; seconds
+POP A
+LD (RTC_TR2), A ; minutes
+LD A, (RTC_TR3) ; hours
+AND A, RTC_TR3_PM ; preserve time format
+OR A, (1, SP)
+LD (RTC_TR3), A
+POP A
+BRES (RTC_ISR1), RTC_ISR1_INIT_POS ; end of calendar initialization
+MOV (RTC_WPR), 0xFF ; lock RTC registers
+JRA ::__LBL_EXIT
+
+:::__LBL_ERR
+MOV (__LIB_ERR_LAST_ERR), B1C_RTE_STR_WRONG_INDEX
+CALLR __LIB_ERR_HANDLER
+
+:::__LBL_EXIT
+POPW X
+CALLR __LIB_STR_RLS
+RET
+ENDASM

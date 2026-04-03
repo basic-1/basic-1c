@@ -1,0 +1,56 @@
+;RTC GETDATE
+; returns date in string format in X register
+:__LIB_RTC_2_CALL
+ASM
+LDW X, 12
+CALLR __LIB_MEM_ALC
+TNZW X
+JREQ ::__LBL_EXIT
+
+BRES (RTC_ISR1), RTC_ISR1_RSF_POS
+
+:::__LBL_WAIT_RSF
+BTJF (RTC_ISR1), RTC_ISR1_RSF_POS, ::__LBL_WAIT_RSF
+
+LD A, (RTC_TR1) ; lock the registers update
+LD A, (RTC_DR1) ; day
+PUSH A
+AND A, 0xF
+ADD A, 0x30
+LD (11, X), A
+POP A
+SWAP A
+AND A, 0xF
+ADD A, 0x30
+LD (10, X), A
+LD A, (RTC_DR2) ; month
+PUSH A
+AND A, 0xF
+ADD A, 0x30
+LD (8, X), A
+POP A
+SWAP A
+AND A, 0x1
+ADD A, 0x30
+LD (7, X), A
+LD A, (RTC_DR3) ; year
+PUSH A
+AND A, 0xF
+ADD A, 0x30
+LD (5, X), A
+POP A
+SWAP A
+AND A, 0xF
+ADD A, 0x30
+LD (4, X), A
+LDW Y, 0x3230 ; two first digits of the year
+LDW (2, X), Y
+LDW Y, 0x10A ; string usage counter and length
+LDW (X), Y
+LD A, 45 ; date parts delimiter (-)
+LD (6, X), A
+LD (9, X), A
+
+:::__LBL_EXIT
+RET
+ENDASM

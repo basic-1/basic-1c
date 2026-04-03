@@ -1,0 +1,13 @@
+; RTC ISACTIVE
+; returns RTC activity state in A register (0 - inactive, 1 - active)
+:__LIB_RTC_10_CALL
+ASM
+CLR A
+BTJF (CLK_ECKCR), CLK_ECKCR_LSEON_POS, ::__LBL_EXIT
+BTJF (CLK_PCKENR2), CLK_PCKENR2_RTC_POS, ::__LBL_EXIT
+BTJF (RTC_ISR1), RTC_ISR1_INITS_POS, ::__LBL_EXIT
+INC A
+
+:::__LBL_EXIT
+RET
+ENDASM

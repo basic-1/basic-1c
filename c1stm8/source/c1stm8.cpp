@@ -10565,7 +10565,6 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 			continue;
 		}
 
-
 		i++;
 	}
 

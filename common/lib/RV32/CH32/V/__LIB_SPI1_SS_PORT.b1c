@@ -1,0 +1,7 @@
+; SPI slave select pin port base address (default is port of NSS pin of corresponding MCU)
+; NSS pin is PC1
+GA,__LIB_SPI1_SS_PORT,LONG
+ASM
+LI A0, GPIOC_CFGLR
+SW A0, __LIB_SPI1_SS_PORT
+ENDASM

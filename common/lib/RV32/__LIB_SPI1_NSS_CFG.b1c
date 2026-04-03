@@ -1,0 +1,28 @@
+INI,__LIB_SPI1_SS_PIN
+INI,__LIB_SPI1_SS_PORT
+
+; configure NSS pin
+; A1 = 0 stands for slave (floating input), A1 = 1 - master (push-pull multiplexed output)
+:__LIB_SPI1_NSS_CFG
+ASM
+LBU T1, __LIB_SPI1_SS_PIN ; pin number
+SLLI T1, T1, 2 ; number of bits to shift pin mask to
+LI A0, 0xF
+SLL A0, A0, T1
+NOT A0
+LW T2, __LIB_SPI1_SS_PORT ; GPIOx_CFGLR
+LW T2, 0(T2) ; GPIOx_CFGLR value
+AND T2, T2, A0
+; 0x4 - floating input
+LI A0, 0x4
+BEQ A1, ZERO, ::__LBL_SET_PIN_MODE
+; 0xB - push-pull multiplexed output
+LI A0, 0xB
+
+:::__LBL_SET_PIN_MODE
+SLL A0, A0, T1
+OR T2, T2, A0
+LW A0, __LIB_SPI1_SS_PORT ; GPIOx_CFGLR
+SW T2, 0(A0)
+RET
+ENDASM
