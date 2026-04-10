@@ -1,3 +1,12 @@
+b1c (1.0.0-64) unstable; urgency=low
+
+  * DATEPART, TIMEPART, DATE$ and TIME$ functions (to use with RTC)
+  * now value part extracting suffixes can be used with symbolic constants
+  * more optimizer rules (32-bit values addition)
+  * CH32V003: a part of SPI library implemented
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Fri, 10 Apr 2026 18:49:48 +0300
+
 b1c (1.0.0-63) unstable; urgency=low
 
   * more general names for GPIO pin configuration constants (IN_FLOAT, etc.)

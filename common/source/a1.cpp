@@ -922,9 +922,9 @@ A1_T_ERROR Exp::BuildExp(std::vector<Token>::const_iterator &start, const std::v
 
 				if(start->GetType() == TokType::TT_NUMBER)
 				{
-					auto tok = start->GetToken();
+					auto token = start->GetToken();
 
-					EVal val(tok, usgn);
+					EVal val(token, usgn);
 					auto err = val.Resolve();
 					if(err != A1_T_ERROR::A1_RES_OK)
 					{
@@ -936,15 +936,28 @@ A1_T_ERROR Exp::BuildExp(std::vector<Token>::const_iterator &start, const std::v
 				else
 				{
 					// resolve global constants
-					auto tok = start->GetToken();
+					auto token = start->GetToken();
+					std::wstring postfix, symbol;
+
+					auto pos = token.rfind(L'.');
+					if(pos != std::wstring::npos)
+					{
+						postfix = token.substr(pos + 1);
+						symbol = token.substr(0, pos);
+					}
+					else
+					{
+						symbol = token;
+					}
+
 					std::wstring value;
 
-					if(_global_settings.GetValue(tok, value))
+					if(_global_settings.GetValue(symbol, value))
 					{
 						auto err = Utils::str2int32(value, n);
 						if(err != B1_RES_OK)
 						{
-							exp.AddVal(EVal(value, usgn));
+							exp.AddVal(EVal(value + (postfix.empty() ? L"" : (L"." + postfix)), usgn));
 						}
 						else
 						{
@@ -953,19 +966,38 @@ A1_T_ERROR Exp::BuildExp(std::vector<Token>::const_iterator &start, const std::v
 								return A1_T_ERROR::A1_RES_ENUMOVF;
 							}
 
+							if(!postfix.empty())
+							{
+								err = _global_settings.ProcessNumPostfix(postfix, n);
+								if(err != B1_RES_OK)
+								{
+									return static_cast<A1_T_ERROR>(err);
+								}
+							}
+
 							exp.AddVal(EVal(n, usgn));
 						}
 					}
 					else
-					if(_RTE_errors.find(tok) != _RTE_errors.end())
+					if(_RTE_errors.find(symbol) != _RTE_errors.end())
 					{
-						n = static_cast<std::underlying_type_t<B1C_T_RTERROR>>(_RTE_errors[tok]);
+						n = static_cast<std::underlying_type_t<B1C_T_RTERROR>>(_RTE_errors[symbol]);
+
+						if(!postfix.empty())
+						{
+							auto err = _global_settings.ProcessNumPostfix(postfix, n);
+							if(err != B1_RES_OK)
+							{
+								return static_cast<A1_T_ERROR>(err);
+							}
+						}
+
 						exp.AddVal(EVal(n, usgn));
 					}
 					else
-					if(_B1C_consts.find(tok) != _B1C_consts.end())
+					if(_B1C_consts.find(symbol) != _B1C_consts.end())
 					{
-						const auto &c = _B1C_consts[tok];
+						const auto &c = _B1C_consts[symbol];
 						
 						if(c.second == B1Types::B1T_STRING)
 						{
@@ -973,11 +1005,21 @@ A1_T_ERROR Exp::BuildExp(std::vector<Token>::const_iterator &start, const std::v
 						}
 						
 						n = std::any_cast<int32_t>(c.first);
+
+						if(!postfix.empty())
+						{
+							auto err = _global_settings.ProcessNumPostfix(postfix, n);
+							if(err != B1_RES_OK)
+							{
+								return static_cast<A1_T_ERROR>(err);
+							}
+						}
+
 						exp.AddVal(EVal(n, usgn));
 					}
 					else
 					{
-						exp.AddVal(EVal(tok, usgn));
+						exp.AddVal(EVal(token, usgn));
 					}
 				}
 			}
@@ -995,14 +1037,14 @@ A1_T_ERROR Exp::BuildExp(std::vector<Token>::const_iterator &start, const std::v
 				return A1_T_ERROR::A1_RES_ESYNTAX;
 			}
 
-			auto tok = start->GetToken();
+			auto token = start->GetToken();
 
-			if(tok != L"+" && tok != L"-" && tok != L"*" && tok != L"/" && tok != L"%" && tok != L">>" && tok != L"<<" && tok != L"&" && tok != L"^" && tok != L"|" && tok != L"**")
+			if(token != L"+" && token != L"-" && token != L"*" && token != L"/" && token != L"%" && token != L">>" && token != L"<<" && token != L"&" && token != L"^" && token != L"|" && token != L"**")
 			{
 				return A1_T_ERROR::A1_RES_ESYNTAX;
 			}
 
-			exp.AddOp(tok);
+			exp.AddOp(token);
 
 			is_val = true;
 		}

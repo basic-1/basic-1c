@@ -1,0 +1,130 @@
+INI,__LIB_SPI1_OPT
+INI,__LIB_SPI1_OPT1
+INI,__LIB_SPI1_SS_PORT
+
+; __LIB_SPI1_OPT1
+; bit 0 - bi-directional mode (half-duplex, 0 by default - default mode is simplex)
+; bit 1 - simplex (1 by default, default mode is simplex)
+; bit 2 - configure SPI pins (1 by default)
+; bit 3 - master half-duplex RX or master simplex RX-only mode (managed by START)
+; bit 4 - TX mode (managed by START)
+
+:__LIB_SPI1_CFG_PINS_ENA
+LA,::__LCL_TMP_0,BYTE
+=,__LIB_SPI1_OPT1<BYTE>,::__LCL_TMP_0<BYTE>
+LA,::__LCL_TMP_1,BYTE
+&,__LIB_SPI1_OPT<BYTE>,4<BYTE>,::__LCL_TMP_1<BYTE>
+==,::__LCL_TMP_1<BYTE>,0<BYTE>
+LF,::__LCL_TMP_1
+JT,::__LBL_SLAVE
+; master
+LA,::__LCL_TMP_2,BYTE
+&,::__LCL_TMP_0<BYTE>,2<BYTE>,::__LCL_TMP_2<BYTE>
+==,::__LCL_TMP_2<BYTE>,0<BYTE>
+LF,::__LCL_TMP_2
+JT,::__LBL_MOSI_OUT ; duplex or half-duplex
+LA,::__LCL_TMP_3,BYTE
+&,::__LCL_TMP_0<BYTE>,0x10<BYTE>,::__LCL_TMP_3<BYTE>
+==,::__LCL_TMP_3<BYTE>,0<BYTE>
+LF,::__LCL_TMP_3
+JT,::__LBL_CFG_MISO ; simplex RX, MOSI is not used
+
+:::__LBL_MOSI_OUT
+; congigure MOSI (duplex, half-duplex or simplex TX mode)
+INL,__LIB_SPI1_CFG_MOSI_OUT
+
+:::__LBL_CFG_MISO
+LA,::__LCL_TMP_4,BYTE
+&,::__LCL_TMP_0<BYTE>,1<BYTE>,::__LCL_TMP_4<BYTE>
+==,::__LCL_TMP_4<BYTE>,0<BYTE>
+LF,::__LCL_TMP_4
+JF,::__LBL_CFG_NSS ; half-duplex (MISO is not used)
+LA,::__LCL_TMP_5,BYTE
+&,::__LCL_TMP_0<BYTE>,2<BYTE>,::__LCL_TMP_5<BYTE>
+==,::__LCL_TMP_5<BYTE>,0<BYTE>
+LF,::__LCL_TMP_5
+JT,::__LBL_MISO_IN ; duplex
+LA,::__LCL_TMP_6,BYTE
+&,::__LCL_TMP_0<BYTE>,0x10<BYTE>,::__LCL_TMP_6<BYTE>
+==,::__LCL_TMP_6<BYTE>,0<BYTE>
+LF,::__LCL_TMP_6
+JT,::__LBL_CFG_NSS ; simplex TX (MISO is not used)
+
+:::__LBL_MISO_IN
+;MISO
+INL,__LIB_SPI1_CFG_MISO_IN
+
+:::__LBL_CFG_NSS
+;NSS
+==,__LIB_SPI1_SS_PORT<LONG>,0<BYTE>
+JT,::__LBL_NO_NSS_1
+; set NSS pin high (disable slave device)
+CALL,__LIB_SPI1_NSS_HI
+
+USES,A1
+ASM
+LI A1, 1
+CALL __LIB_SPI1_NSS_CFG
+ENDASM
+
+:::__LBL_NO_NSS_1
+;CLK
+INL,__LIB_SPI1_CFG_CLK_OUT
+JMP,::__LBL_EXIT
+
+:::__LBL_SLAVE
+; slave
+LA,::__LCL_TMP_7,BYTE
+&,::__LCL_TMP_0<BYTE>,2<BYTE>,::__LCL_TMP_7<BYTE>
+==,::__LCL_TMP_7<BYTE>,0<BYTE>
+LF,::__LCL_TMP_7
+JT,::__LBL_MOSI_IN_SL ; duplex or half-duplex
+LA,::__LCL_TMP_8,BYTE
+&,::__LCL_TMP_0<BYTE>,0x10<BYTE>,::__LCL_TMP_8<BYTE>
+==,::__LCL_TMP_8<BYTE>,0<BYTE>
+LF,::__LCL_TMP_8
+JF,::__LBL_CFG_MISO_SL ; simplex TX (MOSI is not used)
+
+:::__LBL_MOSI_IN_SL
+; congigure MOSI (duplex, half-duplex or simplex RX mode)
+INL,__LIB_SPI1_CFG_MOSI_IN
+
+:::__LBL_CFG_MISO_SL
+LA,::__LCL_TMP_9,BYTE
+&,::__LCL_TMP_0<BYTE>,1<BYTE>,::__LCL_TMP_9<BYTE>
+==,::__LCL_TMP_9<BYTE>,0<BYTE>
+LF,::__LCL_TMP_9
+JF,::__LBL_CFG_NSS_SL ; half-duplex (MISO is not used)
+LA,::__LCL_TMP_10,BYTE
+&,::__LCL_TMP_0<BYTE>,2<BYTE>,::__LCL_TMP_10<BYTE>
+==,::__LCL_TMP_10<BYTE>,0<BYTE>
+LF,::__LCL_TMP_10
+JT,::__LBL_MISO_OUT_SL ; duplex
+LA,::__LCL_TMP_11,BYTE
+&,::__LCL_TMP_0<BYTE>,0x10<BYTE>,::__LCL_TMP_11<BYTE>
+==,::__LCL_TMP_11<BYTE>,0<BYTE>
+LF,::__LCL_TMP_11
+JT,::__LBL_CFG_NSS_SL ; simplex RX, MISO is not used
+
+:::__LBL_MISO_OUT_SL
+;MISO (duplex or simplex TX)
+INL,__LIB_SPI1_CFG_MISO_OUT
+
+:::__LBL_CFG_NSS_SL
+; NSS
+==,__LIB_SPI1_SS_PORT<LONG>,0<BYTE>
+JT,::__LBL_NO_NSS_2
+
+USES,A1
+ASM
+LI A1, 0
+CALL __LIB_SPI1_NSS_CFG
+ENDASM
+
+:::__LBL_NO_NSS_2
+; CLK
+INL,__LIB_SPI1_CFG_CLK_IN
+
+:::__LBL_EXIT
+LF,::__LCL_TMP_0
+RET

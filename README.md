@@ -79,7 +79,7 @@ Supported STM8 microcontrollers list:
 - relational operators can be used with strings  
 - automatic numeric to string conversion  
 - functions: ABS, INT, SGN, LEN, ASC, CHR$, STR$, VAL, IIF, IIF$, CBYTE, CINT, CWRD, CLNG  
-- more functions: MID$, INSTR, LTRIM$, RTRIM$, LEFT$, RIGHT$, LSET$, RSET$, SET$, UCASE$, LCASE$  
+- more functions: MID$, INSTR, LTRIM$, RTRIM$, LEFT$, RIGHT$, LSET$, RSET$, SET$, UCASE$, LCASE$, ...  
   
 # Program example  
   

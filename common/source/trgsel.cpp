@@ -96,6 +96,10 @@ bool select_target(Settings &settings)
 			B1_CMP_FN(L"UCASE$",	B1Types::B1T_STRING,	{ B1Types::B1T_STRING },			L"__LIB_STR_UCASE"),
 			B1_CMP_FN(L"LCASE$",	B1Types::B1T_STRING,	{ B1Types::B1T_STRING },			L"__LIB_STR_LCASE"),
 			B1_CMP_FN(L"SET$",		B1Types::B1T_STRING,	{ B1_CMP_FN_ARG(B1Types::B1T_STRING, true, L"\" \"") , B1_CMP_FN_ARG(B1Types::B1T_BYTE) },	L"__LIB_STR_SET"),
+			B1_CMP_FN(L"DATEPART",		B1Types::B1T_INT,	{ B1Types::B1T_STRING, B1Types::B1T_BYTE },	L"__LIB_DT_DTP"),
+			B1_CMP_FN(L"TIMEPART",		B1Types::B1T_INT,	{ B1Types::B1T_STRING, B1Types::B1T_BYTE },	L"__LIB_DT_DTP"),
+			B1_CMP_FN(L"DATE$",		B1Types::B1T_STRING,	{ B1_CMP_FN_ARG(B1Types::B1T_STRING), B1_CMP_FN_ARG(B1Types::B1T_WORD), B1_CMP_FN_ARG(B1Types::B1T_STRING, true, L"\"-\"") }, L"__LIB_DT_DTTM"),
+			B1_CMP_FN(L"TIME$",		B1Types::B1T_STRING,	{ B1_CMP_FN_ARG(B1Types::B1T_STRING), B1_CMP_FN_ARG(B1Types::B1T_WORD), B1_CMP_FN_ARG(B1Types::B1T_STRING, true, L"\":\"") }, L"__LIB_DT_DTTM"),
 
 			// inline functions
 			B1_CMP_FN(L"ABS",		B1Types::B1T_LONG,		{ B1Types::B1T_LONG },				L""),
@@ -141,6 +145,49 @@ bool select_target(Settings &settings)
 			B1_CMP_FN(L"",			B1Types::B1T_UNKNOWN,	std::initializer_list<B1Types>(),	L"")
 		};
 #endif
+
+		// YYYY - 3 * 10 + 0 = 30, YY - 1 * 10 + 2 = 12, MM - 1 * 10 + 5 = 15, DD - 1 * 10 + 8 = 18, M - 25, D - 28
+		// constants for DATEPART function (b1dpYYYY stands for 4-digit year, b1dpYY - 2-digit year, b1dpMM - month, b1dpDD - day)
+		_B1C_consts.emplace(L"B1DPYYYY", std::make_pair((int32_t)30, B1Types::B1T_BYTE));
+		_B1C_consts.emplace(L"B1DPYY", std::make_pair((int32_t)12, B1Types::B1T_BYTE));
+		_B1C_consts.emplace(L"B1DPMM", std::make_pair((int32_t)15, B1Types::B1T_BYTE));
+		_B1C_consts.emplace(L"B1DPDD", std::make_pair((int32_t)18, B1Types::B1T_BYTE));
+
+		// constants for DATE$ function (date formats)
+		_B1C_consts.emplace(L"B1DFDDMMYYYY", std::make_pair((int32_t)48618, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1DFDDMMYY", std::make_pair((int32_t)19818, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1DFMMDDYYYY", std::make_pair((int32_t)48735, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1DFMMDDYY", std::make_pair((int32_t)19935, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1DFYYYYMMDD", std::make_pair((int32_t)29430, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1DFYYMMDD", std::make_pair((int32_t)29412, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1DFDMYYYY", std::make_pair((int32_t)49028, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1DFDMYY", std::make_pair((int32_t)20228, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1DFMDYYYY", std::make_pair((int32_t)49145, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1DFMDYY", std::make_pair((int32_t)20345, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1DFYYYYMD", std::make_pair((int32_t)45830, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1DFYYMD", std::make_pair((int32_t)45812, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1DFYYYY", std::make_pair((int32_t)30, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1DFYY", std::make_pair((int32_t)12, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1DFMM", std::make_pair((int32_t)15, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1DFDD", std::make_pair((int32_t)18, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1DFM", std::make_pair((int32_t)25, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1DFD", std::make_pair((int32_t)28, B1Types::B1T_WORD));
+
+		// HH - 1 * 10 + 0 = 10, MM - 1 * 10 + 3 = 13, SS - 1 * 10 + 6 = 16, H - 20
+		// constants for TIMEPART function (b1tpHH stands for hour, b1tpMM - minute, b1tpSS - second)
+		_B1C_consts.emplace(L"B1TPHH", std::make_pair((int32_t)10, B1Types::B1T_BYTE));
+		_B1C_consts.emplace(L"B1TPMM", std::make_pair((int32_t)13, B1Types::B1T_BYTE));
+		_B1C_consts.emplace(L"B1TPSS", std::make_pair((int32_t)16, B1Types::B1T_BYTE));
+
+		// constants for TIME$ function (time formats)
+		_B1C_consts.emplace(L"B1TFHHMMSS", std::make_pair((int32_t)26130, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1TFHHMM", std::make_pair((int32_t)530, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1TFHMMSS", std::make_pair((int32_t)26140, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1TFHMM", std::make_pair((int32_t)540, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1TFHH", std::make_pair((int32_t)10, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1TFH", std::make_pair((int32_t)20, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1TFMM", std::make_pair((int32_t)13, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1TFSS", std::make_pair((int32_t)16, B1Types::B1T_WORD));
 
 		return true;
 	}

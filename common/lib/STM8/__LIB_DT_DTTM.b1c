@@ -1,0 +1,71 @@
+; DATE$ and TIME$ function: formats date or time (initial format should be YYYY-MM-DD or HH:MM:SS)
+; X - source string address, stack1 - date or time format (word), stack2 - string to use as separator, returns resulting string in X
+
+:__LIB_DT_DTTM
+ASM
+PUSHW X
+CLRW Y ; resulting string
+LDW X, (__RET_ADDR_SIZE + 5, SP) ; substring positions
+JREQ ::__LBL_EXIT
+
+:::__LBL_LOOP
+LD A, 40
+DIV X, A
+PUSHW X
+CLRW X
+LD XL, A
+LD A, 10
+DIV X, A
+PUSHW Y
+
+CPW X, 2 ; a special case: no leading zero
+JRNE ::__LBL_EXTR_SUBSTR
+ADD A, 10
+LDW X, (5, SP) ; source string
+CALLR __LIB_STR_CPY
+PUSH A
+CALLR __LIB_DT_DTP
+PUSH 0
+CALLR __LIB_STR_STR16
+JRA ::__LBL_APPEND
+
+:::__LBL_EXTR_SUBSTR
+INC A
+PUSH A ; position
+LD A, XL
+INC A
+PUSH A ; chars num
+LDW X, (7, SP) ; source string
+CALLR __LIB_STR_CPY
+CALLR __LIB_STR_MID
+
+:::__LBL_APPEND
+LDW (1, SP), X
+LDW X, (3, SP)
+CALLR __LIB_STR_APD
+ADDW SP, 4
+LDW Y, X
+POPW X
+TNZW X
+JREQ ::__LBL_EXIT
+; append separator
+PUSHW X
+LDW X, (__RET_ADDR_SIZE + 5, SP) ; separator
+CALLR __LIB_STR_CPY
+PUSHW X
+LDW X, Y
+CALLR __LIB_STR_APD
+ADDW SP, 2
+LDW Y, X
+POPW X
+JRA ::__LBL_LOOP
+
+:::__LBL_EXIT
+POPW X
+PUSHW Y
+CALLR __LIB_STR_RLS
+LDW X, (__RET_ADDR_SIZE + 3, SP)
+CALLR __LIB_STR_RLS
+POPW X
+RET
+ENDASM

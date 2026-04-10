@@ -243,5 +243,9 @@ Real-time clock peripheral device of STM8Lx5x MCUs. Uses LSE oscillator so the c
 `IOCTL RTC, DISABLE` - disable RTC system clock  
 `IOCTL (RTC, ISACTIVE)` - return RTC activity status: 0 - not active, 1 - active. The function returns 1 if LSE is on, RTC system clock is enabled and the current year is not 2000 (year 2000 is treated as an initial value RTC is set to after power-on reset, read corresponding STM8 MCUs reference manual for details)  
   
-The commands use fixed string date and time format: `YYYY-MM-DD` for dates and `hh:mm:ss` for time. 24-hour time format is the only supported time format for now.  
+The commands use fixed string date and time format: `YYYY-MM-DD` for dates and `hh:mm:ss` for time. 24-hour time format is the only supported time format for now. Use special functions to convert date and time to another format (`DATE$` and `TIME$`) or to extract date and time values (`DATEPART` and `TIMEPART`).  
+  
+**Example:**  
+`REM print the current date in DD/MM/YYYY format`  
+`PRINT DATE$(IOCTL$(RTC, GETDATE), b1dfDDMMYYYY, "/")`  
   

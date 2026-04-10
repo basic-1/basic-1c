@@ -1,0 +1,21 @@
+; DATEPART and TIMEPART
+; X - source date or time string, stack1 - date or time part (byte), returns integer date or time part value in X
+:__LIB_DT_DTP
+ASM
+LD A, (__RET_ADDR_SIZE + 1, SP) ; date or time part offset and length
+EXGW X, Y ; save source string
+CLRW X
+LD XL, A
+LD A, 10
+DIV X, A
+INC A
+PUSH A ; position (1..10)
+LD A, XL
+INC A
+PUSH A ; chars num (1..4)
+EXGW X, Y ; source string
+CALLR __LIB_STR_MID
+ADDW SP, 2
+CALLR __LIB_STR_CINT
+RET
+ENDASM

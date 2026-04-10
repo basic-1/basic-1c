@@ -10089,6 +10089,32 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
+		if(	(ao._op == L"PUSHW" && ao._args[0] == L"X") && (aon1._op == L"PUSHW" && aon1._args[0] == L"Y") &&
+			(aon2._op == L"LDW" && aon2._args[0] == L"Y") &&
+			(aon3._op == L"LDW" && aon3._args[0] == L"X" && aon3._args[1] != L"Y" && aon3._args[1] != L"SP" && aon3._args[1] != L"(X)" && aon3._args[1].find(L",X)") == std::wstring::npos && aon3._args[1].front() != L'[') &&
+			(aon4._op == L"ADDW" && aon4._args[0] == L"X" && aon4._args[1] == L"(0x3,SP)")
+			)
+		{
+			// PUSHW X
+			// PUSHW Y
+			// LDW Y, smth1
+			// LDW X, smth2
+			// ADDW X, (3, SP)
+			// ->
+			// PUSHW X
+			// PUSHW Y
+			// LDW Y, smth1
+			// ADDW X, smth2
+			aon3._data = L"ADDW X, " + aon3._args[1];
+			aon3._parsed = false;
+			cs.erase(next4);
+			update_opt_rule_usage_stat(rule_id);
+			changed = true;
+			continue;
+		}
+
+		rule_id++;
+		update_opt_rule_usage_stat(rule_id, true);
 		if(
 			(ao._op == L"PUSHW" && ao._args[0] == L"X") &&
 			((aon1._op == L"CALL" || aon1._op == L"CALLR" || aon1._op == L"CALLF") && aon1._args[0] == L"__LIB_STR_CPY") &&
@@ -10422,6 +10448,101 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 		{
 			i++;
 			continue;
+		}
+
+		rule_id++;
+		update_opt_rule_usage_stat(rule_id, true);
+		if(	(ao._op == L"PUSHW" && ao._args[0] == L"Y") &&
+			(aon1._op == L"LDW" && aon1._args[0] == L"Y" && aon1._args[1] != L"X" && aon1._args[1] != L"SP" && aon1._args[1] != L"(Y)" && aon1._args[1].find(L",Y)") == std::wstring::npos && aon1._args[1].front() != L'[') &&
+			(aon2._op == L"ADDW" && aon2._args[0] == L"X") &&
+			(aon3._op == L"JRNC") &&
+			(aon4._op == L"INCW" && aon4._args[0] == L"Y") &&
+			(aon5._type == AOT::AOT_LABEL && aon5._op == aon3._args[0]) &&
+			(aon6._op == L"ADDW" && aon6._args[0] == L"Y" && aon6._args[1] == L"(0x1,SP)")
+			)
+		{
+			// PUSHW Y
+			// LDW Y, smth1
+			// ADDW X, smth2
+			// JRNC lbl1
+			// INCW Y
+			// :lbl1
+			// ADDW Y, (1, SP)
+			// ->
+			// PUSHW Y
+			// ADDW Y, smth1
+			// ADDW X, smth2
+			// JRNC lbl1
+			// INCW Y
+			// :lbl1
+			aon1._data = L"ADDW Y, " + aon1._args[1];
+			aon1._parsed = false;
+			cs.erase(next6);
+			update_opt_rule_usage_stat(rule_id);
+			changed = true;
+			continue;
+		}
+
+		rule_id++;
+		update_opt_rule_usage_stat(rule_id, true);
+		if(	(ao._op == L"PUSHW") &&
+			(aon1._op == L"ADDW" && aon1._args[0] == L"Y") &&
+			(aon2._op == L"ADDW" && aon2._args[0] == L"X") &&
+			(aon3._op == L"JRNC") &&
+			(aon4._op == L"INCW" && aon4._args[0] == L"Y") &&
+			(aon5._type == AOT::AOT_LABEL && aon5._op == aon3._args[0]) &&
+			((aon6._op == L"ADDW" || aon6._op == L"ADD") && aon6._args[0] == L"SP")
+			)
+		{
+			// PUSHW X or Y
+			// ADDW Y, smth1
+			// ADDW X, smth2
+			// JRNC lbl1
+			// INCW Y
+			// :lbl1
+			// ADDW SP, N
+			// ->
+			// ADDW Y, smth1
+			// ADDW X, smth2
+			// JRNC lbl1
+			// INCW Y
+			// :lbl1
+			// ADDW SP, N - 2
+
+			// correct SP offsets if necessary
+			bool no_SP_off = true;
+			auto new_off = correct_SP_offset(aon1._args[1], 2, no_SP_off);
+			if(!no_SP_off && !new_off.empty())
+			{
+				aon1._data = L"ADDW Y, " + new_off;
+				aon1._parsed = false;
+			}
+
+			new_off = correct_SP_offset(aon2._args[1], 2, no_SP_off);
+			if (!no_SP_off && !new_off.empty())
+			{
+				aon2._data = L"ADDW X, " + new_off;
+				aon2._parsed = false;
+			}
+
+			int32_t n = -1;
+			if(Utils::str2int32(aon6._args[1], n) == B1_RES_OK && n >= 2)
+			{
+				if(n == 2)
+				{
+					cs.erase(next6);
+				}
+				else
+				{
+					aon6._data = L"ADDW SP, " + std::to_wstring(n - 2);
+					aon6._parsed = false;
+				}
+				cs.erase(i);
+				i = next1;
+				update_opt_rule_usage_stat(rule_id);
+				changed = true;
+				continue;
+			}
 		}
 
 		rule_id++;
