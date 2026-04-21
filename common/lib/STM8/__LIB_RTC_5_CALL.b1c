@@ -1,0 +1,18 @@
+; RTC GETDAYOFWEEK
+; returns the current day of the week in A register (1 - Monday, ... 7 - Sunday)
+:__LIB_RTC_5_CALL
+ASM
+BRES (RTC_ISR1), RTC_ISR1_RSF_POS
+
+:::__LBL_WAIT_RSF
+BTJF (RTC_ISR1), RTC_ISR1_RSF_POS, ::__LBL_WAIT_RSF
+LD A, (RTC_TR1) ; lock the registers update
+LD A, (RTC_DR2) ; read month and day of the week
+PUSH A
+LD A, (RTC_DR3) ; unlock register updating
+POP A
+SWAP A
+SRL A
+AND A, 7
+RET
+ENDASM

@@ -5,7 +5,7 @@ INI,__LIB_SPI1_OPT
 ; bit 1 - CPOL (0 by default, default SPI mode is 0)
 ; bit 2 - master or slave: 0 - slave, 1 - master (master by default)
 ; bits 3..5 - clock prescaler (0 by default, corresponds to fMASTER / 2) 
-; bit 6 - reserved
+; bit 6 - SPI enabled (managed by START)
 ; bit 7 - frame format: 0 - MSB first, 1 - LSB first (MSB first by default)
 ASM
 LBU A0, __LIB_SPI1_OPT

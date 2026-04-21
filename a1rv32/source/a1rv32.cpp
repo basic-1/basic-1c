@@ -1105,9 +1105,9 @@ static void load_RV32_instructions()
 	// NOP: ADDI X0, X0, 0
 	ADD_INST(L"NOP",			L"0:4 0:8 0:5 0:3 0:5 13:7");
 	// NOT rd, rs: XORI rd, rs, -1
-	ADD_INST(L"NOTXV,XV",		L"F:B:4 FF:7:8 {2:4:5} 4:3 {1:4:5} 13:7", RV32ArgType::AT_RV32_REG, RV32ArgType::AT_RV32_REG);
+	ADD_INST(L"NOTXV,XV",		L"F:4 FF:8 {2:4:5} 4:3 {1:4:5} 13:7", RV32ArgType::AT_RV32_REG, RV32ArgType::AT_RV32_REG);
 	// NOT rs/rd: XORI rs/rd, rs/rd, -1
-	ADD_INST(L"NOTXV",			L"F:B:4 FF:7:8 {1:4:5} 4:3 {1:4:5} 13:7", RV32ArgType::AT_RV32_REG);
+	ADD_INST(L"NOTXV",			L"F:4 FF:8 {1:4:5} 4:3 {1:4:5} 13:7", RV32ArgType::AT_RV32_REG);
 	// NEG rd, rs: SUB rd, X0, rs
 	ADD_INST(L"NEGXV,XV",		L"20:7 {2:4:5} 0:5 0:3 {1:4:5} 33:7", RV32ArgType::AT_RV32_REG, RV32ArgType::AT_RV32_REG);
 	// NEG rs/rd: SUB rs/rd, X0, rs/rd

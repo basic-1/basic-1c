@@ -79,6 +79,7 @@ LA,::__LCL_TMP_7,BYTE
 ==,::__LCL_TMP_7<BYTE>,0<BYTE>
 LF,::__LCL_TMP_7
 JT,::__LBL_MOSI_IN_SL ; duplex or half-duplex
+; simplex slave
 LA,::__LCL_TMP_8,BYTE
 &,::__LCL_TMP_0<BYTE>,0x10<BYTE>,::__LCL_TMP_8<BYTE>
 ==,::__LCL_TMP_8<BYTE>,0<BYTE>
@@ -100,6 +101,7 @@ LA,::__LCL_TMP_10,BYTE
 ==,::__LCL_TMP_10<BYTE>,0<BYTE>
 LF,::__LCL_TMP_10
 JT,::__LBL_MISO_OUT_SL ; duplex
+; simplex
 LA,::__LCL_TMP_11,BYTE
 &,::__LCL_TMP_0<BYTE>,0x10<BYTE>,::__LCL_TMP_11<BYTE>
 ==,::__LCL_TMP_11<BYTE>,0<BYTE>

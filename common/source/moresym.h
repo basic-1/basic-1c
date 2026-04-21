@@ -1,6 +1,6 @@
 /*
  BASIC1 compiler
- Copyright (c) 2021-2025 Nikolay Pletnev
+ Copyright (c) 2021-2026 Nikolay Pletnev
  MIT license
 
  moresym.h: common symbols and constants (classes and variables declaration)
@@ -44,6 +44,8 @@ enum class B1C_T_RTERROR
 	B1C_RTE_UART_INV_ARG = 32, // invalid function argument
 
 	B1C_RTE_USART_INV_ARG = 32, // invalid function argument
+
+	B1C_RTE_RTC_INV_DOW = 64, // invalid day of the week value
 };
 
 

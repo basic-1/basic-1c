@@ -1,0 +1,35 @@
+; RTC SETDAYOFWEEK
+; A - day of the week (1 - Monday, ... 7 - Sunday)
+:__LIB_RTC_4_CALL
+ASM
+TNZ A
+JREQ ::__LBL_ERR
+CP A, 7
+JRUGT ::__LBL_ERR
+SWAP A
+SLL A ; day of the week is stored in bits 7..5 of RTC_DR2 register
+; unlock RTC registers
+MOV (RTC_WPR), 0xCA
+MOV (RTC_WPR), 0x53
+BSET (RTC_ISR1), RTC_ISR1_INIT_POS ; start calendar initialization
+
+:::__LBL_WAIT_INIT
+BTJF (RTC_ISR1), RTC_ISR1_INITF_POS, ::__LBL_WAIT_INIT
+; modify DR2 register
+PUSH A
+LD A, (RTC_DR2) ; month and day of the week
+AND A, !RTC_DR2_WDU.ll ; preserve month
+OR A, (1, SP)
+LD (RTC_DR2), A
+POP A
+BRES (RTC_ISR1), RTC_ISR1_INIT_POS ; end of calendar initialization
+MOV (RTC_WPR), 0xFF ; lock RTC registers
+JRA ::__LBL_RET
+
+:::__LBL_ERR
+MOV (__LIB_ERR_LAST_ERR), B1C_RTE_RTC_INV_DOW
+CALLR __LIB_ERR_HANDLER
+
+:::__LBL_RET
+RET
+ENDASM

@@ -189,6 +189,21 @@ bool select_target(Settings &settings)
 		_B1C_consts.emplace(L"B1TFMM", std::make_pair((int32_t)13, B1Types::B1T_WORD));
 		_B1C_consts.emplace(L"B1TFSS", std::make_pair((int32_t)16, B1Types::B1T_WORD));
 
+		_B1C_consts.emplace(L"B1DWMON", std::make_pair((int32_t)1, B1Types::B1T_BYTE));
+		_B1C_consts.emplace(L"B1DWTUE", std::make_pair((int32_t)2, B1Types::B1T_BYTE));
+		_B1C_consts.emplace(L"B1DWWED", std::make_pair((int32_t)3, B1Types::B1T_BYTE));
+		_B1C_consts.emplace(L"B1DWTHU", std::make_pair((int32_t)4, B1Types::B1T_BYTE));
+		_B1C_consts.emplace(L"B1DWFRI", std::make_pair((int32_t)5, B1Types::B1T_BYTE));
+		_B1C_consts.emplace(L"B1DWSAT", std::make_pair((int32_t)6, B1Types::B1T_BYTE));
+		_B1C_consts.emplace(L"B1DWSUN", std::make_pair((int32_t)7, B1Types::B1T_BYTE));
+		_B1C_consts.emplace(L"B1DWMONDAY", std::make_pair((int32_t)1, B1Types::B1T_BYTE));
+		_B1C_consts.emplace(L"B1DWTUESDAY", std::make_pair((int32_t)2, B1Types::B1T_BYTE));
+		_B1C_consts.emplace(L"B1DWWEDNESDAY", std::make_pair((int32_t)3, B1Types::B1T_BYTE));
+		_B1C_consts.emplace(L"B1DWTHURSDAY", std::make_pair((int32_t)4, B1Types::B1T_BYTE));
+		_B1C_consts.emplace(L"B1DWFRIDAY", std::make_pair((int32_t)5, B1Types::B1T_BYTE));
+		_B1C_consts.emplace(L"B1DWSATURDAY", std::make_pair((int32_t)6, B1Types::B1T_BYTE));
+		_B1C_consts.emplace(L"B1DWSUNDAY", std::make_pair((int32_t)7, B1Types::B1T_BYTE));
+
 		return true;
 	}
 #endif

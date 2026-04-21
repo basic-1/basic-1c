@@ -1,6 +1,6 @@
 /*
  BASIC1 compiler
- Copyright (c) 2021-2025 Nikolay Pletnev
+ Copyright (c) 2021-2026 Nikolay Pletnev
  MIT license
 
  moresym.cpp: common symbols and constants
@@ -40,6 +40,8 @@ std::map<std::wstring, B1C_T_RTERROR> _RTE_errors =
 	std::make_pair(L"B1C_RTE_UART_INV_ARG", B1C_T_RTERROR::B1C_RTE_UART_INV_ARG),
 
 	std::make_pair(L"B1C_RTE_USART_INV_ARG", B1C_T_RTERROR::B1C_RTE_USART_INV_ARG),
+
+	std::make_pair(L"B1C_RTE_RTC_INV_DOW", B1C_T_RTERROR::B1C_RTE_RTC_INV_DOW),
 };
 
 

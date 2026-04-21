@@ -10351,6 +10351,34 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
+		if(	(ao._op == L"PUSHW" && ao._args[0] == L"X") &&
+			(aon1._op == L"LDW" && aon1._args[0] == L"X" && aon1._args[1] != L"Y" && aon1._args[1] != L"SP") &&
+			(aon2._op == L"CPW" && aon2._args[0] == L"X" && aon2._args[1] == L"(0x1,SP)") &&
+			((aon3._op == L"ADDW" || aon3._op == L"ADD") && aon3._args[0] == L"SP" && aon3._args[1] == L"0x2") &&
+			((aon4._op == L"JRNE" || aon4._op == L"JREQ")) &&
+			((aon5._op == L"LDW" || aon5._op == L"CLRW") && aon5._args[0] == L"X")
+			)
+		{
+			// PUSHW X
+			// LDW X, smth
+			// CPW X, (1, SP)
+			// ADDW SP, 2
+			// JRNE label
+			// ->
+			// CPW X, smth
+			// JRNE label
+			ao._data = L"CPW X, " + aon1._args[1];
+			ao._parsed = false;
+			cs.erase(next1);
+			cs.erase(next2);
+			cs.erase(next3);
+			update_opt_rule_usage_stat(rule_id);
+			changed = true;
+			continue;
+		}
+
+		rule_id++;
+		update_opt_rule_usage_stat(rule_id, true);
 		if(
 			(ao._op == L"PUSHW" && ao._args[0] == L"X") &&
 			(aon1._op == L"LD" && aon1._args[0] == L"A") &&

@@ -1,3 +1,12 @@
+b1c (1.0.0-65) unstable; urgency=low
+
+  * new RTC commands: GETDAYOFWEEK and SETDAYOFWEEK
+  * new optimizer rule (16-bit numerics comparison)
+  * a1rv32: a bug fixed (incorrect code for NOT pseudo-instruction)
+  * CH32V003: a part of SPI library implemented
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Tue, 21 Apr 2026 19:38:11 +0300
+
 b1c (1.0.0-64) unstable; urgency=low
 
   * DATEPART, TIMEPART, DATE$ and TIME$ functions (to use with RTC)

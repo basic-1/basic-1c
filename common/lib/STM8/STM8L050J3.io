@@ -93,6 +93,8 @@ SETDATE,       0,  CALL,     ,        ,         ,                    ,          
 SETTIME,       1,  CALL,     ,        ,         ,                    ,          TRUE,        STRING,    ,          FALSE
 GETDATE,       2,  CALL,     STRING,  ,         ,                    ,          FALSE
 GETTIME,       3,  CALL,     STRING,  ,         ,                    ,          FALSE
+SETDAYOFWEEK,  4,  CALL,     ,        ,         ,                    ,          TRUE,        BYTE,      ,          FALSE
+GETDAYOFWEEK,  5,  CALL,     BYTE,    ,         ,                    ,          FALSE
 ENABLE,        8,  INL,      ,        ,         ,                    ,          FALSE
 DISABLE,       9,  INL,      ,        ,         ,                    ,          FALSE
 ISACTIVE,      10, CALL,     BYTE,    ,         ,                    ,          FALSE

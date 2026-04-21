@@ -954,45 +954,13 @@ A1_T_ERROR Exp::BuildExp(std::vector<Token>::const_iterator &start, const std::v
 
 					if(_global_settings.GetValue(symbol, value))
 					{
-						auto err = Utils::str2int32(value, n);
-						if(err != B1_RES_OK)
-						{
-							exp.AddVal(EVal(value + (postfix.empty() ? L"" : (L"." + postfix)), usgn));
-						}
-						else
-						{
-							if((usgn & USGN::US_MINUS) && n == INT32_MIN)
-							{
-								return A1_T_ERROR::A1_RES_ENUMOVF;
-							}
-
-							if(!postfix.empty())
-							{
-								err = _global_settings.ProcessNumPostfix(postfix, n);
-								if(err != B1_RES_OK)
-								{
-									return static_cast<A1_T_ERROR>(err);
-								}
-							}
-
-							exp.AddVal(EVal(n, usgn));
-						}
+						exp.AddVal(EVal(value + (postfix.empty() ? L"" : (L"." + postfix)), usgn));
 					}
 					else
 					if(_RTE_errors.find(symbol) != _RTE_errors.end())
 					{
 						n = static_cast<std::underlying_type_t<B1C_T_RTERROR>>(_RTE_errors[symbol]);
-
-						if(!postfix.empty())
-						{
-							auto err = _global_settings.ProcessNumPostfix(postfix, n);
-							if(err != B1_RES_OK)
-							{
-								return static_cast<A1_T_ERROR>(err);
-							}
-						}
-
-						exp.AddVal(EVal(n, usgn));
+						exp.AddVal(EVal(std::to_wstring(n) + (postfix.empty() ? L"" : (L"." + postfix)), usgn));
 					}
 					else
 					if(_B1C_consts.find(symbol) != _B1C_consts.end())
@@ -1005,17 +973,7 @@ A1_T_ERROR Exp::BuildExp(std::vector<Token>::const_iterator &start, const std::v
 						}
 						
 						n = std::any_cast<int32_t>(c.first);
-
-						if(!postfix.empty())
-						{
-							auto err = _global_settings.ProcessNumPostfix(postfix, n);
-							if(err != B1_RES_OK)
-							{
-								return static_cast<A1_T_ERROR>(err);
-							}
-						}
-
-						exp.AddVal(EVal(n, usgn));
+						exp.AddVal(EVal(std::to_wstring(n) + (postfix.empty() ? L"" : (L"." + postfix)), usgn));
 					}
 					else
 					{
