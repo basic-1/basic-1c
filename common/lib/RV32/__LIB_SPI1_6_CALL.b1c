@@ -5,6 +5,9 @@ INI,__LIB_SPI1_SS_PORT
 ; stop SPI (STOP)
 :__LIB_SPI1_6_CALL
 ASM
+ADDI SP, SP, -16
+SW RA, 0(SP)
+
 LBU T1, __LIB_SPI1_OPT1
 ANDI A0, T1, 8
 ; disabling SPI in case of master half-duplex RX or master simplex RX-only mode
@@ -45,5 +48,7 @@ BEQ A0, ZERO, ::__LBL_EXIT
 CALL __LIB_SPI1_NSS_HI
 
 :::__LBL_EXIT
+LW RA, 0(SP)
+ADDI SP, SP, 16
 RET
 ENDASM

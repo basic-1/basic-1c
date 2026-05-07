@@ -1669,14 +1669,14 @@ B1C_T_ERROR B1FileCompiler::st_ioctl()
 				if(cmd.data_type == B1Types::B1T_LABEL)
 				{
 					bool is_numeric = true;
-					// numeric labels are local and non-numeric ones are global
+					// numeric labels are local and non-numeric ones can be either local or global
 					err1 = st_ioctl_get_symbolic_value(data, &is_numeric);
 					if(err1 != B1C_T_ERROR::B1C_RES_OK)
 					{
 						return err1;
 					}
 
-					const auto lbl_name = is_numeric ? (get_name_space_prefix() + L"__ULB_" + data) : (data + cmd.extra_data);
+					const auto lbl_name = (is_numeric || (_sym_labels.find(data) != _sym_labels.cend())) ? (get_name_space_prefix() + L"__ULB_" + data) : (data + cmd.extra_data);
 					_req_labels.insert(lbl_name);
 					emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + lbl_name + L"\"", B1Types::B1T_STRING) }));
 				}
@@ -1860,10 +1860,11 @@ B1_T_ERROR B1FileCompiler::st_let(const B1_T_CHAR **stop_tokens, B1_CMP_ARG *var
 	return B1_RES_OK;
 }
 
-B1_T_ERROR B1FileCompiler::st_goto()
+B1_T_ERROR B1FileCompiler::st_goto_gosub_restore(B1_CMP_STMT stmt)
 {
 	B1_T_ERROR err;
 	B1_TOKENDATA td;
+	std::wstring label_name;
 
 	err = b1_tok_get_line_num(&b1_curr_prog_line_offset);
 	if(err != B1_RES_OK)
@@ -1873,46 +1874,61 @@ B1_T_ERROR B1FileCompiler::st_goto()
 
 	if(b1_next_line_num == B1_T_LINE_NUM_ABSENT)
 	{
-		return B1_RES_ESYNTAX;
+		err = b1_tok_get(b1_curr_prog_line_offset, 0, &td);
+		if(err != B1_RES_OK)
+		{
+			return err;
+		}
+
+		if(td.length == 0)
+		{
+			if(stmt != B1_CMP_STMT::B1_CMP_STMT_RESTORE)
+			{
+				return B1_RES_ESYNTAX;
+			}
+		}
+		else
+		{
+			if(!(td.type & B1_TOKEN_TYPE_IDNAME))
+			{
+				return B1_RES_ESYNTAX;
+			}
+			b1_curr_prog_line_offset = td.offset + td.length;
+			label_name = Utils::str_toupper(B1CUtils::get_progline_substring(td.offset, b1_curr_prog_line_offset));
+		}
 	}
-
-	emit_command(L"JMP", get_name_space_prefix() + L"__ULB_" + std::to_wstring(b1_next_line_num));
-
-	err = b1_tok_get(b1_curr_prog_line_offset, 0, &td);
-	if(err != B1_RES_OK)
+	else
 	{
-		return err;
+		label_name = std::to_wstring(b1_next_line_num);
 	}
 
-	if(td.length != 0)
+	if(!label_name.empty())
 	{
-		return B1_RES_ESYNTAX;
+		label_name = get_name_space_prefix() + L"__ULB_" + label_name;
 	}
 
-	return B1_RES_OK;
-}
-
-B1_T_ERROR B1FileCompiler::st_gosub()
-{
-	B1_T_ERROR err;
-	B1_TOKENDATA td;
-
-	err = b1_tok_get_line_num(&b1_curr_prog_line_offset);
-	if(err != B1_RES_OK)
+	if(stmt == B1_CMP_STMT::B1_CMP_STMT_GOTO)
 	{
-		return err;
+		emit_command(L"JMP", label_name);
 	}
-
-	if(b1_next_line_num == B1_T_LINE_NUM_ABSENT)
+	else
+	if(stmt == B1_CMP_STMT::B1_CMP_STMT_GOSUB)
 	{
-		return B1_RES_ESYNTAX;
+		emit_command(L"CALL", label_name);
+		_sub_labels.insert(label_name);
 	}
+	else
+	{
+		std::vector<B1_TYPED_VALUE> args;
 
-	auto label_name = get_name_space_prefix() + L"__ULB_" + std::to_wstring(b1_next_line_num);
-
-	emit_command(L"CALL", label_name);
-
-	_sub_labels.insert(label_name);
+		// put namespace name
+		args.push_back(B1_TYPED_VALUE(_curr_name_space));
+		if(!label_name.empty())
+		{
+			args.push_back(B1_TYPED_VALUE(label_name));
+		}
+		emit_command(L"RST", args);
+	}
 
 	err = b1_tok_get(b1_curr_prog_line_offset, 0, &td);
 	if(err != B1_RES_OK)
@@ -2939,7 +2955,7 @@ B1C_T_ERROR B1FileCompiler::compile_simple_stmt(uint8_t stmt)
 
 	if(stmt == B1_ID_STMT_GOTO)
 	{
-		err = st_goto();
+		err = st_goto_gosub_restore(B1_CMP_STMT::B1_CMP_STMT_GOTO);
 		if(err != B1_RES_OK)
 		{
 			return static_cast<B1C_T_ERROR>(err);
@@ -2948,7 +2964,7 @@ B1C_T_ERROR B1FileCompiler::compile_simple_stmt(uint8_t stmt)
 
 	if(stmt == B1_ID_STMT_GOSUB)
 	{
-		err = st_gosub();
+		err = st_goto_gosub_restore(B1_CMP_STMT::B1_CMP_STMT_GOSUB);
 		if(err != B1_RES_OK)
 		{
 			return static_cast<B1C_T_ERROR>(err);
@@ -3772,31 +3788,6 @@ B1_T_ERROR B1FileCompiler::st_read()
 			}
 		}
 	}
-
-	return B1_RES_OK;
-}
-
-B1_T_ERROR B1FileCompiler::st_restore()
-{
-	B1_T_ERROR err;
-
-	err = b1_tok_get_line_num(&b1_curr_prog_line_offset);
-	if(err != B1_RES_OK)
-	{
-		return err;
-	}
-
-	std::vector<B1_TYPED_VALUE> args;
-
-	// put namespace name
-	args.push_back(B1_TYPED_VALUE(_curr_name_space));
-
-	if(b1_next_line_num != B1_T_LINE_NUM_ABSENT)
-	{
-		args.push_back(B1_TYPED_VALUE(get_name_space_prefix() + L"__ULB_" + std::to_wstring(b1_next_line_num)));
-	}
-
-	emit_command(L"RST", args);
 
 	return B1_RES_OK;
 }
@@ -4660,6 +4651,54 @@ B1C_T_ERROR B1FileCompiler::st_put_get_trr(const std::wstring &cmd_name, bool is
 	return B1C_T_ERROR::B1C_RES_OK;
 }
 
+B1_T_ERROR B1FileCompiler::st_label(bool first_run)
+{
+	B1_T_ERROR err;
+	B1_TOKENDATA td;
+
+	// read label name
+	err = b1_tok_get(b1_curr_prog_line_offset, 0, &td);
+	if(err != B1_RES_OK)
+	{
+		return err;
+	}
+
+	if(td.length == 0)
+	{
+		return B1_RES_ESYNTAX;
+	}
+
+	if(!(td.type & B1_TOKEN_TYPE_IDNAME))
+	{
+		return B1_RES_EINVTOK;
+	}
+
+	auto label_name = Utils::str_toupper(B1CUtils::get_progline_substring(td.offset, td.offset + td.length));
+	
+	if(first_run)
+	{
+		_sym_labels.insert(label_name);
+	}
+	else
+	{
+		emit_label(L"__ULB_" + label_name);
+	}
+
+	b1_curr_prog_line_offset = td.offset + td.length;
+	err = b1_tok_get(b1_curr_prog_line_offset, 0, &td);
+	if(err != B1_RES_OK)
+	{
+		return err;
+	}
+
+	if(td.length != 0)
+	{
+		return B1_RES_ESYNTAX;
+	}
+
+	return B1_RES_OK;
+}
+
 B1_CMP_CMDS::const_iterator B1FileCompiler::find_LF(B1_CMP_CMDS::const_iterator lacmd, B1_CMP_CMDS::const_iterator intlfcmd, bool& intlf_found)
 {
 	const auto &la = *lacmd;
@@ -4773,9 +4812,9 @@ B1C_T_ERROR B1FileCompiler::remove_duplicate_labels(bool &changed)
 	for(auto cmdi = cbegin(); cmdi != cend(); cmdi++)
 	{
 		// do not take into account functions and subroutines
-		if(B1CUtils::is_label(*cmdi) && !B1CUtils::is_def_fn(*cmdi) && _sub_labels.find(cmdi->cmd) == _sub_labels.cend())
+		if(B1CUtils::is_label(*cmdi))
 		{
-			range.push_back(std::make_pair(cmdi, (_req_labels.find(cmdi->cmd) != _req_labels.cend())));
+			range.push_back(std::make_pair(cmdi, (_req_labels.find(cmdi->cmd) != _req_labels.cend() || B1CUtils::is_def_fn(*cmdi) || _sub_labels.find(cmdi->cmd) != _sub_labels.cend())));
 		}
 		else
 		{
@@ -9413,6 +9452,17 @@ B1C_T_ERROR B1FileCompiler::FirstRun()
 			continue;
 		}
 
+		if(stmt == B1_ID_STMT_LABEL)
+		{
+			err = st_label(true);
+			if(err != B1_RES_OK)
+			{
+				break;
+			}
+
+			continue;
+		}
+
 		if(stmt == B1_ID_STMT_END)
 		{
 			if(endstmt)
@@ -9524,6 +9574,17 @@ B1C_T_ERROR B1FileCompiler::Compile()
 
 		if(stmt == B1_ID_STMT_REM)
 		{
+			continue;
+		}
+
+		if(stmt == B1_ID_STMT_LABEL)
+		{
+			err = st_label(false);
+			if(err != B1_RES_OK)
+			{
+				break;
+			}
+
 			continue;
 		}
 
@@ -9660,7 +9721,7 @@ B1C_T_ERROR B1FileCompiler::Compile()
 
 		if(stmt == B1_ID_STMT_RESTORE)
 		{
-			err = st_restore();
+			err = st_goto_gosub_restore(B1_CMP_STMT::B1_CMP_STMT_RESTORE);
 			if(err != B1_RES_OK)
 			{
 				break;

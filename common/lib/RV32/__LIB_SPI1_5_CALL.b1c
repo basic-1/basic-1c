@@ -10,11 +10,6 @@ ADDI SP, SP, -16
 SW A1, 4(SP)
 SW RA, 0(SP)
 
-; set SPI enable bit (value for SPI1_CTLR1 register)
-LBU A0, __LIB_SPI1_OPT
-ORI A0, A0, SPI1_CTLR1_SPE
-SB A0, __LIB_SPI1_OPT
-
 ; configure TX mode bit
 SLLI A1, A1, 4
 LBU A0, __LIB_SPI1_OPT1
@@ -45,10 +40,6 @@ BNE A0, ZERO, ::__LBL_SLAVE_OR_TX ; TX
 ; master simplex RX-only or master half-duplex RX
 ORI A1, A1, 8
 SB A1, __LIB_SPI1_OPT1
-; do not enable SPI for these modes
-LBU A0, __LIB_SPI1_OPT
-ANDI A0, A0, !SPI1_CTLR1_SPE
-SB A0, __LIB_SPI1_OPT
 
 :::__LBL_SLAVE_OR_TX
 ANDI A0, A1, 1
@@ -73,12 +64,12 @@ LI A1, 0
 
 :::__LBL_CFG_NSS
 ; set software NSS management for master mode or slave if no NSS pin is specified
+LW T1, __LIB_SPI1_SS_PORT
 LBU A0, __LIB_SPI1_OPT
 ANDI A0, A0, 4
 BNE A0, ZERO, ::__LBL_CFG_NSS_MASTER
-LW A0, __LIB_SPI1_SS_PORT
-BNE A0, ZERO, ::__LBL_SET_SPI_REGS
-
+; slave
+BNE T1, ZERO, ::__LBL_SET_SPI_REGS
 ; no NSS pin
 ORI A1, A1, SPI1_CTLR1_SSM
 J ::__LBL_SET_SPI_REGS
@@ -86,19 +77,22 @@ J ::__LBL_SET_SPI_REGS
 :::__LBL_CFG_NSS_MASTER
 ORI A1, A1, SPI1_CTLR1_SSM + SPI1_CTLR1_SSI
 
-; set NSS pin low (enable slave device)
-LW A0, __LIB_SPI1_SS_PORT
-BEQ A0, ZERO, ::__LBL_SET_SPI_REGS
-
-CALL __LIB_SPI1_NSS_LO
-
 :::__LBL_SET_SPI_REGS
 ; no interrupts and DMA
 SH ZERO, SPI1_CTLR2
-
-; configure CTLR1 and enable SPI
+; configure CTLR1
 LBU A0, __LIB_SPI1_OPT
 ADD A0, A0, A1
+SH A0, SPI1_CTLR1
+; set NSS pin low (enable slave device)
+ANDI A0, A0, 4
+BEQ A0, ZERO, ::__LBL_SPI_EN ; is master
+BEQ T1, ZERO, ::__LBL_SPI_EN ; no NSS
+CALL __LIB_SPI1_NSS_LO
+
+:::__LBL_SPI_EN
+LHU A0, SPI1_CTLR1
+ORI A0, A0, SPI1_CTLR1_SPE
 SH A0, SPI1_CTLR1
 
 LW A1, 4(SP)

@@ -2,7 +2,7 @@ INI,__LIB_SPI1_SS_PIN
 INI,__LIB_SPI1_SS_PORT
 
 ; configure NSS pin
-; A1 = 0 stands for slave (floating input), A1 = 1 - master (push-pull multiplexed output)
+; A1 = 0 stands for slave (floating input), A1 = 1 - master (push-pull output)
 :__LIB_SPI1_NSS_CFG
 ASM
 LBU T1, __LIB_SPI1_SS_PIN ; pin number
@@ -16,8 +16,8 @@ AND T2, T2, A0
 ; 0x4 - floating input
 LI A0, 0x4
 BEQ A1, ZERO, ::__LBL_SET_PIN_MODE
-; 0xB - push-pull multiplexed output
-LI A0, 0xB
+; 0x3 - push-pull output
+LI A0, 0x3
 
 :::__LBL_SET_PIN_MODE
 SLL A0, A0, T1

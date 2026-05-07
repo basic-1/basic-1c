@@ -780,18 +780,14 @@ EVal::EVal(int32_t val, USGN usgn /*= USGN::US_NONE*/)
 : _resolved(true)
 , _usgn(usgn)
 {
+	_val = val;
 	if(_usgn & USGN::US_MINUS)
 	{
-		_val = -val;
+		_val = -_val;
 	}
-	else
 	if(_usgn & USGN::US_NOT)
 	{
-		_val = ~val;
-	}
-	else
-	{
-		_val = val;
+		_val = ~_val;
 	}
 }
 
@@ -854,7 +850,6 @@ A1_T_ERROR EVal::Resolve(const std::map<std::wstring, MemRef> &symbols /*= std::
 	{
 		n = -n;
 	}
-	else
 	if(_usgn & USGN::US_NOT)
 	{
 		n = ~n;

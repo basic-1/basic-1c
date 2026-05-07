@@ -55,6 +55,13 @@ private:
 		B1_CMP_STATE_WHILE,
 	};
 
+	enum class B1_CMP_STMT
+	{
+		B1_CMP_STMT_GOTO,
+		B1_CMP_STMT_GOSUB,
+		B1_CMP_STMT_RESTORE,
+	};
+
 	std::vector<std::pair<B1_CMP_STATE, std::vector<std::wstring>>> _state_stack;
 
 	std::pair<B1_CMP_STATE, std::vector<std::wstring>> _state;
@@ -78,6 +85,9 @@ private:
 
 	// subroutine labels
 	std::set<std::wstring> _sub_labels;
+
+	// local symbolic labels
+	std::set<std::wstring> _sym_labels;
 
 	std::map<std::wstring, std::pair<std::wstring, std::vector<iterator>>> _var_refs;
 
@@ -115,8 +125,7 @@ private:
 	B1C_T_ERROR st_ioctl_get_symbolic_value(std::wstring &value, bool *is_numeric = nullptr);
 	B1C_T_ERROR st_ioctl();
 	B1_T_ERROR st_let(const B1_T_CHAR **stop_tokens, B1_CMP_ARG *var_ref = nullptr);
-	B1_T_ERROR st_goto();
-	B1_T_ERROR st_gosub();
+	B1_T_ERROR st_goto_gosub_restore(B1_CMP_STMT stmt);
 	B1_T_ERROR st_dim_get_one_size(bool first_run, bool allow_TO_stop_word, bool TO_stop_word_only, std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE> &res);
 	B1_T_ERROR st_dim_get_size(bool first_run, bool range_only, std::vector<std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE>> &range);
 	B1C_T_ERROR st_dim(bool first_run, bool is_const);
@@ -135,7 +144,6 @@ private:
 	B1_T_ERROR st_data_change_const_names(std::vector<B1_TYPED_VALUE>& args);
 	B1_T_ERROR st_data();
 	B1_T_ERROR st_read();
-	B1_T_ERROR st_restore();
 	B1_T_ERROR st_while();
 	B1_T_ERROR st_wend();
 	B1_T_ERROR st_continue();
@@ -145,6 +153,7 @@ private:
 	B1C_T_ERROR st_read_range(std::vector<std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE>> &range);
 	B1C_T_ERROR st_read_using_clause(B1_CMP_ARGS &args, iterator pos);
 	B1C_T_ERROR st_put_get_trr(const std::wstring &cmd_name, bool is_input, bool is_output);
+	B1_T_ERROR st_label(bool first_run);
 
 	B1_CMP_CMDS::const_iterator find_LF(B1_CMP_CMDS::const_iterator lacmd, B1_CMP_CMDS::const_iterator intlfcmd, bool &intlf_found);
 	void fix_LA_LF_order();
