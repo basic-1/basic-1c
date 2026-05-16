@@ -80,14 +80,14 @@ private:
 	B1_CMP_CMDS _MA_stmts;
 	B1_CMP_CMDS _DAT_stmts;
 
-	// labels that should not be removed (used indirectly)
+	// labels that should not be removed (used indirectly, e.g. with IOCTL stmt)
 	std::set<std::wstring> _req_labels;
 
 	// subroutine labels
 	std::set<std::wstring> _sub_labels;
 
-	// local symbolic labels
-	std::set<std::wstring> _sym_labels;
+	// local labels
+	std::set<std::wstring> _labels;
 
 	std::map<std::wstring, std::pair<std::wstring, std::vector<iterator>>> _var_refs;
 
@@ -122,7 +122,7 @@ private:
 	B1_T_ERROR st_option_set_expr(const B1_T_CHAR *s, B1_CMP_EXP_TYPE &exp_type, B1_CMP_ARG &res);
 	bool st_option_check(bool first_run, bool& opt, bool& opt_def, bool val);
 	B1C_T_ERROR st_option(bool first_run);
-	B1C_T_ERROR st_ioctl_get_symbolic_value(std::wstring &value, bool *is_numeric = nullptr);
+	B1C_T_ERROR st_ioctl_get_symbolic_value(std::wstring &value);
 	B1C_T_ERROR st_ioctl();
 	B1_T_ERROR st_let(const B1_T_CHAR **stop_tokens, B1_CMP_ARG *var_ref = nullptr);
 	B1_T_ERROR st_goto_gosub_restore(B1_CMP_STMT stmt);

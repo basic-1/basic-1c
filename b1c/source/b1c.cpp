@@ -1473,13 +1473,8 @@ B1C_T_ERROR B1FileCompiler::st_option(bool first_run)
 	return static_cast<B1C_T_ERROR>(err);
 }
 
-B1C_T_ERROR B1FileCompiler::st_ioctl_get_symbolic_value(std::wstring &value, bool *is_numeric /*= nullptr*/)
+B1C_T_ERROR B1FileCompiler::st_ioctl_get_symbolic_value(std::wstring &value)
 {
-	if(is_numeric != nullptr)
-	{
-		*is_numeric = false;
-	}
-
 	if(b1_rpn[1].flags == 0)
 	{
 		bool get_value = false;
@@ -1493,11 +1488,6 @@ B1C_T_ERROR B1FileCompiler::st_ioctl_get_symbolic_value(std::wstring &value, boo
 				get_value = true;
 				id_off = b1_rpn[0].data.token.offset;
 				id_len = b1_rpn[0].data.token.length;
-
-				if(is_numeric != nullptr)
-				{
-					*is_numeric = true;
-				}
 			}
 		}
 		else
@@ -1668,15 +1658,13 @@ B1C_T_ERROR B1FileCompiler::st_ioctl()
 				else
 				if(cmd.data_type == B1Types::B1T_LABEL)
 				{
-					bool is_numeric = true;
-					// numeric labels are local and non-numeric ones can be either local or global
-					err1 = st_ioctl_get_symbolic_value(data, &is_numeric);
+					err1 = st_ioctl_get_symbolic_value(data);
 					if(err1 != B1C_T_ERROR::B1C_RES_OK)
 					{
 						return err1;
 					}
 
-					const auto lbl_name = (is_numeric || (_sym_labels.find(data) != _sym_labels.cend())) ? (get_name_space_prefix() + L"__ULB_" + data) : (data + cmd.extra_data);
+					const auto lbl_name = (_labels.find(data) != _labels.cend()) ? (get_name_space_prefix() + L"__ULB_" + data) : (data + cmd.extra_data);
 					_req_labels.insert(lbl_name);
 					emit_command(L"IOCTL", std::vector<B1_TYPED_VALUE>({ B1_TYPED_VALUE(L"\"" + dev_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + cmd_name + L"\"", B1Types::B1T_STRING), B1_TYPED_VALUE(L"\"" + lbl_name + L"\"", B1Types::B1T_STRING) }));
 				}
@@ -3189,7 +3177,7 @@ B1C_T_ERROR B1FileCompiler::st_if()
 		if(	stmt == B1_ID_STMT_ABSENT || stmt == B1_ID_STMT_IF || stmt == B1_ID_STMT_ELSEIF || stmt == B1_ID_STMT_ELSE ||
 			stmt == B1_ID_STMT_FOR || stmt == B1_ID_STMT_NEXT || stmt == B1_ID_STMT_WHILE || stmt == B1_ID_STMT_WEND ||
 			stmt == B1_ID_STMT_OPTION || stmt == B1_ID_STMT_DEF || stmt == B1_ID_STMT_DIM || stmt == B1_ID_STMT_DATA ||
-			stmt == B1_ID_STMT_END)
+			stmt == B1_ID_STMT_LABEL || stmt == B1_ID_STMT_END)
 		{
 			return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
 		}
@@ -4677,7 +4665,12 @@ B1_T_ERROR B1FileCompiler::st_label(bool first_run)
 	
 	if(first_run)
 	{
-		_sym_labels.insert(label_name);
+		if(_labels.find(label_name) != _labels.cend())
+		{
+			return B1_RES_EIDINUSE;
+		}
+
+		_labels.insert(label_name);
 	}
 	else
 	{
@@ -9405,6 +9398,17 @@ B1C_T_ERROR B1FileCompiler::FirstRun()
 		if(err != B1_RES_OK)
 		{
 			break;
+		}
+
+		if(b1_next_line_num != B1_T_LINE_NUM_ABSENT)
+		{
+			auto label_name = std::to_wstring(b1_next_line_num);
+			if(_labels.find(label_name) != _labels.cend())
+			{
+				return static_cast<B1C_T_ERROR>(B1_RES_EINVLINEN);
+			}
+
+			_labels.insert(label_name);
 		}
 
 		if(stmt == B1_ID_STMT_ABSENT || stmt == B1_ID_STMT_REM)

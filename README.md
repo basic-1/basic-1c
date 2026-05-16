@@ -58,6 +58,7 @@ Supported STM8 microcontrollers list:
 - IF ... THEN  
 - INPUT  
 - IOCTL  
+- LABEL  
 - LET  
 - NEXT  
 - OPTION BASE | EXPLICIT | NOCHECK | INPUTDEVICE | OUTPUTDEVICE  

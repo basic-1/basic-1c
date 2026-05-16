@@ -1,3 +1,10 @@
+b1c (1.0.0-67) unstable; urgency=low
+
+  * documentation updated
+  * some minor bugs fixed (labels usage)
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Sat, 16 May 2026 14:50:01 +0300
+
 b1c (1.0.0-66) unstable; urgency=low
 
   * LABEL statement added

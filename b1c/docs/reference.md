@@ -8,7 +8,7 @@ BASIC1 language program is a sequence of text strings (program lines). BASIC1 co
   
 Line number is a number in the range \[1 ... 65530\]  
   
-Statement is a minimal unit of program which can be processed by compiler. Every statement should start from a statement keyword except for the implicit assignment (`LET` keyword can be omitted). Statement keywords of BASIC1 language are: `BREAK`, `CONTINUE`, `DATA`, `DEF`, `DIM`, `ELSE`, `ELSEIF`, `ERASE`, `FOR`, `GET`, `GOTO`, `GOSUB`, `IF`, `INPUT`, `IOCTL`, `LET`, `NEXT`, `OPTION`, `PRINT`, `PUT`, `READ`, `REM`, `RESTORE`, `RETURN`, `TRANSFER`, `WHILE`, `WEND`.  
+Statement is a minimal unit of program which can be processed by compiler. Every statement should start from a statement keyword except for the implicit assignment (`LET` keyword can be omitted). Statement keywords of BASIC1 language are: `BREAK`, `CONTINUE`, `DATA`, `DEF`, `DIM`, `ELSE`, `ELSEIF`, `ERASE`, `FOR`, `GET`, `GOTO`, `GOSUB`, `IF`, `INPUT`, `IOCTL`, `LABEL`, `LET`, `NEXT`, `OPTION`, `PRINT`, `PUT`, `READ`, `REM`, `RESTORE`, `RETURN`, `TRANSFER`, `WHILE`, `WEND`.  
   
 **Examples of program lines:**  
 `REM FOR statement with omitted line number`  
@@ -223,7 +223,7 @@ The implicit data type conversion occurs when a binary arithmetic or bitwise ope
 **Usage:**  
 `DATA [(<type1>[, <type2>, ... <typeM>])] <value1>[, <value2>, ... <valueN>]`  
 `READ <var_name1>[, <var_name2>, ... <var_nameM>]`  
-`RESTORE [<line_number>]`  
+`RESTORE [<line_number> | <label_name>]`  
   
 `DATA` statement specifies a set of comma-delimited constant values. Textual constants have to be enclosed in double-quotes: such values have to meet the rules of BASIC regular string constants definition. Optional data types list can be specified after `DATA` keyword in parentheses: complier uses them to distinguish between values of different numeric types (`INT`, `WORD`, `BYTE`, `LONG`). A program can have multiple `DATA` statements. The values are read in the same order as they are defined in program. BASIC1 program has internal next value pointer: at the program start it points to the first value defined with `DATA` statements. Every reading operation changes the pointer making it referring the next value. `READ` statement reads values specified with `DATA` statements. `READ` keyword must be followed by comma-separated list of variable names to read values into. `RESTORE` statement sets the next value pointer to the first value of a `DATA` statement identified with the line number coming after `RESTORE` statement keyword. `RESTORE` statement without line number sets the pointer to the first value in the program (like at the program execution start).  
   
@@ -358,12 +358,26 @@ Here `<loop_var_name>` is a loop control numeric variable name, `<init_value>` a
 `PRINT I, J, A` 'here `I` = -6, `J` = 6, `A` = -225  
 `END`  
   
+### `LABEL` statement  
+  
+`LABEL` statement allows some other statements to refer to the specific program location with a symbolic name. The statements are: `GOTO`, `GOSUB` and `RESTORE`.  
+  
+**Usage:**  
+`LABEL <symbolic_name>`  
+  
+`<symbolic_name>` must satisfy the rules defined for the identifier name.  
+  
+**Examples:**  
+`LABEL PRINT_GREETING`  
+`...`  
+`GOTO PRINT_GREETING`  
+  
 ### `GOTO` statement  
   
 `GOTO` statement changes normal program line execution order, program execution is passed to the line specified with line number coming after `GOTO` keyword.  
 
 **Usage:**  
-`GOTO <line_number>`  
+`GOTO <line_number> | <label_name>`  
   
 **Examples:**  
 `10 A = 10`  
@@ -379,7 +393,7 @@ Here `<loop_var_name>` is a loop control numeric variable name, `<init_value>` a
 `GOSUB` statement transfers program execution control to a program line identified with line number following the statement keyword (similar to `GOTO` statement) but before changing execution order it saves address of the next statement. `RETURN` statement moves execution control back to the statement following the `GOSUB` statement using the saved return address.  
   
 **Usage:**  
-`GOSUB <subroutine_line_number>`  
+`GOSUB <subroutine_line_number> | <label_name>`  
 `RETURN`  
   
 **Examples:**  
