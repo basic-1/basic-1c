@@ -118,6 +118,8 @@ private:
 	B1_T_ERROR eval_chr(const std::wstring &num_val, const B1Types type, std::wstring &res_str);
 	B1_T_ERROR concat_strings_rpn(std::wstring &res);
 
+	bool is_label();
+
 	B1_T_ERROR st_option_set(const B1_T_CHAR *s, uint8_t value_type, bool onoff, int *value);
 	B1_T_ERROR st_option_set_expr(const B1_T_CHAR *s, B1_CMP_EXP_TYPE &exp_type, B1_CMP_ARG &res);
 	bool st_option_check(bool first_run, bool& opt, bool& opt_def, bool val);

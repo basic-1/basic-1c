@@ -1,3 +1,10 @@
+b1c (1.0.0-68) unstable; urgency=low
+
+  * more optimizations (comparison with 0)
+  * a bug is fixed (in c1stm8 optimizer rule)
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Tue, 19 May 2026 19:16:37 +0300
+ 
 b1c (1.0.0-67) unstable; urgency=low
 
   * documentation updated

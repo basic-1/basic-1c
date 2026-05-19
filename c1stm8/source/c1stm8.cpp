@@ -7548,7 +7548,7 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 
 			if(n1 > 0 && n2 > 0 && n1 - n2 == n)
 			{
-				ao._data = (n == 1 ? L"LD (1, SP), " : L"LDW (1, SP), ") + aon1._args[0];
+				ao._data = (n == 1 ? L"LD (" : L"LDW (") + std::to_wstring(n2 + 1) + L", SP), " + aon1._args[0];
 				ao._parsed = false;
 				cs.erase(next2);
 				cs.erase(next1);

@@ -1159,6 +1159,41 @@ B1_T_ERROR B1FileCompiler::concat_strings_rpn(std::wstring &res)
 	return B1_RES_OK;
 }
 
+bool B1FileCompiler::is_label()
+{
+	auto i = b1_curr_prog_line_offset;
+
+	for(; ; i++)
+	{
+		if(i == B1_T_INDEX_MAX_VALUE)
+		{
+			break;
+		}
+		
+		auto c = b1_progline[i];
+		
+		if(B1_T_ISCSTRTERM(c))
+		{
+			break;
+		}
+
+		if(B1_T_ISBLANK(c))
+		{
+			continue;
+		}
+
+		if(c == (B1_T_CHAR)':')
+		{
+			b1_curr_prog_line_offset = i + 1;
+			return true;
+		}
+
+		break;
+	}
+
+	return false;
+}
+
 B1_T_ERROR B1FileCompiler::st_option_set(const B1_T_CHAR *s, uint8_t value_type, bool onoff, int *value)
 {
 	B1_T_ERROR err;
@@ -5905,6 +5940,51 @@ B1C_T_ERROR B1FileCompiler::remove_redundant_comparisons(bool &changed)
 		}
 	}
 
+	// optimize comparison with zero value
+	for(auto i = begin(); i != end(); i++)
+	{
+		auto &cmd = *i;
+
+		if(B1CUtils::is_label(cmd))
+		{
+			continue;
+		}
+
+		if(B1CUtils::is_log_op(cmd))
+		{
+			int32_t n;
+
+			if((cmd.args[0][0].type == B1Types::B1T_BYTE || cmd.args[0][0].type == B1Types::B1T_WORD) && 
+				cmd.args[1].size() == 1 && B1CUtils::is_num_val(cmd.args[1][0].value) && Utils::str2int32(cmd.args[1][0].value, n) == B1_RES_OK && n == 0)
+			{
+				if(cmd.cmd == L">")
+				{
+					cmd.cmd = L"<>";
+					changed = true;
+					continue;
+				}
+				else
+				if(cmd.cmd == L"<=")
+				{
+					cmd.cmd = L"==";
+					changed = true;
+					continue;
+				}
+			}
+			else
+			if((cmd.args[1][0].type == B1Types::B1T_BYTE || cmd.args[1][0].type == B1Types::B1T_WORD) && 
+				cmd.args[0].size() == 1 && B1CUtils::is_num_val(cmd.args[0][0].value) && Utils::str2int32(cmd.args[0][0].value, n) == B1_RES_OK && n == 0)
+			{
+				if(cmd.cmd == L"<=" || cmd.cmd == L">=")
+				{
+					cmd.cmd = L"==";
+					changed = true;
+					continue;
+				}
+			}
+		}
+	}
+
 	return B1C_T_ERROR::B1C_RES_OK;
 }
 
@@ -9394,6 +9474,19 @@ B1C_T_ERROR B1FileCompiler::FirstRun()
 
 		b1_curr_prog_line_offset = 0;
 
+		if(is_label())
+		{
+			option_allowed = false;
+
+			err = st_label(true);
+			if(err != B1_RES_OK)
+			{
+				break;
+			}
+
+			continue;
+		}
+
 		err = b1_tok_stmt_init(&stmt);
 		if(err != B1_RES_OK)
 		{
@@ -9543,6 +9636,20 @@ B1C_T_ERROR B1FileCompiler::Compile()
 		_src_lines[_curr_src_line_id] = B1CUtils::b1str_to_cstr(b1_progline, true);
 
 		b1_curr_prog_line_offset = 0;
+
+		if(is_label())
+		{
+			_curr_line_num = -1;
+			_curr_line_cnt = b1_curr_prog_line_cnt;
+
+			err = st_label(false);
+			if(err != B1_RES_OK)
+			{
+				break;
+			}
+
+			continue;
+		}
 
 		err = b1_tok_stmt_init(&stmt);
 		if(err != B1_RES_OK)
