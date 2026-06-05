@@ -1,6 +1,6 @@
 /*
  Intermediate code compiler
- Copyright (c) 2021-2025 Nikolay Pletnev
+ Copyright (c) 2021-2026 Nikolay Pletnev
  MIT license
 
  c1.h: Intermediate code compiler classes declaration
@@ -226,6 +226,23 @@ protected:
 	B1_ASM_OPS::iterator add_call_op(const std::wstring &fn_name, bool is_volatile = false, bool is_inline = false)
 	{
 		return add_call_op(_curr_code_sec->cend(), fn_name, is_volatile, is_inline);
+	}
+
+	static B1_ASM_OPS::iterator del_op(B1_ASM_OPS &ops, B1_ASM_OPS::iterator where)
+	{
+		auto next = std::next(where);
+		if(next != ops.end())
+		{
+			// copy comment to the next op
+			auto ao = where->get();
+			auto aon = next->get();
+			if(!ao->_comment.empty() && aon->_comment.empty())
+			{
+				aon->_comment = ao->_comment;
+			}
+		}
+		ops.erase(where);
+		return next;
 	}
 
 

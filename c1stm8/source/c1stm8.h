@@ -111,7 +111,7 @@ protected:
 	C1_T_ERROR write_code_sec(bool code_init) override;
 
 	std::wstring correct_SP_offset(const std::wstring &arg, int32_t op_size, bool &no_SP_off, int32_t *offset = nullptr) const;
-	bool is_arithm_op(const B1_ASM_OP_STM8 &ao, int32_t &size, bool *uses_SP = nullptr) const;
+	bool is_arithm_op(const B1_ASM_OP_STM8 &ao, int32_t &size, int *n_SP_arg = nullptr) const;
 	bool is_reg_used(const B1_ASM_OP_STM8 &ao, const std::wstring &reg_name, bool &reg_write_op) const;
 	bool is_reg_used_after(B1_ASM_OPS::const_iterator start, B1_ASM_OPS::const_iterator end, const std::wstring &reg_name, bool branch = false) const;
 

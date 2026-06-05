@@ -1,3 +1,10 @@
+b1c (1.0.0-69) unstable; urgency=low
+
+  * more optimizations (32-bit int arithmetic)
+  * a bug is fixed (c1stm8 optimizer rules, 32-bit int arithmetic)
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Fri, 05 Jun 2026 18:11:41 +0300
+
 b1c (1.0.0-68) unstable; urgency=low
 
   * more optimizations (comparison with 0)
