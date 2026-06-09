@@ -106,7 +106,7 @@ bool B1_ASM_OP_STM8::Parse() const
 					{
 						if(arg.length() > 0 && arg.front() == L'(' && arg.back() != L')')
 						{
-							arg += s;
+							arg += s + L" ";
 							continue;
 						}
 						args.push_back(arg);
@@ -168,17 +168,14 @@ bool B1_ASM_OP_STM8::Parse() const
 												s += adds[i];
 											}
 
+											s = Utils::str_rtrim(s, L" \t");
+
 											if(i != numvalues.size() - 1)
 											{
-												s += L"+";
+												s += L" + ";
 											}
 										}
-										s = Utils::str_delspaces(s);
 									}
-								}
-								else
-								{
-									s = Utils::str_delspaces(s);
 								}
 
 								arg += s;
@@ -393,7 +390,7 @@ C1_T_ERROR C1STM8Compiler::stm8_st_gf(const B1_CMP_VAR &var, bool is_ma)
 		if(size1 == 1)
 		{
 			// BYTE type
-			add_op(*_curr_code_sec, L"MOV (" + v + L"), 0", var.is_volatile); //35 00 LONG_ADDRESS
+			add_op(*_curr_code_sec, L"MOV (" + v + L"), 0x0", var.is_volatile); //35 00 LONG_ADDRESS
 		}
 		else
 		{
@@ -407,7 +404,7 @@ C1_T_ERROR C1STM8Compiler::stm8_st_gf(const B1_CMP_VAR &var, bool is_ma)
 			add_op(*_curr_code_sec, L"LDW (" + v + L"), X", var.is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
 			if(var.type == B1Types::B1T_LONG)
 			{
-				add_op(*_curr_code_sec, L"LDW (" + v + L" + 2), X", var.is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
+				add_op(*_curr_code_sec, L"LDW (" + v + L" + 0x2), X", var.is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
 			}
 		}
 	}
@@ -1220,14 +1217,14 @@ C1_T_ERROR C1STM8Compiler::stm8_load(const B1_TYPED_VALUE &tv, const B1Types req
 					if(req_type == B1Types::B1T_STRING)
 					{
 						add_op(*_curr_code_sec, L"LDW Y, (" + rv + L")", is_volatile); //90 BE SHORT_ADDRESS 90 CE LONG_ADDRESS
-						add_op(*_curr_code_sec, L"LDW X, (" + rv + L" + 2)", is_volatile); //BE SHORT_ADDRESS CE LONG_ADDRESS
+						add_op(*_curr_code_sec, L"LDW X, (" + rv + L" + 0x2)", is_volatile); //BE SHORT_ADDRESS CE LONG_ADDRESS
 						add_call_op(L"__LIB_STR_STR_L", is_volatile);
 					}
 					else
 					if(req_type == B1Types::B1T_LONG)
 					{
 						add_op(*_curr_code_sec, L"LDW Y, (" + rv + L")", is_volatile); //90 BE SHORT_ADDRESS 90 CE LONG_ADDRESS
-						add_op(*_curr_code_sec, L"LDW X, (" + rv + L" + 2)", is_volatile); //BE SHORT_ADDRESS CE LONG_ADDRESS
+						add_op(*_curr_code_sec, L"LDW X, (" + rv + L" + 0x2)", is_volatile); //BE SHORT_ADDRESS CE LONG_ADDRESS
 					}
 
 					rv.clear();
@@ -1501,8 +1498,8 @@ C1_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_offs
 			if(i != (arg.size() - 2))
 			{
 				add_call_op(L"__LIB_COM_MUL16");
-				add_op(*_curr_code_sec, L"ADDW X, (3, SP)", false); //72 FB BYTE_OFFSET
-				add_op(*_curr_code_sec, L"LDW (3, SP), X", false); //1F BYTE_OFFSET
+				add_op(*_curr_code_sec, L"ADDW X, (0x3, SP)", false); //72 FB BYTE_OFFSET
+				add_op(*_curr_code_sec, L"LDW (0x3, SP), X", false); //1F BYTE_OFFSET
 				add_op(*_curr_code_sec, L"POPW X", false); //85
 				_stack_ptr -= 2;
 			}
@@ -1556,14 +1553,14 @@ C1_T_ERROR C1STM8Compiler::stm8_arr_offset(const B1_CMP_ARG &arg, bool &imm_offs
 				add_op(*_curr_code_sec, L"SUBW X, (" + arg[0].value + L" + " + Utils::str_tohex16(2 + i * 4) + L")", false); //72 B0 LONG_ADDRESS
 			}
 			add_call_op(L"__LIB_COM_MUL16");
-			add_op(*_curr_code_sec, L"ADDW X, (3, SP)", false); //72 FB BYTE_OFFSET
-			add_op(*_curr_code_sec, L"LDW (3, SP), X", false); //1F BYTE_OFFSET
+			add_op(*_curr_code_sec, L"ADDW X, (0x3, SP)", false); //72 FB BYTE_OFFSET
+			add_op(*_curr_code_sec, L"LDW (0x3, SP), X", false); //1F BYTE_OFFSET
 
 			if(i != 0)
 			{
 				add_op(*_curr_code_sec, L"LDW X, (" + arg[0].value + L" + " + Utils::str_tohex16(2 + 2 + i * 4) + L")", false); //BE SHORT_ADDRESS CE LONG_ADDRESS
 				add_call_op(L"__LIB_COM_MUL16");
-				add_op(*_curr_code_sec, L"LDW (1, SP), X", false); //1F BYTE_OFFSET
+				add_op(*_curr_code_sec, L"LDW (0x1, SP), X", false); //1F BYTE_OFFSET
 			}
 		}
 
@@ -1808,7 +1805,7 @@ C1_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types req_ty
 			if((req_valtype & LVT::LVT_MEMREF) && is_ma && imm_offset && req_type == B1Types::B1T_BYTE)
 			{
 				rvt = LVT::LVT_MEMREF;
-				rv += L" + " + Utils::str_tohex16(offset);
+				rv += ((offset == 0) ? L"" : (L" + " + Utils::str_tohex16(offset)));
 			}
 			else
 			if(req_valtype & LVT::LVT_REG)
@@ -1819,7 +1816,7 @@ C1_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types req_ty
 				{
 					if(imm_offset)
 					{
-						add_op(*_curr_code_sec, L"LD A, (" + rv + L" + " + Utils::str_tohex16(offset) + L")", is_volatile); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
+						add_op(*_curr_code_sec, L"LD A, (" + rv + ((offset == 0) ? L"" : (L" + " + Utils::str_tohex16(offset))) + L")", is_volatile); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
 					}
 					else
 					{
@@ -1894,7 +1891,7 @@ C1_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types req_ty
 			if((req_valtype & LVT::LVT_MEMREF) && is_ma && imm_offset && (req_type == B1Types::B1T_BYTE || req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD))
 			{
 				rvt = LVT::LVT_MEMREF;
-				rv += L" + " + Utils::str_tohex16(offset);
+				rv += ((offset == 0) ? L"" : (L" + " + Utils::str_tohex16(offset)));
 			}
 			else
 			if(req_valtype & LVT::LVT_REG)
@@ -1907,7 +1904,7 @@ C1_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types req_ty
 					{
 						if(imm_offset)
 						{
-							add_op(*_curr_code_sec, L"LD A, (" + rv + L" + " + Utils::str_tohex16(offset) + L")", is_volatile); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
+							add_op(*_curr_code_sec, L"LD A, (" + rv + ((offset == 0) ? L"" : (L" + " + Utils::str_tohex16(offset))) + L")", is_volatile); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
 						}
 						else
 						{
@@ -1945,7 +1942,7 @@ C1_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types req_ty
 					{
 						if(imm_offset)
 						{
-							add_op(*_curr_code_sec, L"LDW X, (" + rv + L" + " + Utils::str_tohex16(offset) + L")", is_volatile); //BE SHORT_ADDRESS CE LONG_ADDRESS
+							add_op(*_curr_code_sec, L"LDW X, (" + rv + ((offset == 0) ? L"" : (L" + " + Utils::str_tohex16(offset))) + L")", is_volatile); //BE SHORT_ADDRESS CE LONG_ADDRESS
 						}
 						else
 						{
@@ -2045,7 +2042,7 @@ C1_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types req_ty
 			if((req_valtype & LVT::LVT_MEMREF) && is_ma && imm_offset && (req_type == B1Types::B1T_BYTE || req_type == B1Types::B1T_INT || req_type == B1Types::B1T_WORD || req_type == B1Types::B1T_LONG))
 			{
 				rvt = LVT::LVT_MEMREF;
-				rv += L" + " + Utils::str_tohex16(offset);
+				rv += ((offset == 0) ? L"" : (L" + " + Utils::str_tohex16(offset)));
 			}
 			else
 			if(req_valtype & LVT::LVT_REG)
@@ -2058,7 +2055,7 @@ C1_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types req_ty
 					{
 						if(imm_offset)
 						{
-							add_op(*_curr_code_sec, L"LD A, (" + rv + L" + " + Utils::str_tohex16(offset) + L")", is_volatile); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
+							add_op(*_curr_code_sec, L"LD A, (" + rv + ((offset == 0) ? L"" : (L" + " + Utils::str_tohex16(offset))) + L")", is_volatile); //B6 SHORT_ADDRESS C6 LONG_ADDRESS
 						}
 						else
 						{
@@ -2092,7 +2089,7 @@ C1_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types req_ty
 					{
 						if(imm_offset)
 						{
-							add_op(*_curr_code_sec, L"LDW X, (" + rv + L" + " + Utils::str_tohex16(offset) + L")", is_volatile); //BE SHORT_ADDRESS CE LONG_ADDRESS
+							add_op(*_curr_code_sec, L"LDW X, (" + rv + ((offset == 0) ? L"" : (L" + " + Utils::str_tohex16(offset))) + L")", is_volatile); //BE SHORT_ADDRESS CE LONG_ADDRESS
 						}
 						else
 						{
@@ -2126,14 +2123,14 @@ C1_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types req_ty
 					{
 						if(imm_offset)
 						{
-							add_op(*_curr_code_sec, L"LDW Y, (" + rv + L" + " + Utils::str_tohex16(offset) + L")", is_volatile); //90 BE SHORT_ADDRESS 90 CE LONG_ADDRESS
-							add_op(*_curr_code_sec, L"LDW X, (" + rv + L" + " + Utils::str_tohex16(offset) + L" + 2)", is_volatile); //BE SHORT_ADDRESS CE LONG_ADDRESS
+							add_op(*_curr_code_sec, L"LDW Y, (" + rv + ((offset == 0) ? L"" : (L" + " + Utils::str_tohex16(offset))) + L")", is_volatile); //90 BE SHORT_ADDRESS 90 CE LONG_ADDRESS
+							add_op(*_curr_code_sec, L"LDW X, (" + rv + L" + " + Utils::str_tohex16(offset + 2) + L")", is_volatile); //BE SHORT_ADDRESS CE LONG_ADDRESS
 						}
 						else
 						{
 							add_op(*_curr_code_sec, L"LDW Y, X", is_volatile); //90 93
 							add_op(*_curr_code_sec, L"LDW Y, (" + rv + L", Y)", is_volatile); //90 EE BYTE_OFFSET 90 DE WORD_OFFSET
-							add_op(*_curr_code_sec, L"LDW X, (" + rv + L" + 2, X)", is_volatile); //EE BYTE_OFFSET DE WORD_OFFSET
+							add_op(*_curr_code_sec, L"LDW X, (" + rv + L" + 0x2, X)", is_volatile); //EE BYTE_OFFSET DE WORD_OFFSET
 						}
 					}
 					else
@@ -2150,14 +2147,14 @@ C1_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types req_ty
 							{
 								add_op(*_curr_code_sec, L"LDW Y, (" + Utils::str_tohex16(offset) + L", Y)", is_volatile); //90 EE BYTE_OFFSET 90 DE WORD_OFFSET
 							}
-							add_op(*_curr_code_sec, L"LDW X, (" + Utils::str_tohex16(offset) + L" + 2, X)", is_volatile); //EE BYTE_OFFSET DE WORD_OFFSET
+							add_op(*_curr_code_sec, L"LDW X, (" + Utils::str_tohex16(offset + 2) + L", X)", is_volatile); //EE BYTE_OFFSET DE WORD_OFFSET
 						}
 						else
 						{
 							add_op(*_curr_code_sec, L"ADDW X, (" + rv + L")", is_volatile); //72 BB WORD_OFFSET
 							add_op(*_curr_code_sec, L"LDW Y, X", is_volatile); //90 93
 							add_op(*_curr_code_sec, L"LDW Y, (Y)", is_volatile); //90 FE
-							add_op(*_curr_code_sec, L"LDW X, (2, X)", is_volatile); //EE BYTE_OFFSET
+							add_op(*_curr_code_sec, L"LDW X, (0x2, X)", is_volatile); //EE BYTE_OFFSET
 						}
 					}
 
@@ -2201,7 +2198,7 @@ C1_T_ERROR C1STM8Compiler::stm8_load(const B1_CMP_ARG &arg, const B1Types req_ty
 					// const and static arrays of strings
 					if(imm_offset)
 					{
-						add_op(*_curr_code_sec, L"LDW X, (" + rv + L" + " + Utils::str_tohex16(offset) + L")", is_volatile); //BE SHORT_ADDRESS CE LONG_ADDRESS
+						add_op(*_curr_code_sec, L"LDW X, (" + rv + ((offset == 0) ? L"" : (L" + " + Utils::str_tohex16(offset))) + L")", is_volatile); //BE SHORT_ADDRESS CE LONG_ADDRESS
 					}
 					else
 					{
@@ -2420,7 +2417,7 @@ C1_T_ERROR C1STM8Compiler::stm8_init_array(const B1_CMP_CMD &cmd, const B1_CMP_V
 				}
 				else
 				{
-					add_op(*_curr_code_sec, L"LDW (1, SP), X", false); //1F BYTE_OFFSET
+					add_op(*_curr_code_sec, L"LDW (0x1, SP), X", false); //1F BYTE_OFFSET
 				}
 			}
 
@@ -2506,7 +2503,7 @@ C1_T_ERROR C1STM8Compiler::stm8_store(const B1_TYPED_VALUE &tv)
 		if(tv.type == B1Types::B1T_LONG)
 		{
 			add_op(*_curr_code_sec, L"LDW (" + Utils::str_tohex16(offset) + L", SP), Y", false); //17 BYTE_OFFSET
-			add_op(*_curr_code_sec, L"LDW (" + Utils::str_tohex16(offset) + L" + 2, SP), X", false); //1F BYTE_OFFSET
+			add_op(*_curr_code_sec, L"LDW (" + Utils::str_tohex16(offset + 2) + L", SP), X", false); //1F BYTE_OFFSET
 		}
 		else
 		{
@@ -2555,7 +2552,7 @@ C1_T_ERROR C1STM8Compiler::stm8_store(const B1_TYPED_VALUE &tv)
 		if(tv.type == B1Types::B1T_LONG)
 		{
 			add_op(*_curr_code_sec, L"LDW (" + dst + L"), Y", is_volatile); //90 BF SHORT_ADDRESS 90 CF LONG_ADDRESS
-			add_op(*_curr_code_sec, L"LDW (" + dst + L" + 2), X", is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
+			add_op(*_curr_code_sec, L"LDW (" + dst + L" + 0x2), X", is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
 		}
 		else
 		{
@@ -2660,7 +2657,7 @@ C1_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 		{
 			if(imm_offset)
 			{
-				add_op(*_curr_code_sec, L"LD (" + dst + L" + " + Utils::str_tohex16(offset) + L"), A", is_volatile); //B7 SHORT_ADDRESS C7 LONG_ADDRESS
+				add_op(*_curr_code_sec, L"LD (" + dst + ((offset == 0) ? L"" : (L" + " + Utils::str_tohex16(offset))) + L"), A", is_volatile); //B7 SHORT_ADDRESS C7 LONG_ADDRESS
 			}
 			else
 			{
@@ -2706,14 +2703,14 @@ C1_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 				// release previous string
 				if(arg[0].type == B1Types::B1T_STRING)
 				{
-					add_op(*_curr_code_sec, L"LDW X, (" + dst + L" + " + Utils::str_tohex16(offset) + L")", is_volatile); //BE BYTE_OFFSET CE WORD_OFFSET
+					add_op(*_curr_code_sec, L"LDW X, (" + dst + ((offset == 0) ? L"" : (L" + " + Utils::str_tohex16(offset))) + L")", is_volatile); //BE BYTE_OFFSET CE WORD_OFFSET
 					add_call_op(L"__LIB_STR_RLS", is_volatile);
 				}
 
 				add_op(*_curr_code_sec, L"POPW X", is_volatile); //85
 				_stack_ptr -= 2;
 
-				add_op(*_curr_code_sec, L"LDW (" + dst + L" + " + Utils::str_tohex16(offset) + L"), X", is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
+				add_op(*_curr_code_sec, L"LDW (" + dst + ((offset == 0) ? L"" : (L" + " + Utils::str_tohex16(offset))) + L"), X", is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
 			}
 			else
 			{
@@ -2798,10 +2795,10 @@ C1_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 			{
 				add_op(*_curr_code_sec, L"POPW X", is_volatile); //85
 				_stack_ptr -= 2;
-				add_op(*_curr_code_sec, L"LDW (" + dst + L" + " + Utils::str_tohex16(offset) + L"), X", is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
+				add_op(*_curr_code_sec, L"LDW (" + dst + ((offset == 0) ? L"" : (L" + " + Utils::str_tohex16(offset))) + L"), X", is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
 				add_op(*_curr_code_sec, L"POPW X", is_volatile); //85
 				_stack_ptr -= 2;
-				add_op(*_curr_code_sec, L"LDW (" + dst + L" + " + Utils::str_tohex16(offset) + L" + 2), X", is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
+				add_op(*_curr_code_sec, L"LDW (" + dst + L" + " + Utils::str_tohex16(offset + 2) + L"), X", is_volatile); //BF SHORT_ADDRESS CF LONG_ADDRESS
 			}
 			else
 			{
@@ -2810,7 +2807,7 @@ C1_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 				add_op(*_curr_code_sec, L"LDW (" + dst + L", X), Y", is_volatile); //EF BYTE_OFFSET DF WORD_OFFSET
 				add_op(*_curr_code_sec, L"POPW Y", is_volatile); //90 85
 				_stack_ptr -= 2;
-				add_op(*_curr_code_sec, L"LDW (" + dst + L" + 2, X), Y", is_volatile); //EF BYTE_OFFSET DF WORD_OFFSET
+				add_op(*_curr_code_sec, L"LDW (" + dst + L" + 0x2, X), Y", is_volatile); //EF BYTE_OFFSET DF WORD_OFFSET
 			}
 		}
 		else
@@ -2830,7 +2827,7 @@ C1_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 				}
 				add_op(*_curr_code_sec, L"POPW Y", is_volatile); //90 85
 				_stack_ptr -= 2;
-				add_op(*_curr_code_sec, L"LDW (" + Utils::str_tohex16(offset) + L" + 2, X), Y", is_volatile); //EF BYTE_OFFSET DF WORD_OFFSET
+				add_op(*_curr_code_sec, L"LDW (" + Utils::str_tohex16(offset + 2) + L", X), Y", is_volatile); //EF BYTE_OFFSET DF WORD_OFFSET
 			}
 			else
 			{
@@ -2840,7 +2837,7 @@ C1_T_ERROR C1STM8Compiler::stm8_store(const B1_CMP_ARG &arg)
 				add_op(*_curr_code_sec, L"LDW (X), Y", is_volatile); // FF
 				add_op(*_curr_code_sec, L"POPW Y", is_volatile); //90 85
 				_stack_ptr -= 2;
-				add_op(*_curr_code_sec, L"LDW(2, X), Y", is_volatile); // EF BYTE_OFFSET
+				add_op(*_curr_code_sec, L"LDW (0x2, X), Y", is_volatile); // EF BYTE_OFFSET
 			}
 		}
 	}
@@ -3195,7 +3192,7 @@ C1_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 		{
 			if(cmd.cmd == L"+")
 			{
-				add_op(*_curr_code_sec, L"ADDW X, (" + val + L" + 2)", is_volatile); //72 BB WORD_VALUE
+				add_op(*_curr_code_sec, L"ADDW X, (" + val + L" + 0x2)", is_volatile); //72 BB WORD_VALUE
 				const auto label = emit_label(true);
 				add_op(*_curr_code_sec, L"JRNC " + label, is_volatile); //24 SIGNED_BYTE_OFFSET
 				_req_symbols.insert(label);
@@ -3206,7 +3203,7 @@ C1_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 			}
 			else
 			{
-				add_op(*_curr_code_sec, L"SUBW X, (" + val + L" + 2)", is_volatile); //72 B0 WORD_VALUE
+				add_op(*_curr_code_sec, L"SUBW X, (" + val + L" + 0x2)", is_volatile); //72 B0 WORD_VALUE
 				const auto label = emit_label(true);
 				add_op(*_curr_code_sec, L"JRNC " + label, is_volatile); //24 SIGNED_BYTE_OFFSET
 				_req_symbols.insert(label);
@@ -3221,7 +3218,7 @@ C1_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 		{
 			if(cmd.cmd == L"+")
 			{
-				add_op(*_curr_code_sec, L"ADDW X, (" + val + L" + 2, SP)", false); //72 FB BYTE_OFFSET
+				add_op(*_curr_code_sec, L"ADDW X, (" + val + L" + 0x2, SP)", false); //72 FB BYTE_OFFSET
 				const auto label = emit_label(true);
 				add_op(*_curr_code_sec, L"JRNC " + label, false); //24 SIGNED_BYTE_OFFSET
 				_req_symbols.insert(label);
@@ -3232,7 +3229,7 @@ C1_T_ERROR C1STM8Compiler::stm8_add_op(const B1_CMP_CMD &cmd)
 			}
 			else
 			{
-				add_op(*_curr_code_sec, L"SUBW X, (" + val + L" + 2, SP)", false); //72 F0 BYTE_OFFSET
+				add_op(*_curr_code_sec, L"SUBW X, (" + val + L" + 0x2, SP)", false); //72 F0 BYTE_OFFSET
 				const auto label = emit_label(true);
 				add_op(*_curr_code_sec, L"JRNC " + label, false); //24 SIGNED_BYTE_OFFSET
 				_req_symbols.insert(label);
@@ -3558,7 +3555,7 @@ C1_T_ERROR C1STM8Compiler::stm8_bit_op(const B1_CMP_CMD &cmd)
 		}
 		else
 		{
-			add_op(*_curr_code_sec, inst + L" A, (1, SP)", false); //1B/10/14/1A/18 BYTE_OFFSET
+			add_op(*_curr_code_sec, inst + L" A, (0x1, SP)", false); //1B/10/14/1A/18 BYTE_OFFSET
 			add_op(*_curr_code_sec, L"ADDW SP, 1", false); //5B BYTE_VALUE
 			_stack_ptr--;
 		}
@@ -3589,21 +3586,21 @@ C1_T_ERROR C1STM8Compiler::stm8_bit_op(const B1_CMP_CMD &cmd)
 				add_op(*_curr_code_sec, L"RLWA X", is_volatile); //02
 				add_op(*_curr_code_sec, inst + L" A, (" + val + L")", is_volatile); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
 				add_op(*_curr_code_sec, L"RLWA X", is_volatile); //02
-				add_op(*_curr_code_sec, inst + L" A, (" + val + L" + 1)", is_volatile); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
+				add_op(*_curr_code_sec, inst + L" A, (" + val + L" + 0x1)", is_volatile); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
 				add_op(*_curr_code_sec, L"RLWA X", is_volatile); //02
 			}
 			else
 			{
 				// LONG type
 				add_op(*_curr_code_sec, L"RLWA X", is_volatile); //02
-				add_op(*_curr_code_sec, inst + L" A, (" + val + L" + 2)", is_volatile); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
+				add_op(*_curr_code_sec, inst + L" A, (" + val + L" + 0x2)", is_volatile); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
 				add_op(*_curr_code_sec, L"RLWA X", is_volatile); //02
-				add_op(*_curr_code_sec, inst + L" A, (" + val + L" + 3)", is_volatile); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
+				add_op(*_curr_code_sec, inst + L" A, (" + val + L" + 0x3)", is_volatile); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
 				add_op(*_curr_code_sec, L"RLWA X", is_volatile); //02
 				add_op(*_curr_code_sec, L"RLWA Y", is_volatile); //90 02
 				add_op(*_curr_code_sec, inst + L" A, (" + val + L")", is_volatile); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
 				add_op(*_curr_code_sec, L"RLWA Y", is_volatile); //90 02
-				add_op(*_curr_code_sec, inst + L" A, (" + val + L" + 1)", is_volatile); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
+				add_op(*_curr_code_sec, inst + L" A, (" + val + L" + 0x1)", is_volatile); //B4/BA/B8 BYTE_OFFSET C4/CA/C8 WORD_OFFSET
 				add_op(*_curr_code_sec, L"RLWA Y", is_volatile); //90 02
 			}
 		}
@@ -3615,21 +3612,21 @@ C1_T_ERROR C1STM8Compiler::stm8_bit_op(const B1_CMP_CMD &cmd)
 				add_op(*_curr_code_sec, L"RLWA X", false); //02
 				add_op(*_curr_code_sec, inst + L" A, (" + val + L", SP)", false); //14/1A/18 BYTE_OFFSET
 				add_op(*_curr_code_sec, L"RLWA X", false); //02
-				add_op(*_curr_code_sec, inst + L" A, (" + val + L" + 1, SP)", false); //14/1A/18 BYTE_OFFSET
+				add_op(*_curr_code_sec, inst + L" A, (" + val + L" + 0x1, SP)", false); //14/1A/18 BYTE_OFFSET
 				add_op(*_curr_code_sec, L"RLWA X", false); //02
 			}
 			else
 			{
 				// LONG type
 				add_op(*_curr_code_sec, L"RLWA X", false); //02
-				add_op(*_curr_code_sec, inst + L" A, (" + val + L" + 2, SP)", false); //14/1A/18 BYTE_OFFSET
+				add_op(*_curr_code_sec, inst + L" A, (" + val + L" + 0x2, SP)", false); //14/1A/18 BYTE_OFFSET
 				add_op(*_curr_code_sec, L"RLWA X", false); //02
-				add_op(*_curr_code_sec, inst + L" A, (" + val + L" + 3, SP)", false); //14/1A/18 BYTE_OFFSET
+				add_op(*_curr_code_sec, inst + L" A, (" + val + L" + 0x3, SP)", false); //14/1A/18 BYTE_OFFSET
 				add_op(*_curr_code_sec, L"RLWA X", false); //02
 				add_op(*_curr_code_sec, L"RLWA Y", false); //90 02
 				add_op(*_curr_code_sec, inst + L" A, (" + val + L", SP)", false); //14/1A/18 BYTE_OFFSET
 				add_op(*_curr_code_sec, L"RLWA Y", false); //90 02
-				add_op(*_curr_code_sec, inst + L" A, (" + val + L" + 1, SP)", false); //14/1A/18 BYTE_OFFSET
+				add_op(*_curr_code_sec, inst + L" A, (" + val + L" + 0x1, SP)", false); //14/1A/18 BYTE_OFFSET
 				add_op(*_curr_code_sec, L"RLWA Y", false); //90 02
 			}
 		}
@@ -3638,9 +3635,9 @@ C1_T_ERROR C1STM8Compiler::stm8_bit_op(const B1_CMP_CMD &cmd)
 			if(com_type == B1Types::B1T_INT || com_type == B1Types::B1T_WORD)
 			{
 				add_op(*_curr_code_sec, L"RLWA X", false); //02
-				add_op(*_curr_code_sec, inst + L" A, (1, SP)", false); //14/1A/18 BYTE_OFFSET
+				add_op(*_curr_code_sec, inst + L" A, (0x1, SP)", false); //14/1A/18 BYTE_OFFSET
 				add_op(*_curr_code_sec, L"RLWA X", false); //02
-				add_op(*_curr_code_sec, inst + L" A, (2, SP)", false); //14/1A/18 BYTE_OFFSET
+				add_op(*_curr_code_sec, inst + L" A, (0x2, SP)", false); //14/1A/18 BYTE_OFFSET
 				add_op(*_curr_code_sec, L"RLWA X", false); //02
 				add_op(*_curr_code_sec, L"ADDW SP, 2", false); //5B BYTE_VALUE
 				_stack_ptr -= 2;
@@ -3648,14 +3645,14 @@ C1_T_ERROR C1STM8Compiler::stm8_bit_op(const B1_CMP_CMD &cmd)
 			else
 			{
 				add_op(*_curr_code_sec, L"RLWA X", false); //02
-				add_op(*_curr_code_sec, inst + L" A, (3, SP)", false); //14/1A/18 BYTE_OFFSET
+				add_op(*_curr_code_sec, inst + L" A, (0x3, SP)", false); //14/1A/18 BYTE_OFFSET
 				add_op(*_curr_code_sec, L"RLWA X", false); //02
-				add_op(*_curr_code_sec, inst + L" A, (4, SP)", false); //14/1A/18 BYTE_OFFSET
+				add_op(*_curr_code_sec, inst + L" A, (0x4, SP)", false); //14/1A/18 BYTE_OFFSET
 				add_op(*_curr_code_sec, L"RLWA X", false); //02
 				add_op(*_curr_code_sec, L"RLWA Y", false); //90 02
-				add_op(*_curr_code_sec, inst + L" A, (1, SP)", false); //14/1A/18 BYTE_OFFSET
+				add_op(*_curr_code_sec, inst + L" A, (0x1, SP)", false); //14/1A/18 BYTE_OFFSET
 				add_op(*_curr_code_sec, L"RLWA Y", false); //90 02
-				add_op(*_curr_code_sec, inst + L" A, (2, SP)", false); //14/1A/18 BYTE_OFFSET
+				add_op(*_curr_code_sec, inst + L" A, (0x2, SP)", false); //14/1A/18 BYTE_OFFSET
 				add_op(*_curr_code_sec, L"RLWA Y", false); //90 02
 				add_op(*_curr_code_sec, L"ADDW SP, 4", false); //5B BYTE_VALUE
 				_stack_ptr -= 4;
@@ -4016,7 +4013,7 @@ C1_T_ERROR C1STM8Compiler::stm8_num_cmp_op(const B1_CMP_CMD &cmd)
 		}
 		else
 		{
-			add_op(*_curr_code_sec, L"CP A, (1, SP)", false); //11 BYTE_OFFSET
+			add_op(*_curr_code_sec, L"CP A, (0x1, SP)", false); //11 BYTE_OFFSET
 			add_op(*_curr_code_sec, L"POP A", false); //84
 			_stack_ptr--;
 		}
@@ -4047,7 +4044,7 @@ C1_T_ERROR C1STM8Compiler::stm8_num_cmp_op(const B1_CMP_CMD &cmd)
 		}
 		else
 		{
-			add_op(*_curr_code_sec, L"CPW X, (1, SP)", false); //13 BYTE_OFFSET
+			add_op(*_curr_code_sec, L"CPW X, (0x1, SP)", false); //13 BYTE_OFFSET
 			add_op(*_curr_code_sec, L"ADDW SP, 2", false); //5B BYTE_VALUE
 			_stack_ptr -= 2;
 		}
@@ -4080,7 +4077,7 @@ C1_T_ERROR C1STM8Compiler::stm8_num_cmp_op(const B1_CMP_CMD &cmd)
 			else
 			if(mem_ref)
 			{
-				add_op(*_curr_code_sec, L"CPW X, (" + val + L" + 2)", is_volatile); //B3 BYTE_OFFSET C3 WORD_OFFSET
+				add_op(*_curr_code_sec, L"CPW X, (" + val + L" + 0x2)", is_volatile); //B3 BYTE_OFFSET C3 WORD_OFFSET
 				add_op(*_curr_code_sec, L"JRNE " + label, is_volatile); //26 SIGNED_BYTE_OFFSET
 				_req_symbols.insert(label);
 				add_op(*_curr_code_sec, L"CPW Y, (" + val + L")", is_volatile); //90 B3 BYTE_OFFSET 90 C3 WORD_OFFSET
@@ -4088,7 +4085,7 @@ C1_T_ERROR C1STM8Compiler::stm8_num_cmp_op(const B1_CMP_CMD &cmd)
 			else
 			if(stk_ref)
 			{
-				add_op(*_curr_code_sec, L"CPW X, (" + val + L" + 2, SP)", false); //13 BYTE_OFFSET
+				add_op(*_curr_code_sec, L"CPW X, (" + val + L" + 0x2, SP)", false); //13 BYTE_OFFSET
 				add_op(*_curr_code_sec, L"JRNE " + label, false); //26 SIGNED_BYTE_OFFSET
 				_req_symbols.insert(label);
 				add_op(*_curr_code_sec, L"EXGW X, Y", false); //51
@@ -4096,11 +4093,11 @@ C1_T_ERROR C1STM8Compiler::stm8_num_cmp_op(const B1_CMP_CMD &cmd)
 			}
 			else
 			{
-				add_op(*_curr_code_sec, L"CPW X, (" + val + L" + 3, SP)", false); //13 BYTE_OFFSET
+				add_op(*_curr_code_sec, L"CPW X, (" + val + L" + 0x3, SP)", false); //13 BYTE_OFFSET
 				add_op(*_curr_code_sec, L"JRNE " + label, false); //26 SIGNED_BYTE_OFFSET
 				_req_symbols.insert(label);
 				add_op(*_curr_code_sec, L"EXGW X, Y", false); //51
-				add_op(*_curr_code_sec, L"CPW X, (" + val + L" + 1, SP)", false); //13 BYTE_OFFSET
+				add_op(*_curr_code_sec, L"CPW X, (" + val + L" + 0x1, SP)", false); //13 BYTE_OFFSET
 
 				clr_stk = true;
 			}
@@ -4127,28 +4124,28 @@ C1_T_ERROR C1STM8Compiler::stm8_num_cmp_op(const B1_CMP_CMD &cmd)
 			else
 			if(mem_ref)
 			{
-				add_op(*_curr_code_sec, L"CPW X, (" + val + L" + 2)", is_volatile); //B3 BYTE_OFFSET C3 WORD_OFFSET
+				add_op(*_curr_code_sec, L"CPW X, (" + val + L" + 0x2)", is_volatile); //B3 BYTE_OFFSET C3 WORD_OFFSET
 				add_op(*_curr_code_sec, L"LD A, YL", is_volatile); //90 9F
-				add_op(*_curr_code_sec, L"SBC A, (" + val + L" + 1)", is_volatile); //B2 BYTE_OFFSET C2 WORD_OFFSET
+				add_op(*_curr_code_sec, L"SBC A, (" + val + L" + 0x1)", is_volatile); //B2 BYTE_OFFSET C2 WORD_OFFSET
 				add_op(*_curr_code_sec, L"LD A, YH", is_volatile); //90 9E
 				add_op(*_curr_code_sec, L"SBC A, (" + val + L")", is_volatile); //B2 BYTE_OFFSET C2 WORD_OFFSET
 			}
 			else
 			if(stk_ref)
 			{
-				add_op(*_curr_code_sec, L"CPW X, (" + val + L" + 2, SP)", false); //13 BYTE_OFFSET
+				add_op(*_curr_code_sec, L"CPW X, (" + val + L" + 0x2, SP)", false); //13 BYTE_OFFSET
 				add_op(*_curr_code_sec, L"LD A, YL", false); //90 9F
-				add_op(*_curr_code_sec, L"SBC A, (" + val + L" + 1, SP)", false); //12 BYTE_OFFSET
+				add_op(*_curr_code_sec, L"SBC A, (" + val + L" + 0x1, SP)", false); //12 BYTE_OFFSET
 				add_op(*_curr_code_sec, L"LD A, YH", false); //90 9E
 				add_op(*_curr_code_sec, L"SBC A, (" + val + L", SP)", false); //12 BYTE_OFFSET
 			}
 			else
 			{
-				add_op(*_curr_code_sec, L"CPW X, (" + val + L" + 3, SP)", false); //13 BYTE_OFFSET
+				add_op(*_curr_code_sec, L"CPW X, (" + val + L" + 0x3, SP)", false); //13 BYTE_OFFSET
 				add_op(*_curr_code_sec, L"LD A, YL", false); //90 9F
-				add_op(*_curr_code_sec, L"SBC A, (" + val + L" + 2, SP)", false); //12 BYTE_OFFSET
+				add_op(*_curr_code_sec, L"SBC A, (" + val + L" + 0x2, SP)", false); //12 BYTE_OFFSET
 				add_op(*_curr_code_sec, L"LD A, YH", false); //90 9E
-				add_op(*_curr_code_sec, L"SBC A, (" + val + L" + 1, SP)", false); //12 BYTE_OFFSET
+				add_op(*_curr_code_sec, L"SBC A, (" + val + L" + 0x1, SP)", false); //12 BYTE_OFFSET
 				add_op(*_curr_code_sec, L"ADDW SP, 4", false); //5B BYTE_VALUE
 				_stack_ptr -= 4;
 			}
@@ -4265,7 +4262,7 @@ C1_T_ERROR C1STM8Compiler::stm8_load_ptr(const B1_CMP_ARG &first, const B1_CMP_A
 	{
 		if(imm_offset)
 		{
-			add_op(*_curr_code_sec, L"LDW X, " + rv + L" + " + Utils::str_tohex16(offset), false); //AE WORD_VALUE
+			add_op(*_curr_code_sec, L"LDW X, " + rv + ((offset == 0) ? L"" : (L" + " + Utils::str_tohex16(offset))), false); //AE WORD_VALUE
 		}
 		else
 		{
@@ -4277,7 +4274,10 @@ C1_T_ERROR C1STM8Compiler::stm8_load_ptr(const B1_CMP_ARG &first, const B1_CMP_A
 		if(imm_offset)
 		{
 			add_op(*_curr_code_sec, L"LDW X, (" + rv + L")", var->is_volatile); //BE SHORT_ADDRESS, CE LONG_ADDRESS
-			add_op(*_curr_code_sec, L"ADDW X, " + Utils::str_tohex16(offset), false); //1C WORD_VALUE
+			if(offset != 0)
+			{
+				add_op(*_curr_code_sec, L"ADDW X, " + Utils::str_tohex16(offset), false); //1C WORD_VALUE
+			}
 		}
 		else
 		{
@@ -5416,7 +5416,7 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 						{
 							add_op(*_curr_code_sec, L"PUSH A", false); //88
 							_stack_ptr += 1;
-							add_op(*_curr_code_sec, L"LDW X, (2, SP)", false); //1E BYTE_OFFSET
+							add_op(*_curr_code_sec, L"LDW X, (0x2, SP)", false); //1E BYTE_OFFSET
 							add_call_op(L"__LIB_STR_RLS");
 							add_op(*_curr_code_sec, L"POP A", false); //84
 							_stack_ptr -= 1;
@@ -5426,7 +5426,7 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 						{
 							add_op(*_curr_code_sec, L"PUSHW X", false); //89
 							_stack_ptr += 2;
-							add_op(*_curr_code_sec, L"LDW X, (3, SP)", false); //1E BYTE_OFFSET
+							add_op(*_curr_code_sec, L"LDW X, (0x3, SP)", false); //1E BYTE_OFFSET
 							add_call_op(L"__LIB_STR_RLS");
 							add_op(*_curr_code_sec, L"POPW X", false); //85
 							_stack_ptr -= 2;
@@ -5437,7 +5437,7 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 							add_op(*_curr_code_sec, L"PUSHW X", false); //89
 							add_op(*_curr_code_sec, L"PUSHW Y", false); //90 89
 							_stack_ptr += 4;
-							add_op(*_curr_code_sec, L"LDW X, (5, SP)", false); //1E BYTE_OFFSET
+							add_op(*_curr_code_sec, L"LDW X, (0x5, SP)", false); //1E BYTE_OFFSET
 							add_call_op(L"__LIB_STR_RLS");
 							add_op(*_curr_code_sec, L"POPW Y", false); //90 85
 							add_op(*_curr_code_sec, L"POPW X", false); //85
@@ -5905,7 +5905,7 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 				add_op(*_curr_code_sec, L"LDW (" + name_space + L"__DAT_PTR), X", false); //BF SHORT_ADDRESS CF LONG_ADDRESS
 				add_op(*_curr_code_sec, L"LDW X, Y", false); //93
 				add_op(*_curr_code_sec, L"LDW Y, (Y)", false); //90 FE
-				add_op(*_curr_code_sec, L"LDW X, (2, X)", false); //EE BYTE_OFFSET
+				add_op(*_curr_code_sec, L"LDW X, (0x2, X)", false); //EE BYTE_OFFSET
 			}
 			_req_symbols.insert(name_space + L"__DAT_PTR");
 
@@ -6772,11 +6772,11 @@ std::wstring C1STM8Compiler::correct_SP_offset(const std::wstring &arg, int32_t 
 		*offset = -1;
 	}
 
-	if(arg.find(L",SP)") != std::wstring::npos)
+	if(arg.find(L", SP)") != std::wstring::npos)
 	{
 		no_SP_off = false;
 
-		if(Utils::str2int32(arg.substr(1, arg.length() - 5), n) == B1_RES_OK)
+		if(Utils::str2int32(arg.substr(1, arg.length() - 6), n) == B1_RES_OK)
 		{
 			n -= op_size;
 
@@ -6787,7 +6787,7 @@ std::wstring C1STM8Compiler::correct_SP_offset(const std::wstring &arg, int32_t 
 					*offset = n;
 				}
 
-				return L"(" + Utils::str_tohex16(n) + L",SP)";
+				return L"(" + Utils::str_tohex16(n) + L", SP)";
 			}
 		}
 	}
@@ -6836,12 +6836,12 @@ bool C1STM8Compiler::is_arithm_op(const B1_ASM_OP_STM8 &ao, int32_t &size, int *
 	if(n_SP_arg != nullptr)
 	{
 		*n_SP_arg = -1;
-		if(ao._args.size() > 0 && (ao._args[0] == L"SP" || ao._args[0].find(L",SP)") != std::wstring::npos))
+		if(ao._args.size() > 0 && (ao._args[0] == L"SP" || ao._args[0].find(L", SP)") != std::wstring::npos))
 		{
 			*n_SP_arg = 0;
 		}
 		else
-		if(ao._args.size() == 2 && (ao._args[1] == L"SP" || ao._args[1].find(L",SP)") != std::wstring::npos))
+		if(ao._args.size() == 2 && (ao._args[1] == L"SP" || ao._args[1].find(L", SP)") != std::wstring::npos))
 		{
 			*n_SP_arg = 1;
 		}
@@ -6880,7 +6880,7 @@ bool C1STM8Compiler::is_reg_used(const B1_ASM_OP_STM8 &ao, const std::wstring &r
 	{
 		return true;
 	}
-	if((ao._op == L"LD" || ao._op == L"LDW" || ao._op == L"LDF") && ao._args[0] == reg_name && ao._args[1] != L"(" + reg_name + L")" && ao._args[1].find(L"," + reg_name + L")") == std::wstring::npos)
+	if((ao._op == L"LD" || ao._op == L"LDW" || ao._op == L"LDF") && ao._args[0] == reg_name && ao._args[1] != L"(" + reg_name + L")" && ao._args[1].find(L", " + reg_name + L")") == std::wstring::npos)
 	{
 		reg_write_op = true;
 		return false;
@@ -6907,7 +6907,7 @@ bool C1STM8Compiler::is_reg_used(const B1_ASM_OP_STM8 &ao, const std::wstring &r
 			return true;
 		}
 
-		if((reg_name == L"X" || reg_name == L"Y") && (a == L"(" + reg_name + L")" || a.find(L"," + reg_name + L")") != std::wstring::npos))
+		if((reg_name == L"X" || reg_name == L"Y") && (a == L"(" + reg_name + L")" || a.find(L", " + reg_name + L")") != std::wstring::npos))
 		{
 			return true;
 		}
@@ -7279,7 +7279,7 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 			// PUSH A
 			// ->
 			// LD(1, SP), A
-			ao._data = std::wstring(aon1._op == L"PUSH" ? L"LD" : L"LDW") + L" (1, SP), " + aon1._args[0];
+			ao._data = std::wstring(aon1._op == L"PUSH" ? L"LD" : L"LDW") + L" (0x1, SP), " + aon1._args[0];
 			ao._parsed = false;
 			del_op(cs, next1);
 
@@ -7307,7 +7307,7 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
 		if(!ao._volatile && i_arithm_op && (ao._args[0] == L"A" || ao._args[0] == L"X" || ao._args[0] == L"Y") && (aon1._op == L"LD" || aon1._op == L"LDW") && ao._args[0] == aon1._args[0] &&
-			aon1._args[1] != L"(X)" && aon1._args[1] != L"(Y)" && aon1._args[1].find(L",X)") == std::wstring::npos && aon1._args[1].find(L",Y)") == std::wstring::npos)
+			aon1._args[1] != L"(X)" && aon1._args[1] != L"(Y)" && aon1._args[1].find(L", X)") == std::wstring::npos && aon1._args[1].find(L", Y)") == std::wstring::npos)
 		{
 			// -CLR/LD/... <reg>, <smth>
 			// LD <reg>, <smth1>
@@ -7340,11 +7340,11 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 		if (
 			(((ao._op == L"PUSHW" && ao._args[0] == L"X") || ((ao._op == L"SUBW" || ao._op == L"SUB") && ao._args[0] == L"SP" && ao._args[1] == L"0x2")) &&
 			(n1_arithm_op && n1_size == 2 && aon1._args[0] == L"X") &&
-			(aon2._op == L"LDW" && aon2._args[0] == L"(0x1,SP)" && aon2._args[1] == L"X")) ||
+			(aon2._op == L"LDW" && aon2._args[0] == L"(0x1, SP)" && aon2._args[1] == L"X")) ||
 
 			(((ao._op == L"PUSH" && ao._args[0] == L"A") || ((ao._op == L"SUBW" || ao._op == L"SUB") && ao._args[0] == L"SP" && ao._args[1] == L"0x1")) &&
 			(n1_arithm_op && n1_size == 1 && aon1._args[0] == L"A") &&
-			(aon2._op == L"LD" && aon2._args[0] == L"(0x1,SP)" && aon2._args[1] == L"A"))
+			(aon2._op == L"LD" && aon2._args[0] == L"(0x1, SP)" && aon2._args[1] == L"A"))
 			)
 		{
 			// PUSH/PUSHW A/X or SUBW SP, 1/2
@@ -7389,7 +7389,7 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 			(i_arithm_op && (ao._args[0] == L"A" || ao._args[0] == L"X" || ao._args[0] == L"Y") && !(ao._args.size() == 2 && (ao._args[1] == L"X" || ao._args[1] == L"Y" || ao._args[1] == L"XL" || ao._args[1] == L"YL" || ao._args[1] == L"XH" || ao._args[1] == L"YH" || ao._args[1] == L"SP"))) &&
 			ao._op != L"MUL" && ao._op != L"DIV" && ao._op != L"DIVW" &&
 			((aon1._op == L"PUSH" || aon1._op == L"PUSHW") && aon1._args[0] == ao._args[0]) &&
-			((aon2._op == L"LD" || aon2._op == L"LDW") && aon2._args[0] == ao._args[0] && aon2._args[1] == L"(0x1,SP)")
+			((aon2._op == L"LD" || aon2._op == L"LDW") && aon2._args[0] == ao._args[0] && aon2._args[1] == L"(0x1, SP)")
 			)
 		{
 			// LD/LDW A/X, smth (not Y) or ADD/ADDW A/X, smth or SUB/SUBW A/X, smth
@@ -7471,9 +7471,9 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 			// ->
 			// LDW (1, SP), Y
 			// LDW (3, SP), X
-			ao._data = L"LDW (1, SP), Y";
+			ao._data = L"LDW (0x1, SP), Y";
 			ao._parsed = false;
-			aon1._data = L"LDW (3, SP), X";
+			aon1._data = L"LDW (0x3, SP), X";
 			aon1._parsed = false;
 			del_op(cs, next2);
 
@@ -7498,7 +7498,7 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 			int32_t n;
 			if(Utils::str2int32(ao._args[1], n) == B1_RES_OK)
 			{
-				ao._data = L"LDW X, " + ao._args[1] + L" + 1";
+				ao._data = L"LDW X, " + ao._args[1] + L" + 0x1";
 				ao._parsed = false;
 				del_op(cs, next2);
 
@@ -7603,12 +7603,12 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 			(((ao._op == L"PUSHW" && ao._args[0] == L"X") || ((ao._op == L"SUBW" || ao._op == L"SUB") && ao._args[0] == L"SP" && ao._args[1] == L"0x2")) &&
 			(aon1._op == L"LDW" && aon1._args[0] == L"X") &&
 			(n2_arithm_op && n2_size == 2 && !(aon2._op == L"MUL" || aon2._op == L"DIV" || aon2._op == L"DIVW") && aon2._args[0] == L"X") &&
-			(aon3._op == L"LDW" && aon3._args[0] == L"(0x1,SP)" && aon3._args[1] == L"X")) ||
+			(aon3._op == L"LDW" && aon3._args[0] == L"(0x1, SP)" && aon3._args[1] == L"X")) ||
 
 			(((ao._op == L"PUSH" && ao._args[0] == L"A") || ((ao._op == L"SUBW" || ao._op == L"SUB") && ao._args[0] == L"SP" && ao._args[1] == L"0x1")) &&
 			(aon1._op == L"LD" && aon1._args[0] == L"A") &&
 			(n2_arithm_op && n2_size == 1 && aon2._args[0] == L"A") &&
-			(aon3._op == L"LD" && aon3._args[0] == L"(0x1,SP)" && aon3._args[1] == L"A"))
+			(aon3._op == L"LD" && aon3._args[0] == L"(0x1, SP)" && aon3._args[1] == L"A"))
 			)
 		{
 			// PUSHW X or SUBW SP, 2
@@ -7742,9 +7742,9 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 		update_opt_rule_usage_stat(rule_id, true);
 		if (ao._op == L"PUSHW" && ao._args[0] == L"X" &&
 			aon1._op == L"LDW" && aon1._args[0] == L"X" && aon1._args[1] == L"Y" &&
-			aon2._op == L"LDW" && aon2._args[0].front() == L'(' && aon2._args[0].find(L",SP)") == std::wstring::npos && aon2._args[1] == L"X" &&
+			aon2._op == L"LDW" && aon2._args[0].front() == L'(' && aon2._args[0].find(L", SP)") == std::wstring::npos && aon2._args[1] == L"X" &&
 			aon3._op == L"POPW" && aon3._args[0] == L"X" &&
-			aon4._op == L"LDW" && aon4._args[0].front() == L'(' && aon4._args[0].find(L",SP)") == std::wstring::npos && aon4._args[1] == L"X"
+			aon4._op == L"LDW" && aon4._args[0].front() == L'(' && aon4._args[0].find(L", SP)") == std::wstring::npos && aon4._args[1] == L"X"
 			)
 		{
 			// PUSHW X
@@ -7771,7 +7771,7 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 		update_opt_rule_usage_stat(rule_id, true);
 		if (ao._op == L"PUSHW" && aon1._op == L"PUSHW" && ao._args[0] != aon1._args[0] && (aon2._op == L"SUB" || aon2._op == L"SUBW") && aon2._args[0] == L"SP" &&
 			aon3._op == L"LDW" && aon4._op == L"LDW" && (aon3._args[0] == L"X" || aon3._args[0] == L"Y") && (aon4._args[0] == L"X" || aon4._args[0] == L"Y") &&
-			(aon3._args[0] != aon4._args[0]) && aon3._args[1].find(L",SP)") != std::wstring::npos && aon4._args[1].find(L",SP)") != std::wstring::npos
+			(aon3._args[0] != aon4._args[0]) && aon3._args[1].find(L", SP)") != std::wstring::npos && aon4._args[1].find(L", SP)") != std::wstring::npos
 			)
 		{
 			// PUSHW X
@@ -7822,12 +7822,12 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 				// imm. value
 				(ao._args[1][0] != L'[' && ao._args[1][0] != L'(' && ao._args[1] != L"XL" && ao._args[1] != L"XH" && ao._args[1] != L"YL" && ao._args[1] != L"YH") ||
 				// direct addressing
-				(ao._args[1][0] == L'(' && ao._args[1] != L"(X)" && ao._args[1] != L"(Y)" && ao._args[1].find(L",X)") == std::wstring::npos && ao._args[1].find(L",Y)") == std::wstring::npos && ao._args[1].find(L",SP)") == std::wstring::npos)
+				(ao._args[1][0] == L'(' && ao._args[1] != L"(X)" && ao._args[1] != L"(Y)" && ao._args[1].find(L", X)") == std::wstring::npos && ao._args[1].find(L", Y)") == std::wstring::npos && ao._args[1].find(L", SP)") == std::wstring::npos)
 			) &&
 			aon1._op == L"CLRW" && aon1._args[0] == L"X" &&
 			aon2._op == L"LD" && aon2._args[0] == L"XL" &&
 			// direct addressing
-			aon3._op == L"LDW" && aon3._args[0].front() == L'(' && aon3._args[0] != L"(Y)" && aon3._args[0].find(L",Y)") == std::wstring::npos && aon3._args[0].find(L",SP)") == std::wstring::npos && aon3._args[1] == L"X"
+			aon3._op == L"LDW" && aon3._args[0].front() == L'(' && aon3._args[0] != L"(Y)" && aon3._args[0].find(L", Y)") == std::wstring::npos && aon3._args[0].find(L", SP)") == std::wstring::npos && aon3._args[1] == L"X"
 			)
 		{
 			// LD A, imm1 or (smth1)
@@ -7840,7 +7840,7 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 
 			ao._data = L"CLR " + aon3._args[0];
 			ao._parsed = false;
-			aon1._data = L"MOV " + std::wstring(aon3._args[0].cbegin(), std::prev(aon3._args[0].cend())) + L"+1), " + ao._args[1];
+			aon1._data = L"MOV " + std::wstring(aon3._args[0].cbegin(), std::prev(aon3._args[0].cend())) + L" + 0x1), " + ao._args[1];
 			aon1._parsed = false;
 			del_op(cs, next2);
 			del_op(cs, next3);
@@ -7932,7 +7932,7 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
 		if(
-			(ao._op == L"LDW" && ao._args[0] == L"X" && ao._args[1] != L"(X)" && ao._args[1].find(L",X)") == std::wstring::npos) &&
+			(ao._op == L"LDW" && ao._args[0] == L"X" && ao._args[1] != L"(X)" && ao._args[1].find(L", X)") == std::wstring::npos) &&
 			(aon1._op == L"PUSHW" && aon1._args[0] == L"X") &&
 			(aon2._op == L"LDW" && aon2._args[0] == L"X" && aon2._args[1].front() == L'(') &&
 			((aon3._op == L"CALL" || aon3._op == L"CALLR" || aon3._op == L"CALLF") && aon3._args[0] == L"__LIB_STR_RLS") &&
@@ -8151,10 +8151,10 @@ C1_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
 		if( (ao._op == L"PUSHW" && aon1._op == L"LDW" &&
-			((aon1._args[0] == ao._args[0] && aon1._args[1] == L"(0x1,SP)") || (aon1._args[1] == ao._args[0] && aon1._args[0] == L"(0x1,SP)"))) ||
+			((aon1._args[0] == ao._args[0] && aon1._args[1] == L"(0x1, SP)") || (aon1._args[1] == ao._args[0] && aon1._args[0] == L"(0x1, SP)"))) ||
 
 			(ao._op == L"PUSH" && ao._args[0] == L"A" && aon1._op == L"LD" &&
-				((aon1._args[0] == L"A" && aon1._args[1] == L"(0x1,SP)") || (aon1._args[1] == L"A" && aon1._args[0] == L"(0x1,SP)")))
+				((aon1._args[0] == L"A" && aon1._args[1] == L"(0x1, SP)") || (aon1._args[1] == L"A" && aon1._args[0] == L"(0x1, SP)")))
 			)
 		{
 			// PUSH/PUSHW <reg>
@@ -8420,7 +8420,7 @@ C1_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 			// LDW <smth>, X
 			// SUBW X, <imm> | (<addr>) | (n, SP)
 			// NEGW X
-			if((aon1._args[1][0] != L'[' && aon1._args[1][0] != L'(') || (aon1._args[1][0] == L'(' && (aon1._args[1].find(L",SP)") != std::wstring::npos || (!aon1._volatile && aon1._args[1].find(L",X)") == std::wstring::npos))))
+			if((aon1._args[1][0] != L'[' && aon1._args[1][0] != L'(') || (aon1._args[1][0] == L'(' && (aon1._args[1].find(L", SP)") != std::wstring::npos || (!aon1._volatile && aon1._args[1].find(L", X)") == std::wstring::npos))))
 			{
 				aon1._data = L"SUBW X, " + aon1._args[1];
 				aon1._parsed = false;
@@ -8439,7 +8439,7 @@ C1_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 			(((ao._op == L"LD" && aon1._op == L"LD") && (aon2._op == L"ADD" || aon2._op == L"AND" || aon2._op == L"OR" || aon2._op == L"XOR")) ||
 				((ao._op == L"LDW" && aon1._op == L"LDW") && (aon2._op == L"ADDW") &&
 					aon1._args[1] != L"(X)" && aon1._args[1] != L"(Y)" && aon1._args[1].front() != L'[' &&
-					aon1._args[1].find(L",X)") == std::wstring::npos && aon1._args[1].find(L",Y)") == std::wstring::npos)) &&
+					aon1._args[1].find(L", X)") == std::wstring::npos && aon1._args[1].find(L", Y)") == std::wstring::npos)) &&
 			(ao._args[0] == aon2._args[1])
 			)
 		{
@@ -8462,11 +8462,11 @@ C1_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 		update_opt_rule_usage_stat(rule_id, true);
 		if ((
 			((ao._op == L"PUSH" || ao._op == L"PUSHW") && (ao._args[0] == L"A" || ao._args[0] == L"X" || ao._args[0] == L"Y")) ||
-			((ao._op == L"LD" || ao._op == L"LDW") && ao._args[0].find(L",SP)") != std::wstring::npos)
+			((ao._op == L"LD" || ao._op == L"LDW") && ao._args[0].find(L", SP)") != std::wstring::npos)
 			) &&
 			(
 			(aon1._op == L"SUB" || aon1._op == L"SUBW") && aon1._args[0] == L"SP" &&
-			(aon2._op == L"LD" || aon2._op == L"LDW") && aon2._args[1].find(L",SP)") != std::wstring::npos
+			(aon2._op == L"LD" || aon2._op == L"LDW") && aon2._args[1].find(L", SP)") != std::wstring::npos
 			) &&
 			(aon2._args[0] == ao._args[ao._args.size() - 1])
 			)
@@ -8543,7 +8543,7 @@ C1_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 				int32_t off = 0;
 				if(!correct_SP_offset(aon1._args[0], 0, no_SP_off, &off).empty())
 				{
-					aon1._data = aon1._op + L" (" + Utils::str_tohex16(N + 1) + L",SP)";
+					aon1._data = aon1._op + L" (" + Utils::str_tohex16(N + 1) + L", SP)";
 					if(aon1._args.size() == 2)
 					{
 						aon1._data += L", " + aon1._args[1];
@@ -8560,7 +8560,7 @@ C1_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 				else
 				if(no_SP_off && ao._args.size() == 2 && !correct_SP_offset(aon1._args[1], 0, no_SP_off, &off).empty())
 				{
-					aon1._data = aon1._op + L" " + aon1._args[0] + L", (" + Utils::str_tohex16(N + 1) + L",SP)";
+					aon1._data = aon1._op + L" " + aon1._args[0] + L", (" + Utils::str_tohex16(N + 1) + L", SP)";
 					aon1._parsed = false;
 					aon2._data = L"ADDW SP, " + Utils::str_tohex16(N + M);
 					aon2._parsed = false;
@@ -8635,12 +8635,12 @@ C1_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 		update_opt_rule_usage_stat(rule_id, true);
 		if (
 			((((ao._op == L"PUSH" && aon1._op == L"LD") && (aon2._op == L"ADD" || aon2._op == L"AND" || aon2._op == L"OR" || aon2._op == L"XOR" || aon2._op == L"SUB")) &&
-			(aon2._args[1] == L"(0x1,SP)") &&
+			(aon2._args[1] == L"(0x1, SP)") &&
 			(ao._args[0] == L"A" && aon1._args[0] == L"A" && aon2._args[0] == L"A"))) ||
 
 			((ao._op == L"PUSHW" && aon1._op == L"LDW" && (aon2._op == L"ADDW" || aon2._op == L"SUBW")) &&
-			(ao._args[0] == L"X" && aon1._args[0] == L"X" && aon2._args[0] == L"X" && aon2._args[1] == L"(0x1,SP)") &&
-			(aon1._args[1][0] != L'[' && aon1._args[1].find(L",X)") == std::wstring::npos && aon1._args[1] != L"(X)"))
+			(ao._args[0] == L"X" && aon1._args[0] == L"X" && aon2._args[0] == L"X" && aon2._args[1] == L"(0x1, SP)") &&
+			(aon1._args[1][0] != L'[' && aon1._args[1].find(L", X)") == std::wstring::npos && aon1._args[1] != L"(X)"))
 			)
 		{
 			// PUSH A
@@ -8695,7 +8695,7 @@ C1_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 				}
 			}
 
-			if(remove_push && aon1._args[1].find(L",SP)") != std::wstring::npos)
+			if(remove_push && aon1._args[1].find(L", SP)") != std::wstring::npos)
 			{
 				bool no_SP_off;
 				new_arg = correct_SP_offset(aon1._args[1], data_size, no_SP_off);
@@ -8747,8 +8747,8 @@ C1_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 		if(
 			((ao._op == L"LDW" || ao._op == L"LD") && (ao._op == aon2._op) && (ao._args[0] == aon2._args[1]) && (ao._args[1] == aon2._args[0])) &&
 			((aon1._op == L"LDW" || aon1._op == L"LD") && (aon1._op == aon3._op) && (aon1._args[0] == aon3._args[1]) && (aon1._args[1] == aon3._args[0])) &&
-			(ao._args[0].find(L",X)") == std::wstring::npos && ao._args[0] != L"(X)" && ao._args[0].find(L",Y)") == std::wstring::npos && ao._args[0] != L"(Y)") &&
-			(aon1._args[0].find(L",X)") == std::wstring::npos && aon1._args[0] != L"(X)" && aon1._args[0].find(L",Y)") == std::wstring::npos && aon1._args[0] != L"(Y)")
+			(ao._args[0].find(L", X)") == std::wstring::npos && ao._args[0] != L"(X)" && ao._args[0].find(L", Y)") == std::wstring::npos && ao._args[0] != L"(Y)") &&
+			(aon1._args[0].find(L", X)") == std::wstring::npos && aon1._args[0] != L"(X)" && aon1._args[0].find(L", Y)") == std::wstring::npos && aon1._args[0] != L"(Y)")
 			)
 		{
 			// LDW (0x1, SP), Y
@@ -8889,8 +8889,8 @@ C1_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 		if(
 			(ao._op == L"LDW" && aon1._op == L"LDW" && aon2._op == L"LDW" && aon3._op == L"LDW") &&
 			(ao._args[0] == L"X" && aon1._args[0] == L"Y" && aon1._args[1] == L"X" && aon2._args[0] == L"X" && aon3._args[1] == L"Y") &&
-			(aon2._args[1].front() == L'(' && aon2._args[1].find(L",X)") == std::wstring::npos && aon2._args[1].find(L",SP)") == std::wstring::npos) &&
-			(aon3._args[0].size() >= 3 && aon3._args[0][1] != L'[' && (aon3._args[0] == L"(X)" || aon3._args[0].find(L",X)") != std::wstring::npos))
+			(aon2._args[1].front() == L'(' && aon2._args[1].find(L", X)") == std::wstring::npos && aon2._args[1].find(L", SP)") == std::wstring::npos) &&
+			(aon3._args[0].size() >= 3 && aon3._args[0][1] != L'[' && (aon3._args[0] == L"(X)" || aon3._args[0].find(L", X)") != std::wstring::npos))
 			)
 		{
 			// LDW X, <smth>
@@ -8922,9 +8922,9 @@ C1_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 			else
 			{
 				// no LDW Y, (X) and LDW Y, (offset, X) instructions
-				if(smth != L"(X)" && smth.find(L",X)") == std::wstring::npos)
+				if(smth != L"(X)" && smth.find(L", X)") == std::wstring::npos)
 				{
-					ao._data = L"LDW X, " + aon3._args[0].substr(1, aon3._args[0].length() - 4);
+					ao._data = L"LDW X, " + aon3._args[0].substr(1, aon3._args[0].length() - 5);
 					ao._parsed = false;
 					aon1._data = L"LDW Y, " + smth;
 					aon1._parsed = false;
@@ -8970,7 +8970,7 @@ C1_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 		if(
 			(ao._op == L"POPW" && aon1._op == L"LDW" && aon2._op == L"LDW" && aon3._op == L"LDW") &&
 			(ao._args[0] == L"Y" && aon1._args[0] == L"X" && aon1._args[1].front() == L'(' && aon1._args[1][1] != L'[' &&
-				aon1._args[1].find(L",X)") == std::wstring::npos && aon1._args[1].find(L",SP)") == std::wstring::npos && aon2._args[0] == L"(X)" && aon2._args[1] == L"Y" && aon3._args[0] == L"X")
+				aon1._args[1].find(L", X)") == std::wstring::npos && aon1._args[1].find(L", SP)") == std::wstring::npos && aon2._args[0] == L"(X)" && aon2._args[1] == L"Y" && aon3._args[0] == L"X")
 			)
 		{
 			// POPW Y
@@ -8996,8 +8996,8 @@ C1_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 		update_opt_rule_usage_stat(rule_id, true);
 		if(
 			(ao._op == L"PUSH" && ao._args[0] == L"A") &&
-			(aon1._op == L"LD" && aon1._args[1] == L"A" && (aon1._args[0].front() == L'(' || aon1._args[0].front() == L'[') && aon1._args[0].find(L",SP)") == std::wstring::npos) &&
-			(aon2._op == L"LD" && aon2._args[0] == L"A" && aon2._args[1] == L"(0x1,SP)") &&
+			(aon1._op == L"LD" && aon1._args[1] == L"A" && (aon1._args[0].front() == L'(' || aon1._args[0].front() == L'[') && aon1._args[0].find(L", SP)") == std::wstring::npos) &&
+			(aon2._op == L"LD" && aon2._args[0] == L"A" && aon2._args[1] == L"(0x1, SP)") &&
 			((aon3._op == L"ADD" || aon3._op == L"ADDW") && aon3._args[0] == L"SP" && aon3._args[1] == L"0x1")
 			)
 		{
@@ -9019,7 +9019,7 @@ C1_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
 		if(
-			(ao._op == L"PUSHW" && aon1._op == L"LD" && aon1._args[0] == L"A" && aon1._args[1] == L"(0x2,SP)") &&
+			(ao._op == L"PUSHW" && aon1._op == L"LD" && aon1._args[0] == L"A" && aon1._args[1] == L"(0x2, SP)") &&
 			((aon2._op == L"ADD" || aon2._op == L"ADDW") && aon2._args[0] == L"SP") &&
 			(n3_arithm_op || aon3._op == L"RET" || aon3._op == L"RETF")
 			)
@@ -9101,14 +9101,14 @@ C1_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 		update_opt_rule_usage_stat(rule_id, true);
 		if (
 			(
-				(ao._op == L"LDW" && ao._args[0] == L"X" && ao._args[1] != L"Y" && ao._args[1] != L"SP" && ao._args[1] != L"(X)" && ao._args[1].find(L",X)") == std::wstring::npos) ||
-				(!ao._volatile && ao._op == L"LDW" && ao._args[1] == L"X" && ao._args[0] != L"Y" && ao._args[0] != L"SP" && ao._args[0] != L"(X)" && ao._args[0].find(L",X)") == std::wstring::npos && ao._args[0] != L"(Y)" && ao._args[0].find(L",Y)") == std::wstring::npos)
+				(ao._op == L"LDW" && ao._args[0] == L"X" && ao._args[1] != L"Y" && ao._args[1] != L"SP" && ao._args[1] != L"(X)" && ao._args[1].find(L", X)") == std::wstring::npos) ||
+				(!ao._volatile && ao._op == L"LDW" && ao._args[1] == L"X" && ao._args[0] != L"Y" && ao._args[0] != L"SP" && ao._args[0] != L"(X)" && ao._args[0].find(L", X)") == std::wstring::npos && ao._args[0] != L"(Y)" && ao._args[0].find(L", Y)") == std::wstring::npos)
 			) &&
 			(aon1._op == L"PUSHW" && aon1._args[0] == L"X") &&
 			(aon2._op == L"LD" && aon2._args[0] == L"A") &&
 			(aon3._op == L"CLRW" && aon3._args[0] == L"X") &&
 			(aon4._op == L"LD" && aon4._args[0] == L"XL") &&
-			(aon5._op == L"CPW" && aon5._args[0] == L"X" && aon5._args[1] == L"(0x1,SP)") &&
+			(aon5._op == L"CPW" && aon5._args[0] == L"X" && aon5._args[1] == L"(0x1, SP)") &&
 			((aon6._op == L"ADD" || aon6._op == L"ADDW") && aon6._args[0] == L"SP" && aon6._args[1] == L"0x2")
 			)
 		{
@@ -9186,7 +9186,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 		update_opt_rule_usage_stat(rule_id, true);
 		if (
 			(ao._op == L"ADD" || ao._op == L"ADDW" || ao._op == L"SUB" || ao._op == L"SUBW") && ao._args[0] == L"SP" &&
-			((aon1._op == L"LD" || aon1._op == L"LDW") && aon1._args[0] == L"(0x1,SP)" && (aon1._args[1] == L"A" || aon1._args[1] == L"X"))
+			((aon1._op == L"LD" || aon1._op == L"LDW") && aon1._args[0] == L"(0x1, SP)" && (aon1._args[1] == L"A" || aon1._args[1] == L"X"))
 			)
 		{
 			// ADDW SP, N
@@ -9281,13 +9281,13 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
-		if((ao._op == L"CLRW" && aon1._op == L"LDW") && aon1._args[0] == ao._args[0] && aon1._args[1].find(L",X)") != std::wstring::npos)
+		if((ao._op == L"CLRW" && aon1._op == L"LDW") && aon1._args[0] == ao._args[0] && aon1._args[1].find(L", X)") != std::wstring::npos)
 		{
 			// CLRW X
 			// LDW X, ([<smth>], X)
 			// ->
 			// LDW X, [<smth>]
-			auto a1 = aon1._args[1].substr(0, aon1._args[1].length() - 3);
+			auto a1 = aon1._args[1].substr(0, aon1._args[1].length() - 4);
 			if(a1.back() == L']')
 			{
 				a1 = a1.substr(1);
@@ -9306,14 +9306,14 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 			continue;
 		}
 
-		bool i_arg0_SP_based = (ao._args.size() != 0 && ao._args[0].find(L",SP)") != std::wstring::npos);
-		bool i_arg1_SP_based = (ao._args.size() > 1 && ao._args[1].find(L",SP)") != std::wstring::npos);
+		bool i_arg0_SP_based = (ao._args.size() != 0 && ao._args[0].find(L", SP)") != std::wstring::npos);
+		bool i_arg1_SP_based = (ao._args.size() > 1 && ao._args[1].find(L", SP)") != std::wstring::npos);
 
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
 		if((ao._op == L"LD" || ao._op == L"LDW") && !ao._volatile &&
-			ao._args[0] != L"(X)" && ao._args[0].find(L",X)") == std::wstring::npos && ao._args[0] != L"(Y)" && ao._args[0].find(L",Y)") == std::wstring::npos &&
-			ao._args[1] != L"(X)" && ao._args[1].find(L",X)") == std::wstring::npos && ao._args[1] != L"(Y)" && ao._args[1].find(L",Y)") == std::wstring::npos
+			ao._args[0] != L"(X)" && ao._args[0].find(L", X)") == std::wstring::npos && ao._args[0] != L"(Y)" && ao._args[0].find(L", Y)") == std::wstring::npos &&
+			ao._args[1] != L"(X)" && ao._args[1].find(L", X)") == std::wstring::npos && ao._args[1] != L"(Y)" && ao._args[1].find(L", Y)") == std::wstring::npos
 			)
 		{
 			// LD A, smth or LD smth, A
@@ -9448,7 +9448,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 		update_opt_rule_usage_stat(rule_id, true);
 		if(	!ao._volatile &&
 			((ao._op == L"LD" && ao._args[1] == L"A" && !(ao._args[0][0] == L'X' || ao._args[0][0] == L'Y')) || (ao._op == L"LDW" && (ao._args[1] == L"X" || ao._args[1] == L"Y") && !(ao._args[0] == L"X" || ao._args[0] == L"Y" || ao._args[0] == L"SP"))) &&
-			ao._args[0] != L"(X)" && ao._args[0] != L"(Y)" && ao._args[0].find(L",X)") == std::wstring::npos && ao._args[0].find(L",Y)") == std::wstring::npos
+			ao._args[0] != L"(X)" && ao._args[0] != L"(Y)" && ao._args[0].find(L", X)") == std::wstring::npos && ao._args[0].find(L", Y)") == std::wstring::npos
 			)
 		{
 			// -LD (smth), A
@@ -9495,13 +9495,13 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 				{
 					if(next_1arg_op)
 					{
-						if(next_ao->_args[0].find(L",SP)") != std::wstring::npos)
+						if(next_ao->_args[0].find(L", SP)") != std::wstring::npos)
 						{
 							break;
 						}
 					}
 					else
-					if(next_ao->_args.size() > 1 && next_ao->_args[1].find(L",SP)") != std::wstring::npos)
+					if(next_ao->_args.size() > 1 && next_ao->_args[1].find(L", SP)") != std::wstring::npos)
 					{
 						break;
 					}
@@ -9517,7 +9517,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 					}
 					else
 					if(	(next_ao->_args.size() > 0 && (next_ao->_args[0][0] == L'[')) ||
-						(next_ao->_args.size() > 1 && ((next_ao->_args[1][0] == L'(' && next_ao->_args[1].find(L",SP)") == std::wstring::npos) || next_ao->_args[1][0] == L'['))
+						(next_ao->_args.size() > 1 && ((next_ao->_args[1][0] == L'(' && next_ao->_args[1].find(L", SP)") == std::wstring::npos) || next_ao->_args[1][0] == L'['))
 						)
 					{
 						break;
@@ -9660,8 +9660,8 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
 		if( n2_arithm_op &&
-			(ao._op == L"LDW" && ao._args[0] == L"(0x1,SP)" && ao._args[1] == L"X") &&
-			(aon1._op == L"LD" && aon1._args[0] == L"A" && aon1._args[1] == L"(0x2,SP)")
+			(ao._op == L"LDW" && ao._args[0] == L"(0x1, SP)" && ao._args[1] == L"X") &&
+			(aon1._op == L"LD" && aon1._args[0] == L"A" && aon1._args[1] == L"(0x2, SP)")
 			)
 		{
 			aon1._data = L"LD A, XL";
@@ -9675,7 +9675,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
 		if ((ao._op == L"LDW" && aon1._op == L"POPW" && aon2._op == L"POPW") &&
-			(ao._args[1] == aon1._args[0] && aon1._args[0] == aon2._args[0]) && ao._args[0] == L"(0x3,SP)")
+			(ao._args[1] == aon1._args[0] && aon1._args[0] == aon2._args[0]) && ao._args[0] == L"(0x3, SP)")
 		{
 			// LDW (3, SP), X
 			// POPW X
@@ -9747,7 +9747,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 			while(true)
 			{
 				if(
-					((aon->_op == L"LDW" || aon->_op == L"ADDW" || aon->_op == L"LD" || aon->_op == L"ADD" || aon->_op == L"SUB" || aon->_op == L"SUBW") && !(aon->_args[0] == L"SP" || aon->_args[1] == L"SP" || aon->_args[0].find(L",SP)") != std::wstring::npos || aon->_args[1].find(L",SP)") != std::wstring::npos)) ||
+					((aon->_op == L"LDW" || aon->_op == L"ADDW" || aon->_op == L"LD" || aon->_op == L"ADD" || aon->_op == L"SUB" || aon->_op == L"SUBW") && !(aon->_args[0] == L"SP" || aon->_args[1] == L"SP" || aon->_args[0].find(L", SP)") != std::wstring::npos || aon->_args[1].find(L", SP)") != std::wstring::npos)) ||
 					aon->_op == L"CALL" || aon->_op == L"CALLR" || aon->_op == L"CALLF" || aon->_op == L"SLAW"
 					)
 				{
@@ -9774,7 +9774,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 
 			if(proceed)
 			{
-				aon->_data = L"LDW (1, SP), " + aon->_args[0];
+				aon->_data = L"LDW (0x1, SP), " + aon->_args[0];
 				aon->_parsed = false;
 				i = del_op(cs, i);
 
@@ -9956,8 +9956,8 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
 		if ((ao._op == L"ADD" || ao._op == L"ADDW") && ao._args[0] == L"SP" &&
-			aon1._op == L"LDW" && aon1._args[0] == L"(0x1,SP)" && aon1._args[1] == L"Y" &&
-			aon2._op == L"LDW" && aon2._args[0] == L"(0x3,SP)" && aon2._args[1] == L"X" &&
+			aon1._op == L"LDW" && aon1._args[0] == L"(0x1, SP)" && aon1._args[1] == L"Y" &&
+			aon2._op == L"LDW" && aon2._args[0] == L"(0x3, SP)" && aon2._args[1] == L"X" &&
 			(n3_arithm_op || aon3._op == L"CALL" || aon3._op == L"CALLR" || aon3._op == L"CALLF")
 			)
 		{
@@ -9987,13 +9987,13 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
 		if(	(ao._op == L"PUSHW") &&
-			(aon1._op == L"LD" && aon1._args[0] == L"A" && aon1._args[1] == L"(0x2,SP)") &&
-			(aon2._op == L"LD" && aon2._args[0] == L"(0x3,SP)" && aon2._args[1] == L"A") &&
+			(aon1._op == L"LD" && aon1._args[0] == L"A" && aon1._args[1] == L"(0x2, SP)") &&
+			(aon2._op == L"LD" && aon2._args[0] == L"(0x3, SP)" && aon2._args[1] == L"A") &&
 			(aon3._op == L"ADD" || aon3._op == L"ADDW") && aon3._args[0] == L"SP" && aon3._args[1] == L"0x2")
 		{
 			ao._data = L"LD A, XL";
 			ao._parsed = false;
-			aon1._data = L"LD (1, SP), A";
+			aon1._data = L"LD (0x1, SP), A";
 			aon1._parsed = false;
 			del_op(cs, next2);
 			del_op(cs, next3);
@@ -10044,7 +10044,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 					break;
 				}
 
-				if((next_ao->_op == L"LD" || next_ao->_op == L"LDW") && next_ao->_args[0] == L"(0x1,SP)")
+				if((next_ao->_op == L"LD" || next_ao->_op == L"LDW") && next_ao->_args[0] == L"(0x1, SP)")
 				{
 					if(stk_off != 0)
 					{
@@ -10084,7 +10084,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 							break;
 						}
 
-						if(!(next_ao1->_op == L"LDW" && next_ao1->_args[0] == L"(0x3,SP)" && next_ao1->_args[1] == L"X"))
+						if(!(next_ao1->_op == L"LDW" && next_ao1->_args[0] == L"(0x3, SP)" && next_ao1->_args[1] == L"X"))
 						{
 							proceed = false;
 							break;
@@ -10097,7 +10097,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 					break;
 				}
 
-				if(next_ao->_op == L"CLR" && next_ao->_args[0] == L"(0x1,SP)")
+				if(next_ao->_op == L"CLR" && next_ao->_args[0] == L"(0x1, SP)")
 				{
 					proceed = false;
 					break;
@@ -10267,9 +10267,9 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
 		if (
-			((ao._op == L"LDW" && ao._args[0] == L"(0x1,SP)" && ao._args[1] == L"X") || (ao._op == L"PUSHW" && ao._args[0] == L"X")) &&
+			((ao._op == L"LDW" && ao._args[0] == L"(0x1, SP)" && ao._args[1] == L"X") || (ao._op == L"PUSHW" && ao._args[0] == L"X")) &&
 			aon1._op == L"PUSH" && aon2._op == L"PUSH" &&
-			(aon3._op == L"LDW" && aon3._args[0] == L"X" && aon3._args[1] == L"(0x3,SP)")
+			(aon3._op == L"LDW" && aon3._args[0] == L"X" && aon3._args[1] == L"(0x3, SP)")
 			)
 		{
 			// LDW (0x1, SP), X
@@ -10291,7 +10291,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 		update_opt_rule_usage_stat(rule_id, true);
 		if (
 			(ao._op == L"PUSH") && (aon1._op == L"PUSH") &&
-			(aon2._op == L"LDW" && aon2._args[0] == L"X" && aon2._args[1] != L"Y" && aon2._args[1] != L"SP" && aon2._args[1].find(L",SP)") == std::wstring::npos) &&
+			(aon2._op == L"LDW" && aon2._args[0] == L"X" && aon2._args[1] != L"Y" && aon2._args[1] != L"SP" && aon2._args[1].find(L", SP)") == std::wstring::npos) &&
 			(
 				(aon3._op == L"POPW" && aon3._args[0] == L"Y") ||
 				((aon3._op == L"SLAW" || aon3._op == L"SLLW") && aon3._args[0] == L"X")
@@ -10382,7 +10382,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 					del_op(cs, (aon3._op == L"POPW") ? next3 : next);
 					if(A_reg)
 					{
-						ao._data = L"CLRW Y ";
+						ao._data = L"CLRW Y";
 						ao._parsed = false;
 						aon1._data = L"LD YL, A";
 						aon1._parsed = false;
@@ -10485,8 +10485,8 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 		update_opt_rule_usage_stat(rule_id, true);
 		if(	(ao._op == L"PUSHW" && ao._args[0] == L"X") && (aon1._op == L"PUSHW" && aon1._args[0] == L"Y") &&
 			(aon2._op == L"LDW" && aon2._args[0] == L"Y") &&
-			(aon3._op == L"LDW" && aon3._args[0] == L"X" && aon3._args[1] != L"Y" && aon3._args[1] != L"SP" && aon3._args[1] != L"(X)" && aon3._args[1].find(L",X)") == std::wstring::npos && aon3._args[1].front() != L'[') &&
-			(aon4._op == L"ADDW" && aon4._args[0] == L"X" && aon4._args[1] == L"(0x3,SP)")
+			(aon3._op == L"LDW" && aon3._args[0] == L"X" && aon3._args[1] != L"Y" && aon3._args[1] != L"SP" && aon3._args[1] != L"(X)" && aon3._args[1].find(L", X)") == std::wstring::npos && aon3._args[1].front() != L'[') &&
+			(aon4._op == L"ADDW" && aon4._args[0] == L"X" && aon4._args[1] == L"(0x3, SP)")
 			)
 		{
 			// PUSHW X
@@ -10505,6 +10505,68 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 			update_opt_rule_usage_stat(rule_id);
 			changed = true;
 			continue;
+		}
+
+		rule_id++;
+		update_opt_rule_usage_stat(rule_id, true);
+		if(	(ao._op == L"PUSHW" && ao._args[0] == L"Y") &&
+			(!aon1._volatile && aon1._op == L"LDW" && aon1._args[0] == L"Y" &&
+				(aon1._args[1].find(L", SP)") != std::wstring::npos || ((aon1._args[1][0] != L'(' && aon1._args[1][0] != L'[') && aon1._args[1] != L"X" && aon1._args[1] != L"SP") || (aon1._args[1][0] == L'(' && aon1._args[1] != L"(Y)" && aon1._args[1].find(L", Y)") == std::wstring::npos))) &&
+			(!aon2._volatile && aon2._op == L"LDW" && aon2._args[0] == L"X" && aon2._args[1] != L"Y" && aon2._args[1] != L"SP") &&
+			(aon3._op == L"ADDW" && aon3._args[0] == L"Y" && aon3._args[1] == L"(0x1, SP)") && 
+			(aon4._op == L"ADD" || aon4._op == L"ADDW") && aon4._args[0] == L"SP"
+			)
+		{
+			// PUSHW Y
+			// LDW Y, smth1
+			// LDW X, smth2
+			// ADDW Y, (1, SP)
+			// ADDW SP, 4
+			// ->
+			// LDW X, smth2
+			// ADDW Y, smth1
+			// ADDW SP, 2
+			bool proceed = true;
+			bool no_SP_off = true;
+			auto new_off1 = correct_SP_offset(aon1._args[1], 2, no_SP_off);
+			if(!no_SP_off && new_off1.empty())
+			{
+				proceed = false;
+			}
+			auto new_off2 = correct_SP_offset(aon2._args[1], 2, no_SP_off);
+			if(!no_SP_off && new_off2.empty())
+			{
+				proceed = false;
+			}
+			int32_t n = 0;
+			if(Utils::str2int32(aon4._args[1], n) != B1_RES_OK || n - 2 < 0)
+			{
+				proceed = false;
+			}
+
+			if(proceed)
+			{
+				n -= 2;
+				ao._data = L"LDW X, " + (new_off2.empty() ? aon2._args[1] : new_off2);
+				ao._parsed = false;
+				aon1._data = L"ADDW Y, " + (new_off1.empty() ? aon1._args[1] : new_off1);
+				aon1._parsed = false;
+				if(n == 0)
+				{
+					del_op(cs, next2);
+				}
+				else
+				{
+					aon2._data = L"ADDW SP, " + std::to_wstring(n);
+					aon2._parsed = false;
+				}
+				del_op(cs, next3);
+				del_op(cs, next4);
+
+				update_opt_rule_usage_stat(rule_id);
+				changed = true;
+				continue;
+			}
 		}
 
 		rule_id++;
@@ -10537,7 +10599,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
-		if(	ao._op == L"PUSHW" && ao._args[0] == L"X" && aon1._op == L"CLRW" && aon1._args[0] == L"Y" && aon2._op == L"LDW" && aon2._args[0] == L"X" && aon2._args[1] == L"(0x1,SP)" &&
+		if(	ao._op == L"PUSHW" && ao._args[0] == L"X" && aon1._op == L"CLRW" && aon1._args[0] == L"Y" && aon2._op == L"LDW" && aon2._args[0] == L"X" && aon2._args[1] == L"(0x1, SP)" &&
 			(aon3._op == L"ADD" || aon3._op == L"ADDW") && aon3._args[0] == L"SP" && aon3._args[1] == L"0x2" &&
 			(n4_arithm_op || aon4._op == L"RET" || aon4._op == L"RETF" || aon4._op == L"CALLR" || aon4._op == L"CALL" || aon4._op == L"CALLF")
 			)
@@ -10561,7 +10623,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
 		if ((
-				((!ao._volatile && !ao._is_inline && ((ao._op == L"LDW" && ao._args[0] == L"Y" && ao._args[1] != L"(Y)" && ao._args[1].find(L",Y)") == std::wstring::npos && ao._args[1] != L"X") || (ao._op == L"CLRW" && ao._args[0] == L"Y"))) &&
+				((!ao._volatile && !ao._is_inline && ((ao._op == L"LDW" && ao._args[0] == L"Y" && ao._args[1] != L"(Y)" && ao._args[1].find(L", Y)") == std::wstring::npos && ao._args[1] != L"X") || (ao._op == L"CLRW" && ao._args[0] == L"Y"))) &&
 				(!aon1._volatile && !aon1._is_inline && aon1._op == L"LDW" && aon1._args[0] == L"X")) ||
 				((ao._op == L"CLRW" && ao._args[0] == L"X") && (aon1._op == L"LD" && aon1._args[0] == L"XL"))
 			)
@@ -10569,8 +10631,8 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 			(
 				((aon2._op == L"PUSHW" && aon2._args[0] == L"X") && (aon3._op == L"PUSHW" && aon3._args[0] == L"Y")) ||
 				(
-					(!aon2._volatile && !aon2._is_inline && aon2._op == L"LDW" && aon2._args[1] == L"Y" && aon2._args[0] != L"(X)" && aon2._args[0].find(L",X)") == std::wstring::npos && aon2._args[0] != L"X") &&
-					(!aon3._volatile && !aon3._is_inline && aon3._op == L"LDW" && aon3._args[1] == L"X" && aon3._args[0] != L"(Y)" && aon3._args[0].find(L",Y)") == std::wstring::npos && aon3._args[0] != L"Y")
+					(!aon2._volatile && !aon2._is_inline && aon2._op == L"LDW" && aon2._args[1] == L"Y" && aon2._args[0] != L"(X)" && aon2._args[0].find(L", X)") == std::wstring::npos && aon2._args[0] != L"X") &&
+					(!aon3._volatile && !aon3._is_inline && aon3._op == L"LDW" && aon3._args[1] == L"X" && aon3._args[0] != L"(Y)" && aon3._args[0].find(L", Y)") == std::wstring::npos && aon3._args[0] != L"Y")
 				)
 			))
 		{
@@ -10646,7 +10708,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 						break;
 					}
 
-					if((next_ao->_op == L"LDW" && next_ao->_args[0] == L"Y" && next_ao->_args[1] != L"(Y)" && next_ao->_args[1].find(L",Y)") == std::wstring::npos) || (next_ao->_op == L"CLRW" && next_ao->_args[0] == L"Y"))
+					if((next_ao->_op == L"LDW" && next_ao->_args[0] == L"Y" && next_ao->_args[1] != L"(Y)" && next_ao->_args[1].find(L", Y)") == std::wstring::npos) || (next_ao->_op == L"CLRW" && next_ao->_args[0] == L"Y"))
 					{
 						auto nexti1 = std::next(nexti);
 
@@ -10787,15 +10849,141 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
+		if(	((ao._op == L"PUSH" && ao._args[0] != L"A" && ao._args[0] != L"CC" && ao._args[0][0] != L'(' && aon1._op == L"PUSH" && aon1._args[0] != L"A" && aon1._args[0] != L"CC" && aon1._args[0][0] != L'(') ||
+			(ao._op == L"CLRW" && ao._args[0] == L"X" && aon1._op == L"PUSHW" && aon1._args[0] == L"X")) &&
+			(aon2._op == L"LDW" && aon2._args[0] == L"Y" && aon2._args[1] != L"X" && aon2._args[1] != L"SP") &&
+			(aon3._op == L"LDW" && aon3._args[0] == L"X" && aon3._args[1] == L"(0x3, SP)") &&
+			(aon4._op == L"ADDW" && aon4._args[0] == L"Y" && aon4._args[1] == L"(0x1, SP)") &&
+			(aon5._op == L"ADD" || aon5._op == L"ADDW") && aon5._args[0] == L"SP"
+			)
+		{
+			// PUSH 0 or CLRW X
+			// PUSH 0 or PUSHW X
+			// LDW Y, smth
+			// LDW X, (3, SP)
+			// ADDW Y, (1, SP)
+			// ADDW SP, 4
+			// ->
+			// LDW Y, smth
+			// LDW X, (1, SP)
+			// ADDW Y, imm
+			// ADDW SP, 2
+			bool proceed = true;
+			int32_t n1 = 0, n2 = 0;
+
+			if(ao._op == L"PUSH")
+			{
+				if(Utils::str2int32(ao._args[0], n1) != B1_RES_OK)
+				{
+					proceed = false;
+				}
+				if(Utils::str2int32(aon1._args[0], n2) != B1_RES_OK)
+				{
+					proceed = false;
+				}
+			}
+
+			int32_t n = 0;
+			if(Utils::str2int32(aon5._args[1], n) != B1_RES_OK || n < 2)
+			{
+				proceed = false;
+			}
+
+			if(proceed)
+			{
+				ao._data = aon2._data;
+				ao._parsed = false;
+				aon1._data = L"LDW X, (0x1, SP)";
+				aon1._parsed = false;
+				aon2._data = L"ADDW Y, " + std::to_wstring(((uint8_t)n2) * ((uint16_t)256) + ((uint8_t)n1));
+				aon2._parsed = false;
+				n -= 2;
+				if(n == 0)
+				{
+					del_op(cs, next3);
+				}
+				else
+				{
+					aon3._data = L"ADDW SP, " + std::to_wstring(n);
+					aon3._parsed = false;
+				}
+				del_op(cs, next4);
+				del_op(cs, next5);
+
+				update_opt_rule_usage_stat(rule_id);
+				changed = true;
+				continue;
+			}
+		}
+
+		int n5_size = 0;
+		bool n5_arithm_op = is_arithm_op(aon5, n5_size);
+
+		rule_id++;
+		update_opt_rule_usage_stat(rule_id, true);
+		if(	(ao._op == L"PUSH" && ao._args[0] == L"A") &&
+			(aon1._op == L"PUSH" && aon1._args[0] == L"0x0") &&
+			(aon2._op == L"LDW" && aon2._args[0] == L"Y" && aon2._args[1] != L"SP") &&
+			(aon3._op == L"LDW" && aon3._args[0] == L"X" && aon3._args[1] == L"(0x1, SP)") &&
+			(aon4._op == L"ADD" || aon4._op == L"ADDW") && aon4._args[0] == L"SP" &&
+			(n5_arithm_op || aon5._op == L"RET" || aon5._op == L"RETF" || aon5._op == L"CALLR" || aon5._op == L"CALL" || aon5._op == L"CALLF")
+			)
+		{
+			// PUSH A
+			// PUSH 0
+			// LDW Y, smth
+			// LDW X, (1, SP)
+			// ADDW SP, 4
+			// ->
+			// LDW Y, smth
+			// CLRW X
+			// LD XL, A
+			// ADDW SP, 2
+			bool proceed = true;
+
+			int32_t n = 0;
+			if(Utils::str2int32(aon4._args[1], n) != B1_RES_OK || n < 2)
+			{
+				proceed = false;
+			}
+
+			if(proceed)
+			{
+				ao._data = aon2._data;
+				ao._parsed = false;
+				aon1._data = L"CLRW X";
+				aon1._parsed = false;
+				aon2._data = L"LD XL, A";
+				aon2._parsed = false;
+				n -= 2;
+				if(n == 0)
+				{
+					del_op(cs, next3);
+				}
+				else
+				{
+					aon3._data = L"ADDW SP, " + std::to_wstring(n);
+					aon3._parsed = false;
+				}
+				del_op(cs, next4);
+
+				update_opt_rule_usage_stat(rule_id);
+				changed = true;
+				continue;
+			}
+		}
+
+		rule_id++;
+		update_opt_rule_usage_stat(rule_id, true);
 		if (
 			(ao._op == L"PUSH" && ao._args[0] == L"A") &&
 			(aon1._op == L"CLRW" && aon1._args[0] == L"X") &&
 			(aon2._op == L"LD" && aon2._args[0] == L"XL") &&
-			(aon3._op == L"LDW" && aon3._args[0] == L"(0x2,SP)" && aon3._args[1] == L"X") &&
+			(aon3._op == L"LDW" && aon3._args[0] == L"(0x2, SP)" && aon3._args[1] == L"X") &&
 			(((aon4._op == L"ADD" || aon4._op == L"ADDW") && aon4._args[0] == L"SP" && aon4._args[1] == L"0x1") || (aon4._op == L"POP" && aon4._args[0] == L"A"))
 			)
 		{
-			aon3._data = L"LDW (1, SP), X";
+			aon3._data = L"LDW (0x1, SP), X";
 			aon3._parsed = false;
 			del_op(cs, next4);
 			i = del_op(cs, i);
@@ -10809,7 +10997,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 		update_opt_rule_usage_stat(rule_id, true);
 		if(	(ao._op == L"PUSHW" && ao._args[0] == L"X") &&
 			(aon1._op == L"LDW" && aon1._args[0] == L"X" && aon1._args[1] != L"Y" && aon1._args[1] != L"SP") &&
-			(aon2._op == L"CPW" && aon2._args[0] == L"X" && aon2._args[1] == L"(0x1,SP)") &&
+			(aon2._op == L"CPW" && aon2._args[0] == L"X" && aon2._args[1] == L"(0x1, SP)") &&
 			((aon3._op == L"ADDW" || aon3._op == L"ADD") && aon3._args[0] == L"SP" && aon3._args[1] == L"0x2") &&
 			((aon4._op == L"JRNE" || aon4._op == L"JREQ")) &&
 			((aon5._op == L"LDW" || aon5._op == L"CLRW") && aon5._args[0] == L"X")
@@ -10840,7 +11028,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 			(aon1._op == L"LD" && aon1._args[0] == L"A" && aon1._args[1][0] == L'(') &&
 			(aon2._op == L"CLRW" && aon2._args[0] == L"X") &&
 			(aon3._op == L"LD" && aon3._args[0] == L"XL") &&
-			(aon4._op == L"ADDW" && aon4._args[0] == L"X" && aon4._args[1] == L"(0x1,SP)") &&
+			(aon4._op == L"ADDW" && aon4._args[0] == L"X" && aon4._args[1] == L"(0x1, SP)") &&
 			((aon5._op == L"ADDW" || aon5._op == L"ADD") && aon5._args[0] == L"SP" && aon5._args[1] == L"0x2")
 			)
 		{
@@ -10922,7 +11110,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
-		if(	(ao._op == L"LD" && ao._args[0] == L"(0x1,SP)") &&
+		if(	(ao._op == L"LD" && ao._args[0] == L"(0x1, SP)") &&
 			(aon1._op == L"JRA") &&
 			(aon2._type == AOT::AOT_LABEL)
 			)
@@ -10950,7 +11138,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 					break;
 				}
 
-				if(next_ao->_op == L"LD" && next_ao->_args[0] == L"(0x1,SP)")
+				if(next_ao->_op == L"LD" && next_ao->_args[0] == L"(0x1, SP)")
 				{
 					if(!ld1sp)
 					{
@@ -10988,7 +11176,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
-		if(	(ao._op == L"LDW" && ao._args[0] == L"(0x1,SP)" && ao._args[1] == L"X") &&
+		if(	(ao._op == L"LDW" && ao._args[0] == L"(0x1, SP)" && ao._args[1] == L"X") &&
 			(aon1._op == L"JRA") &&
 			(aon2._type == AOT::AOT_LABEL)
 			)
@@ -11016,7 +11204,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 					break;
 				}
 
-				if(next_ao->_op == L"LDW" && next_ao->_args[0] == L"(0x1,SP)" && next_ao->_args[1] == L"X")
+				if(next_ao->_op == L"LDW" && next_ao->_args[0] == L"(0x1, SP)" && next_ao->_args[1] == L"X")
 				{
 					if(!ld1sp)
 					{
@@ -11069,12 +11257,12 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
 		if(	(ao._op == L"PUSHW" && ao._args[0] == L"Y") &&
-			(aon1._op == L"LDW" && aon1._args[0] == L"Y" && aon1._args[1] != L"X" && aon1._args[1] != L"SP" && aon1._args[1] != L"(Y)" && aon1._args[1].find(L",Y)") == std::wstring::npos && aon1._args[1].front() != L'[') &&
+			(aon1._op == L"LDW" && aon1._args[0] == L"Y" && aon1._args[1] != L"X" && aon1._args[1] != L"SP" && aon1._args[1] != L"(Y)" && aon1._args[1].find(L", Y)") == std::wstring::npos && aon1._args[1].front() != L'[') &&
 			(aon2._op == L"ADDW" && aon2._args[0] == L"X") &&
 			(aon3._op == L"JRNC") &&
 			(aon4._op == L"INCW" && aon4._args[0] == L"Y") &&
 			(aon5._type == AOT::AOT_LABEL && aon5._op == aon3._args[0]) &&
-			(aon6._op == L"ADDW" && aon6._args[0] == L"Y" && aon6._args[1] == L"(0x1,SP)")
+			(aon6._op == L"ADDW" && aon6._args[0] == L"Y" && aon6._args[1] == L"(0x1, SP)")
 			)
 		{
 			// PUSHW Y
@@ -11165,7 +11353,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 		update_opt_rule_usage_stat(rule_id, true);
 		if(
 			(ao._op == L"POPW" && ao._args[0] == L"X") &&
-			(aon1._op == L"LDW" && aon1._args[0] == L"X" && (aon1._args[1] == L"(X)" || aon1._args[1].find(L",X)") != std::wstring::npos)) &&
+			(aon1._op == L"LDW" && aon1._args[0] == L"X" && (aon1._args[1] == L"(X)" || aon1._args[1].find(L", X)") != std::wstring::npos)) &&
 			(aon2._op == L"PUSHW" && aon2._args[0] == L"X") &&
 			(aon3._op == L"LDW" && aon3._args[0] == L"X" && aon3._args[1].front() == L'(') &&
 			((aon4._op == L"CALL" || aon4._op == L"CALLR" || aon4._op == L"CALLF") && aon4._args[0] == L"__LIB_STR_RLS") &&
@@ -11206,11 +11394,11 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
 		if(
-			(ao._op == L"LD" && ao._args[0] == L"A" && ao._args[1] == L"(0x1,SP)") &&
+			(ao._op == L"LD" && ao._args[0] == L"A" && ao._args[1] == L"(0x1, SP)") &&
 			(aon1._op == L"PUSH" && aon1._args[0] == L"A") &&
 			(aon2._op == L"PUSH" && aon2._args[0] == L"0x0") &&
 			(aon3._op == L"LDW" && aon3._args[0] == L"X") &&
-			(aon4._op == L"CPW" && aon4._args[0] == L"X" && aon4._args[1] == L"(0x1,SP)") &&
+			(aon4._op == L"CPW" && aon4._args[0] == L"X" && aon4._args[1] == L"(0x1, SP)") &&
 			((aon5._op == L"ADD" || aon5._op == L"ADDW") && aon5._args[0] == L"SP" && aon5._args[1] == L"0x2") &&
 			(aon6._op[0] == L'J' && aon6._op[1] == L'R')
 		)
@@ -11258,7 +11446,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 			(ao._op == L"LDW" && ao._args[0] == L"X") &&
 			((aon1._op == L"CALL" || aon1._op == L"CALLR" || aon1._op == L"CALLF") && aon1._args[0] == L"__LIB_STR_CPY") &&
 			(aon2._op == L"CALL" || aon2._op == L"CALLR" || aon2._op == L"CALLF") &&
-			(aon3._op == L"LDW" && aon3._args[0] == L"(0x1,SP)" && aon3._args[1] == L"X") &&
+			(aon3._op == L"LDW" && aon3._args[0] == L"(0x1, SP)" && aon3._args[1] == L"X") &&
 			(aon4._op == L"LDW" && aon4._args[0] == L"X" && ao._args[1] == aon4._args[1]) &&
 			((aon5._op == L"CALL" || aon5._op == L"CALLR" || aon5._op == L"CALLF") && aon5._args[0] == L"__LIB_STR_RLS") &&
 			(aon6._op == L"POPW" && aon6._args[0] == L"X")

@@ -1,3 +1,10 @@
+b1c (1.0.0-70) unstable; urgency=low
+
+  * unified number format in c1stm8 output
+  * more optimizations (32-bit int arithmetic)
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Tue, 09 Jun 2026 19:19:22 +0300
+
 b1c (1.0.0-69) unstable; urgency=low
 
   * more optimizations (32-bit int arithmetic)
