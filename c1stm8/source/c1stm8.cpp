@@ -7139,8 +7139,7 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 		update_opt_rule_usage_stat(rule_id, true);
 		if(
 			(ao._op == L"ADDW" || ao._op == L"SUBW" || ao._op == L"ADD" || ao._op == L"SUB" || ao._op == L"OR" || ao._op == L"AND" || ao._op == L"XOR") &&
-			(ao._args[0] == L"A" || ao._args[0] == L"X" || ao._args[0] == L"Y" || ao._args[0] == L"SP") &&
-			(ao._args[1] == L"0x1" || ao._args[1] == L"0x0" || (ao._args[1] == L"-0x1" || Utils::str_toupper(ao._args[1]) == L"0XFFFF" || Utils::str_toupper(ao._args[1]) == L"0XFFFFFFFF" || (Utils::str_toupper(ao._args[1]) == L"0XFF" && ao._args[0] == L"A")))
+			(ao._args[0] == L"A" || ao._args[0] == L"X" || ao._args[0] == L"Y" || ao._args[0] == L"SP")
 			)
 		{
 			// -ADD/ADDW/SUB/SUBW/OR A/X/Y/SP, 0
@@ -7148,68 +7147,96 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 			// -AND A, 0xFF
 			// ADD/ADDW A/X/Y, 1 -> INC/INCW A/X/Y
 			// SUB/SUBW A/X/Y, 1 -> INC/DECW A/X/Y
-			if(ao._args[1] == L"0x0" || ao._op == L"AND")
-			{
-				if(!(ao._op == L"AND" && (ao._args[1] == L"0x0" || ao._args[1] == L"0x1")))
-				{
-					// AND A, -1
-					// OR A, 0
-					// XOR A, 0
-					// ADD/SUB/ADDW/SUBW <reg>, 0
-					if((ao._op == L"ADDW" || ao._op == L"SUBW") && ao._args[0] == L"X")
-					{
-						ao._data = L"RCF";
-						ao._parsed = false;
-					}
-					else
-					{
-						i = del_op(cs, i);
-					}
 
-					update_opt_rule_usage_stat(rule_id);
-					changed = true;
-					continue;
+			int32_t n = 0;
+			bool proceed = (Utils::str2int32(ao._args[1], n) == B1_RES_OK);
+
+			if(proceed)
+			{
+				if(ao._args[0] == L"SP")
+				{
+					n = n & 0xFF;
 				}
 				else
-				if(ao._op == L"AND" && ao._args[1] == L"0x0")
+				if(ao._args[0] == L"A")
 				{
-					// AND A, 0
-					ao._data = L"CLR A";
-					ao._parsed = false;
-
-					update_opt_rule_usage_stat(rule_id);
-					changed = true;
-					continue;
-				}
-			}
-			else
-			if(ao._args[0] != L"SP" && ao._op != L"OR" && ao._op != L"XOR")
-			{
-				// ADD/SUB/ADDW/SUBW <reg>, 1/-1
-				if(	!((ao._op == L"ADDW" || ao._op == L"SUBW") && ao._args[0] == L"X" && aon1._op == L"JRNC") // used with 32-bit integer addition and subtraction
-					)
-				{
-					if(ao._args[1] == L"0x1")
+					n = n & 0xFF;
+					if(n == 0xFF)
 					{
-						ao._data = (
-							ao._op == L"ADDW" ? L"INCW " :
-							ao._op == L"SUBW" ? L"DECW " :
-							ao._op == L"ADD" ? L"INC " : L"DEC "
-							) + ao._args[0];
+						n = -1;
+					}
+				}
+				else
+				{
+					n = n & 0xFFFF;
+					if(n == 0xFFFF)
+					{
+						n = -1;
+					}
+				}
+
+				if(n == 0 || (ao._op == L"AND" && n == -1))
+				{
+					if(ao._op == L"AND" && n == 0)
+					{
+						// AND A, 0
+						ao._data = L"CLR A";
+						ao._parsed = false;
+
+						update_opt_rule_usage_stat(rule_id);
+						changed = true;
+						continue;
 					}
 					else
 					{
-						ao._data = (
-							ao._op == L"ADDW" ? L"DECW " :
-							ao._op == L"SUBW" ? L"INCW " :
-							ao._op == L"ADD" ? L"DEC " : L"INC "
-							) + ao._args[0];
-					}
-					ao._parsed = false;
+						// AND A, -1
+						// OR A, 0
+						// XOR A, 0
+						// ADD/SUB/ADDW/SUBW <reg>, 0
+						if((ao._op == L"ADDW" || ao._op == L"SUBW") && ao._args[0] == L"X")
+						{
+							ao._data = L"RCF";
+							ao._parsed = false;
+						}
+						else
+						{
+							i = del_op(cs, i);
+						}
 
-					update_opt_rule_usage_stat(rule_id);
-					changed = true;
-					continue;
+						update_opt_rule_usage_stat(rule_id);
+						changed = true;
+						continue;
+					}
+				}
+				else
+				if((n == 1 || n == -1) && ao._args[0] != L"SP" && ao._op != L"AND" && ao._op != L"OR" && ao._op != L"XOR")
+				{
+					// ADD/SUB/ADDW/SUBW <reg>, 1/-1
+					if(	!((ao._op == L"ADDW" || ao._op == L"SUBW") && ao._args[0] == L"X" && aon1._op == L"JRNC") // used with 32-bit integer addition and subtraction
+						)
+					{
+						if(n == 1)
+						{
+							ao._data = (
+								ao._op == L"ADDW" ? L"INCW " :
+								ao._op == L"SUBW" ? L"DECW " :
+								ao._op == L"ADD" ? L"INC " : L"DEC "
+								) + ao._args[0];
+						}
+						else
+						{
+							ao._data = (
+								ao._op == L"ADDW" ? L"DECW " :
+								ao._op == L"SUBW" ? L"INCW " :
+								ao._op == L"ADD" ? L"DEC " : L"INC "
+								) + ao._args[0];
+						}
+						ao._parsed = false;
+
+						update_opt_rule_usage_stat(rule_id);
+						changed = true;
+						continue;
+					}
 				}
 			}
 		}
@@ -7290,7 +7317,7 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 
 		int i_size = 0;
 		bool i_arithm_op = is_arithm_op(ao, i_size);
-		
+		/*
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
 		if(!ao._volatile && i_arithm_op && i_size == 1 && ao._args[0].front() == L'(' && (aon1._op == L"LD" || aon1._op == L"MOV") && ao._args[0] == aon1._args[0])
@@ -7317,7 +7344,7 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 			changed = true;
 			continue;
 		}
-
+		*/
 		auto next2 = std::next(next1);
 		if(next2 == cs.end())
 		{
@@ -9786,7 +9813,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
-		if(	ao._op == L"LDW" && ao._args[0] == L"X" && check_label_name(ao._args[1]) &&
+		if(	ao._op == L"LDW" && check_label_name(ao._args[1]) &&
 			aon1._op == L"PUSHW" && aon1._args[0] == ao._args[0])
 		{
 			// LDW X, __STR_1
@@ -9797,10 +9824,7 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 			// PUSH __STR_1.lh
 			// LDW X, <smth>
 
-			bool write_op = false;
-			is_reg_used(aon2, ao._args[0], write_op);
-
-			if(write_op)
+			if(!is_reg_used_after(next1, cs.cend(), ao._args[0]))
 			{
 				aon1._data = L"PUSH " + ao._args[1] + L".lh";
 				aon1._parsed = false;

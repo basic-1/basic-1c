@@ -1,3 +1,10 @@
+b1c (1.0.0-71) unstable; urgency=low
+
+  * a bug fixed (wrong optimizer rule)
+  * small improvements in optimizer rules
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Tue, 16 Jun 2026 18:43:10 +0300
+
 b1c (1.0.0-70) unstable; urgency=low
 
   * unified number format in c1stm8 output
