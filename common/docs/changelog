@@ -1,3 +1,9 @@
+b1c (1.0.0-73) unstable; urgency=low
+
+  * more optimizations
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Mon, 29 Jun 2026 19:35:08 +0300
+
 b1c (1.0.0-72) unstable; urgency=low
 
   * a bug fixed (in an optimizer rule)

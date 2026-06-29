@@ -6509,7 +6509,13 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 			else
 			if(_cmp_op == L">")
 			{
-				if(_cmp_type == B1Types::B1T_INT || _cmp_type == B1Types::B1T_STRING || _cmp_type == B1Types::B1T_LONG)
+				if(_cmp_type == B1Types::B1T_LONG)
+				{
+					// JRSGT and JRSLE must not be used when comparing 32-bit values
+					return C1_T_ERROR::C1_RES_EINTERR;
+				}
+
+				if(_cmp_type == B1Types::B1T_INT || _cmp_type == B1Types::B1T_STRING)
 				{
 					// signed comparison
 					if(cmd.cmd == L"JT")
@@ -6593,7 +6599,13 @@ C1_T_ERROR C1STM8Compiler::write_code_sec(bool code_init)
 			else
 			if(_cmp_op == L"<=")
 			{
-				if(_cmp_type == B1Types::B1T_INT || _cmp_type == B1Types::B1T_STRING || _cmp_type == B1Types::B1T_LONG)
+				if(_cmp_type == B1Types::B1T_LONG)
+				{
+					// JRSGT and JRSLE must not be used when comparing 32-bit values
+					return C1_T_ERROR::C1_RES_EINTERR;
+				}
+
+				if(_cmp_type == B1Types::B1T_INT || _cmp_type == B1Types::B1T_STRING)
 				{
 					// signed comparison
 					if(cmd.cmd == L"JT")
@@ -7414,8 +7426,7 @@ C1_T_ERROR C1STM8Compiler::Optimize1(bool &changed)
 		rule_id++;
 		update_opt_rule_usage_stat(rule_id, true);
 		if (
-			(i_arithm_op && (ao._args[0] == L"A" || ao._args[0] == L"X" || ao._args[0] == L"Y") && !(ao._args.size() == 2 && (ao._args[1] == L"X" || ao._args[1] == L"Y" || ao._args[1] == L"XL" || ao._args[1] == L"YL" || ao._args[1] == L"XH" || ao._args[1] == L"YH" || ao._args[1] == L"SP"))) &&
-			ao._op != L"MUL" && ao._op != L"DIV" && ao._op != L"DIVW" &&
+			(i_arithm_op && (ao._args[0] == L"A" || ao._args[0] == L"X" || ao._args[0] == L"Y")) && !(ao._op == L"MUL" || ao._op == L"DIV" || ao._op == L"DIVW") &&
 			((aon1._op == L"PUSH" || aon1._op == L"PUSHW") && aon1._args[0] == ao._args[0]) &&
 			((aon2._op == L"LD" || aon2._op == L"LDW") && aon2._args[0] == ao._args[0] && aon2._args[1] == L"(0x1, SP)")
 			)
@@ -8285,6 +8296,34 @@ C1_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 			continue;
 		}
 
+		rule_id++;
+		update_opt_rule_usage_stat(rule_id, true);
+		if(!aon1._volatile && i_arithm_op && i_size == 2 && !(ao._op == L"MUL" || ao._op == L"DIV" || ao._op == L"DIVW") &&
+			(aon1._op == L"PUSH" || aon1._op == L"PUSHW") &&
+			aon2._op == L"TNZW" && ao._args[0] == aon2._args[0])
+		{
+			// LDW X, smth not reg
+			// PUSH(W)
+			// -TNZW X
+			del_op(cs, next2);
+			update_opt_rule_usage_stat(rule_id);
+			changed = true;
+			continue;
+		}
+		else
+		if(!aon1._volatile && i_arithm_op && i_size == 1 &&
+			(aon1._op == L"PUSH" || aon1._op == L"PUSHW") &&
+			aon2._op == L"TNZ" && ao._args[0] == aon2._args[0])
+		{
+			// LD A, smth not reg
+			// PUSH(W)
+			// -TNZ A
+			del_op(cs, next2);
+			update_opt_rule_usage_stat(rule_id);
+			changed = true;
+			continue;
+		}
+
 		int n1_size = 0;
 		bool n1_arithm_op = is_arithm_op(aon1, n1_size);
 		int n2_size = 0;
@@ -8306,6 +8345,33 @@ C1_T_ERROR C1STM8Compiler::Optimize2(bool &changed)
 			update_opt_rule_usage_stat(rule_id);
 			changed = true;
 			continue;
+		}
+
+		rule_id++;
+		update_opt_rule_usage_stat(rule_id, true);
+		if(
+			(ao._op == L"LDW" || ao._op == L"LD") && ao._args[0] == L"(0x1, SP)" &&
+			(aon1._op == L"TNZW" || aon1._op == L"TNZ") && aon1._args[0] == ao._args[1] &&
+			(aon2._op == L"ADD" || aon2._op == L"ADDW") && aon2._args[0] == L"SP"
+			)
+		{
+			// LDW (0x1, SP), <reg>
+			// TNZ(W) <reg>
+			// ADDW SP, N (N >= reg_size)
+			// ->
+			// ADDW SP, N
+			// TNZ(W) <reg>
+			int32_t n = 0, reg_size = (ao._op == L"LD") ? 1 : 2;
+			if(Utils::str2int32(aon2._args[1], n) == B1_RES_OK && n >= reg_size)
+			{
+				ao._data = aon2._data;
+				ao._parsed = false;
+				del_op(cs, next2);
+
+				update_opt_rule_usage_stat(rule_id);
+				changed = true;
+				continue;
+			}
 		}
 
 		rule_id++;
@@ -9756,6 +9822,29 @@ C1_T_ERROR C1STM8Compiler::Optimize3(bool &changed)
 			// JRXXX <label>
 			// -CPW X, <smth>
 			del_op(cs, next2);
+
+			update_opt_rule_usage_stat(rule_id);
+			changed = true;
+			continue;
+		}
+
+		rule_id++;
+		update_opt_rule_usage_stat(rule_id, true);
+		if (!ao._volatile && (ao._op == L"CP" || ao._op == L"CPW") && ao._args[1] == L"0x0" &&
+			(aon1._op == L"JRSLT" || aon1._op == L"JRSGE") &&
+			(n2_arithm_op || aon2._op == L"CALL" || aon2._op == L"CALLR" || aon2._op == L"CALLF"))
+		{
+			// CP(W) <reg>, 0
+			// JRSLT/JRSGE <label>
+			// an instruction changing cmp. flags
+			// ->
+			// TNZ(W) <reg>
+			// JRMI/JRPL <label>
+			// an instruction changing cmp. flags
+			ao._data = ((ao._op == L"CP") ? L"TNZ " : L"TNZW ") + ao._args[0];
+			ao._parsed = false;
+			aon1._data = ((aon1._op == L"JRSLT") ? L"JRMI " : L"JRPL ") + aon1._args[0];
+			aon1._parsed = false;
 
 			update_opt_rule_usage_stat(rule_id);
 			changed = true;
