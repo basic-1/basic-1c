@@ -246,15 +246,20 @@ The implicit data type conversion occurs when a binary arithmetic or bitwise ope
 
 **Usage:**  
 `DEF [GLOBAL] <function_name> [AS <type_name>] = <function_expression>` - creating user-defined function without arguments  
-`<arg_decl> = <arg_name> [AS <type_name>]`  
+`<arg_decl> = <arg_name> [AS <type_name>] [= <def_val>]`  
 `DEF [GLOBAL] <function_name>(<arg_decl1>[, <arg_decl2>, ... <arg_declN>]) [AS <type_name>] = <function_expression>` - creating user-defined function with arguments  
   
 A user-defined function must be defined before being used. Function arguments are temporary variables existing only when the function is called. They differ from program variables with the same names defined outside the function (so such variables cannot be accessed with the function expression). Optional `GLOBAL` keyword allows declaring functions that can be used in other source files.  
+By default, argument type is determined by its name type specifier or is considered to be `INT` if the type specifier is absent. Optional `AS <type_name>` clause is used to specify a certain data type. Another optional clause `= <def_val>` makes the argument optional and specifies default value for it.  
   
 **Examples:**  
 `DEF MIN(A, B) = IIF(A > B, B, A)` 'returns a minimum of the two values specified with arguments  
 `DEF CONCAT3$(S1$, S2$, S3$) = S1$ + S2$ + S3$` 'concatenates three string values  
 `DEF GLOBAL MAKEWORD(HIBYTE AS BYTE, LOBYTE AS BYTE) AS WORD = (HIBYTE * 256) + LOBYTE` 'global function sample  
+`DEF SUM(A1, A2, A3 = 0, A4 = 0, A5 = 0) = A1 + A2 + A3 + A4 + A5` '`SUM` function with five arguments, including three optional arguments  
+`PRINT SUM(1, 2, 3,,)` 'calling the function declaread above  
+`DEF CONCAT$(S1$, S2$, S3$ = "", S4$ = "", S5$ = "") = S1$ + S2$ + S3$ + S4$ + S5$` '`CONCAT$` function with five arguments, including three optional arguments  
+`S$ = CONCAT$("Hello", ", ", "world!",,)` 'calling the function  
   
 ### `DIM` and `ERASE` statements  
   

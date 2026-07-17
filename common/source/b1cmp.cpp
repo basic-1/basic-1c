@@ -2483,10 +2483,11 @@ B1_CMP_CMDS::iterator B1_CMP_CMDS::emit_inline_asm(void)
 
 
 B1_CMP_FN_ARG::B1_CMP_FN_ARG(const B1Types tp, bool opt /*= false*/, const std::wstring &dv /*= std::wstring()*/)
+: type(tp)
+, optional(opt)
+, defval(dv)
+, evaluated(false)
 {
-	type = tp;
-	optional = opt;
-	defval = dv;
 }
 
 

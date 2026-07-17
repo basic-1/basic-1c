@@ -28,6 +28,7 @@
 - `lsestm8l.b1c` - set LSE oscillator as system clock source (for STM8L151KxT6 or STM8L050J3M3 MCU)  
 - `ascchr.bsc` - ASC and CHR$ functions example  
 - `reset.bsc` - MCU reset example  
+- `vt100.bsc` - function with optional arguments example  
   
 # building the samples from command line  
 `b1c -d -s -m STM8S103F3 samples/blink.bsc`  
@@ -58,4 +59,12 @@ For interrupt handlers specify interrupt name before the source file name separa
 `b1c -d -s -m STM8L151K6 samples/lsestm8l.bsc`  
 `b1c -d -s -m STM8L101K3 samples/ascchr.bsc`  
 `b1c -d -s -m STM8S207K6 samples/reset.bsc`  
-    
+`b1c -d -s -m STM8L151K6 samples/vt100.bsc`  
+  
+# images  
+![const.bsc example](../images/const.png "const.bsc example")  
+const.bsc example output  
+  
+![vt100.bsc example](../images/vt100putty.gif "vt100.bsc example")  
+vt100.bsc example output  
+  

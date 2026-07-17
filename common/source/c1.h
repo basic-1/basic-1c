@@ -169,6 +169,7 @@ protected:
 	virtual C1_T_ERROR process_asm_cmd(const std::wstring &line) = 0;
 	C1_T_ERROR replace_inline(std::wstring &line, const std::map<std::wstring, std::wstring> &inl_params, bool &empty_val) const;
 	C1_T_ERROR load_inline(size_t offset, const std::wstring &line, iterator load_at, const std::map<std::wstring, std::wstring> &inl_params = std::map<std::wstring, std::wstring>(), const B1_CMP_CMD *orig_cmd = nullptr, bool pure_asm = false);
+	size_t find_comment(const std::wstring &line);
 	C1_T_ERROR load_next_command(const std::wstring &line, const_iterator pos, bool pure_asm);
 
 	const B1_CMP_FN *get_fn(const B1_TYPED_VALUE &val) const;

@@ -104,7 +104,7 @@ private:
 	B1C_T_ERROR put_var_ref(const std::wstring &var_name, const std::wstring &extra_data, iterator cmd_it);
 
 	bool fn_exists(const std::wstring &name);
-	bool add_ufn(bool global, const std::wstring &nm, const B1Types rt, const std::vector<B1Types> &arglist);
+	bool add_ufn(bool global, const std::wstring &nm, const B1Types rt, const std::vector<B1_CMP_FN_ARG> &arglist);
 	const B1_CMP_FN *get_fn(const std::wstring &name);
 	const B1_CMP_FN *get_fn(const B1_TYPED_VALUE &val);
 	const B1_CMP_FN *get_fn(const B1_CMP_ARG &arg);
@@ -117,6 +117,7 @@ private:
 	
 	B1_T_ERROR eval_chr(const std::wstring &num_val, const B1Types type, std::wstring &res_str);
 	B1_T_ERROR concat_strings_rpn(std::wstring &res);
+	B1_T_ERROR get_rpn_single_value(std::wstring &value, bool concat_strings);
 
 	bool is_label();
 
@@ -130,7 +131,7 @@ private:
 	B1_T_ERROR st_goto_gosub_restore(B1_CMP_STMT stmt);
 	B1_T_ERROR st_dim_get_one_size(bool first_run, bool allow_TO_stop_word, bool TO_stop_word_only, std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE> &res);
 	B1_T_ERROR st_dim_get_size(bool first_run, bool range_only, std::vector<std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE>> &range);
-	B1C_T_ERROR st_dim(bool first_run, bool is_const);
+	B1C_T_ERROR st_dim(bool first_run, bool is_const_st);
 	B1_T_ERROR st_erase();
 	B1_T_ERROR st_get_type_def(bool allow_addr, B1_TOKENDATA &td, B1_T_INDEX &len, B1Types &type, bool *addr_present = nullptr, std::wstring *address = nullptr);
 	B1_T_ERROR st_def(bool first_run);
@@ -309,13 +310,14 @@ protected:
 	B1Types get_global_var_type(const std::wstring &name) const;
 
 	bool global_fn_exists(const std::wstring &name);
-	bool add_global_ufn(const std::wstring &nm, const B1Types rt, const std::vector<B1Types> &arglist, const std::wstring &in);
+	bool add_global_ufn(const std::wstring &nm, const B1Types rt, const std::vector<B1_CMP_FN_ARG> &arglist, const std::wstring &in);
 	const B1_CMP_FN *get_global_ufn(const std::wstring &name);
 	const B1_CMP_FN *get_global_ufn(const B1_TYPED_VALUE &val);
 	const B1_CMP_FN *get_global_ufn(const B1_CMP_ARG &arg);
 	std::wstring get_global_ufn_int_name(const std::wstring &name);
 	B1C_T_ERROR get_global_const_var_value(const std::wstring &var_name, bool &var_found, std::wstring &value);
 	B1C_T_ERROR get_const_var_value(const std::wstring &var_name, std::wstring &value);
+	B1C_T_ERROR eval_const_value(std::wstring &to_eval, B1Types type, bool &changed, bool &all_resolved);
 	B1C_T_ERROR eval_const_vars_values();
 	void change_global_ufn_names();
 

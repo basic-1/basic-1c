@@ -1,6 +1,6 @@
 /*
  BASIC1 compiler
- Copyright (c) 2021-2023 Nikolay Pletnev
+ Copyright (c) 2021-2026 Nikolay Pletnev
  MIT license
 
  b1cmp.h: BASIC1 compiler helper classes declaration
@@ -199,6 +199,7 @@ public:
 	B1Types type;
 	bool optional;
 	std::wstring defval;
+	bool evaluated; // used with optional arguments of user-defined functions
 
 	B1_CMP_FN_ARG() = delete;
 	B1_CMP_FN_ARG(const B1Types tp, bool opt = false, const std::wstring &dv = std::wstring());

@@ -1,3 +1,13 @@
+b1c (1.0.0-74) unstable; urgency=low
+
+  * c1stm8: a bug fixed (; in a string value was treated as comment start mark)
+  * b1c: a bug fixed (CONST keyword had global effect on its DIM statement)
+  * now user-defined functions can be declared with optional arguments
+  * vt100.bsc example added
+  * b1c: a bug fixed (symbolic constants in DATA, DIM and DEF statements)
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Fri, 17 Jul 2026 18:14:52 +0300
+
 b1c (1.0.0-73) unstable; urgency=low
 
   * more optimizations

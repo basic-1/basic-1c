@@ -529,6 +529,29 @@ C1_T_ERROR C1Compiler::load_inline(size_t offset, const std::wstring &line, iter
 	return err;
 }
 
+size_t C1Compiler::find_comment(const std::wstring &line)
+{
+	int qn = 0;
+
+	for(auto i = line.cbegin(); i != line.cend(); i++)
+	{
+		if(*i == L'\"')
+		{
+			qn++;
+		}
+		if(qn % 2 != 0)
+		{
+			continue;
+		}
+		if(*i == L';')
+		{
+			return std::distance(line.cbegin(), i);
+		}
+	}
+
+	return std::wstring::npos;
+}
+
 C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterator pos, bool pure_asm)
 {
 	auto b = line.cbegin();
@@ -538,15 +561,10 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 	while(b != e && std::iswspace(*b)) b++;
 
 	// remove comment
-	size_t tmpoff = 0;
-	auto err = find_first_of(line, L";", tmpoff);
-	if(err != C1_T_ERROR::C1_RES_OK)
+	auto cmt_off = find_comment(line);
+	if(cmt_off != std::wstring::npos)
 	{
-		return err;
-	}
-	if(tmpoff != std::wstring::npos)
-	{
-		e = std::next(line.cbegin(), tmpoff);
+		e = std::next(line.cbegin(), cmt_off);
 	}
 
 	// skip trailing spaces
@@ -595,7 +613,7 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 		size_t offset = 0;
 
 		// command
-		err = get_cmd_name(tmpline, cmd, offset);
+		auto err = get_cmd_name(tmpline, cmd, offset);
 		if(err != C1_T_ERROR::C1_RES_OK)
 		{
 			return err;
