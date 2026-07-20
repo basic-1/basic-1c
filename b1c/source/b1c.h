@@ -105,10 +105,8 @@ private:
 
 	bool fn_exists(const std::wstring &name);
 	bool add_ufn(bool global, const std::wstring &nm, const B1Types rt, const std::vector<B1_CMP_FN_ARG> &arglist);
-	const B1_CMP_FN *get_fn(const std::wstring &name);
 	const B1_CMP_FN *get_fn(const B1_TYPED_VALUE &val);
 	const B1_CMP_FN *get_fn(const B1_CMP_ARG &arg);
-	std::wstring get_fn_int_name(const std::wstring &name);
 	void change_ufn_names();
 	void change_ref_names();
 
@@ -314,7 +312,6 @@ protected:
 	const B1_CMP_FN *get_global_ufn(const std::wstring &name);
 	const B1_CMP_FN *get_global_ufn(const B1_TYPED_VALUE &val);
 	const B1_CMP_FN *get_global_ufn(const B1_CMP_ARG &arg);
-	std::wstring get_global_ufn_int_name(const std::wstring &name);
 	B1C_T_ERROR get_global_const_var_value(const std::wstring &var_name, bool &var_found, std::wstring &value);
 	B1C_T_ERROR get_const_var_value(const std::wstring &var_name, std::wstring &value);
 	B1C_T_ERROR eval_const_value(std::wstring &to_eval, B1Types type, bool &changed, bool &all_resolved);

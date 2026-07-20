@@ -1,3 +1,9 @@
+b1c (1.0.0-75) unstable; urgency=low
+
+  * small code review
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Mon, 20 Jul 2026 18:43:59 +0300
+
 b1c (1.0.0-74) unstable; urgency=low
 
   * c1stm8: a bug fixed (; in a string value was treated as comment start mark)

@@ -278,28 +278,6 @@ bool B1FileCompiler::add_ufn(bool global, const std::wstring &nm, const B1Types 
 	return true;
 }
 
-// returns pointer to B1_CMP_FN class of the function identified by name (standard, local, global)
-const B1_CMP_FN *B1FileCompiler::get_fn(const std::wstring &name)
-{
-	auto fn = B1_CMP_FNS::get_fn(name);
-
-	if(fn == nullptr)
-	{
-		const auto &ufn = _ufns.find(name);
-		if(ufn != _ufns.end())
-		{
-			fn = &(ufn->second);
-		}
-	}
-
-	if(fn == nullptr)
-	{
-		fn = _compiler.get_global_ufn(name);
-	}
-	
-	return fn;
-}
-
 // returns pointer to B1_CMP_FN class of the function identified by name, arg. count and arg. types (standard, local, global)
 const B1_CMP_FN *B1FileCompiler::get_fn(const B1_TYPED_VALUE &val)
 {
@@ -342,27 +320,6 @@ const B1_CMP_FN *B1FileCompiler::get_fn(const B1_CMP_ARG &arg)
 	}
 
 	return fn;
-}
-
-std::wstring B1FileCompiler::get_fn_int_name(const std::wstring &name)
-{
-	std::wstring iname = B1_CMP_FNS::get_fn_int_name(name);
-
-	if(iname.empty())
-	{
-		const auto &ufn = _ufns.find(name);
-		if(ufn != _ufns.end())
-		{
-			iname = ufn->second.iname;
-		}
-
-		if(iname.empty())
-		{
-			iname = _compiler.get_global_ufn_int_name(name);
-		}
-	}
-
-	return iname;
 }
 
 void B1FileCompiler::change_ufn_names()
@@ -726,8 +683,26 @@ B1_T_ERROR B1FileCompiler::process_expression(iterator pos, B1_CMP_EXP_TYPE &res
 				else
 				{
 					// check if the token is a function
-					auto fn = get_fn(token);
-					if(fn == nullptr)
+					if(fn_exists(token))
+					{
+						B1_CMP_ARG fnarg(token);
+
+						for(auto a = 0; a < args_num; a++)
+						{
+							// BYTE type is compatible to any other type, use it for dummy arg. values to find function
+							fnarg.emplace_back(L"0", B1Types::B1T_BYTE);
+						}
+						
+						auto fn = get_fn(fnarg);
+
+						if(fn == nullptr)
+						{
+							return B1_RES_EWRARGCNT;
+						}
+						// use generated names of user-defined functions
+						token = fn->isstdfn ? token : fn->iname;
+					}
+					else
 					{
 						// a variable
 						bool expl = false;
@@ -736,16 +711,6 @@ B1_T_ERROR B1FileCompiler::process_expression(iterator pos, B1_CMP_EXP_TYPE &res
 						{
 							return B1_RES_EUNKIDENT;
 						}
-					}
-					else
-					{
-						if(args_num != fn->args.size())
-						{
-							return B1_RES_EWRARGCNT;
-						}
-						// use get_fn_int_name() function to get function name because it leaves standard function names as is
-						//token = fn->iname;
-						token = get_fn_int_name(token);
 					}
 				}
 			}
@@ -2780,7 +2745,7 @@ B1_T_ERROR B1FileCompiler::st_def(bool first_run)
 			// process function argument
 			std::wstring arg;
 			arg = Utils::str_toupper(B1CUtils::get_progline_substring(b1_curr_prog_line_offset, b1_curr_prog_line_offset + len));
-			for(auto a: args)
+			for(const auto &a: args)
 			{
 				if(a == arg)
 				{
@@ -4213,8 +4178,7 @@ B1C_T_ERROR B1FileCompiler::st_read_range(std::vector<std::pair<B1_CMP_ARG, B1_C
 	}
 
 	auto name = Utils::str_toupper(B1CUtils::get_progline_substring(td.offset, td.offset + td.length));
-	auto fn = get_fn(name);
-	if(fn != nullptr)
+	if(fn_exists(name))
 	{
 		b1_curr_prog_line_offset = saved_line_offset;
 		return static_cast<B1C_T_ERROR>(B1_RES_ESYNTAX);
@@ -11003,17 +10967,6 @@ const B1_CMP_FN * B1Compiler::get_global_ufn(const B1_CMP_ARG &arg)
 {
 	auto ufn = _global_ufns.find(arg[0].value);
 	return (ufn == _global_ufns.end() || ufn->second.args.size() != (arg.size() - 1)) ? nullptr : &(ufn->second);
-}
-
-std::wstring B1Compiler::get_global_ufn_int_name(const std::wstring &name)
-{
-	const auto &ufn = _global_ufns.find(name);
-	if(ufn != _global_ufns.end())
-	{
-		return ufn->second.iname;
-	}
-
-	return std::wstring();
 }
 
 void B1Compiler::change_global_ufn_names()

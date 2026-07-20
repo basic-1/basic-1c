@@ -229,10 +229,8 @@ public:
 
 public:
 	static bool fn_exists(const std::wstring &name);
-	static const B1_CMP_FN *get_fn(const std::wstring &name);
 	static const B1_CMP_FN *get_fn(const B1_TYPED_VALUE &val);
 	static const B1_CMP_FN *get_fn(const B1_CMP_ARG &arg);
-	static std::wstring get_fn_int_name(const std::wstring &name);
 };
 
 class B1_CMP_VAR

@@ -2548,19 +2548,6 @@ bool B1_CMP_FNS::fn_exists(const std::wstring &name)
 	return false;
 }
 
-const B1_CMP_FN *B1_CMP_FNS::get_fn(const std::wstring &name)
-{
-	for(int i = 0; !_fns[i].name.empty(); i++)
-	{
-		if(_fns[i].name == name)
-		{
-			return &_fns[i];
-		}
-	}
-
-	return nullptr;
-}
-
 const B1_CMP_FN *B1_CMP_FNS::get_fn(const B1_TYPED_VALUE &val)
 {
 	for(int i = 0; !_fns[i].name.empty(); i++)
@@ -2641,19 +2628,6 @@ const B1_CMP_FN *B1_CMP_FNS::get_fn(const B1_CMP_ARG &arg)
 	}
 
 	return nullptr;
-}
-
-std::wstring B1_CMP_FNS::get_fn_int_name(const std::wstring &name)
-{
-	for(int i = 0; !_fns[i].name.empty(); i++)
-	{
-		if(_fns[i].name == name)
-		{
-			return name;
-		}
-	}
-
-	return std::wstring();
 }
 
 
