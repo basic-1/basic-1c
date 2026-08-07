@@ -89,8 +89,6 @@ private:
 	// local labels
 	std::set<std::wstring> _labels;
 
-	std::map<std::wstring, std::pair<std::wstring, std::vector<iterator>>> _var_refs;
-
 
 	B1C_T_ERROR put_var_name(const std::wstring &name, const B1Types type, int dims, bool is_global, bool is_volatile, bool is_mem_var, bool is_static, bool is_const);
 	B1C_T_ERROR put_const_var_init_values(const std::wstring &name, const std::vector<std::wstring> &const_init);
@@ -101,14 +99,11 @@ private:
 	int get_var_dim(const std::wstring &name) const;
 	B1Types get_var_type(const std::wstring &name) const;
 
-	B1C_T_ERROR put_var_ref(const std::wstring &var_name, const std::wstring &extra_data, iterator cmd_it);
-
 	bool fn_exists(const std::wstring &name);
 	bool add_ufn(bool global, const std::wstring &nm, const B1Types rt, const std::vector<B1_CMP_FN_ARG> &arglist);
 	const B1_CMP_FN *get_fn(const B1_TYPED_VALUE &val);
 	const B1_CMP_FN *get_fn(const B1_CMP_ARG &arg);
 	void change_ufn_names();
-	void change_ref_names();
 
 	bool correct_rpn(B1_CMP_EXP_TYPE &res_type, B1_CMP_ARG &res, bool get_ref);
 	B1_T_ERROR process_expression(iterator pos, B1_CMP_EXP_TYPE &res_type, B1_CMP_ARG &res, bool get_ref = false);
@@ -152,7 +147,6 @@ private:
 	B1C_T_ERROR st_print();
 	B1C_T_ERROR st_input();
 	B1C_T_ERROR st_read_range(std::vector<std::pair<B1_CMP_ARG, B1_CMP_EXP_TYPE>> &range);
-	B1C_T_ERROR st_read_using_clause(B1_CMP_ARGS &args, iterator pos);
 	B1C_T_ERROR st_put_get_trr(const std::wstring &cmd_name, bool is_input, bool is_output);
 	B1_T_ERROR st_label(bool first_run);
 

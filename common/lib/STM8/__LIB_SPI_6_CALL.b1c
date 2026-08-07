@@ -5,24 +5,23 @@ INI,__LIB_SPI_SS_PIN
 ; stop SPI (STOP)
 :__LIB_SPI_6_CALL
 ASM
-LD A, (__LIB_SPI_OPT1)
-BCP A, 8
 ; disabling SPI in case of master half-duplex RX or master simplex RX-only mode
 ; is not implemented (because the procedure is a bit odd)
-JRNE ::__LBL_DISABLE_SLAVE
+BTJT (__LIB_SPI_OPT1), 3, ::__LBL_DISABLE_SLAVE
 
-BCP A, 3
-JREQ ::__LBL_WAIT_SPI_TXE ; full-duplex mode
-BCP A, 0x10
-JREQ ::__LBL_WAIT_SPI_BSY ; slave simplex RX-only, slave half-duplex RX mode
-; master or slave simplex TX-only or master or slave simplex TX mode
+; slave mode
+; see errata: BSY flag can get stuck in slave mode so do not check it.
+; TX mode: the caller must ensure the transmission already completed
+BTJF (__LIB_SPI_OPT), 2, ::__LBL_DISABLE_SPI
 
+; master full-duplex, simplex TX-only or half-duplex TX mode
 :::__LBL_WAIT_SPI_TXE
 BTJF (SPI_SR), SPI_SR_TXE_POS, ::__LBL_WAIT_SPI_TXE
 
 :::__LBL_WAIT_SPI_BSY
 BTJT (SPI_SR), SPI_SR_BSY_POS, ::__LBL_WAIT_SPI_BSY
 
+:::__LBL_DISABLE_SPI
 ; clear OVR flag
 LD A, (SPI_DR)
 LD A, (SPI_SR)

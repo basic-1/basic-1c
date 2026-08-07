@@ -1169,22 +1169,6 @@ C1_T_ERROR C1Compiler::load_next_command(const std::wstring &line, const_iterato
 			}
 		}
 		else
-		if(cmd == L"XARG")
-		{
-			if(offset == std::wstring::npos)
-			{
-				return static_cast<C1_T_ERROR>(B1_RES_ESYNTAX);
-			}
-
-			err = get_arg(tmpline, arg, offset);
-			if(err != C1_T_ERROR::C1_RES_OK)
-			{
-				return err;
-			}
-
-			args.push_back(arg);
-		}
-		else
 		if(cmd == L"JMP" || cmd == L"JF" || cmd == L"JT" || cmd == L"CALL" || cmd == L"GF" || cmd == L"LF" || cmd == L"IMP" || cmd == L"INI" || cmd == L"INL" || cmd == L"INT" || cmd == L"USES")
 		{
 			// read label name
@@ -1684,7 +1668,7 @@ C1_T_ERROR C1Compiler::read_ufns(const_iterator begin, const_iterator end)
 				fn.args.push_back(B1_CMP_FN_ARG(at->at(0).type, false, L""));
 			}
 
-			_ufns.emplace(std::make_pair(fname, fn));
+			_ufns.emplace(fname, fn);
 		}
 	}
 
@@ -2052,17 +2036,6 @@ C1_T_ERROR C1Compiler::read_and_check_vars(iterator begin, iterator end, bool in
 				{
 					return err;
 				}
-			}
-
-			continue;
-		}
-
-		if(cmd.cmd == L"XARG")
-		{
-			auto err = check_arg(cmd.args[0]);
-			if(err != C1_T_ERROR::C1_RES_OK)
-			{
-				return err;
 			}
 
 			continue;
@@ -2907,8 +2880,8 @@ C1_T_ERROR C1Compiler::Load(const std::vector<std::string> &file_names)
 
 	_inline_asm = false;
 
-	_all_symbols.clear();
-	_req_symbols.clear();
+	//_all_symbols.clear();
+	//_req_symbols.clear();
 	
 	_init_files.clear();
 

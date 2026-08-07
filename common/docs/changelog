@@ -1,3 +1,16 @@
+b1c (1.0.0-76) unstable; urgency=low
+
+  * simplified GET/PUT/TRANSFER statements syntax (removed USING clause)
+  * removed c1 XARG statement (used with GET/PUT/TRANSFER USING only)
+  * ST7565 library changed in order not to use XARG statement
+  * bugs in SPI library fixed (a hang in "IOCTL SPI, STOP" in slave mode, etc.)
+  * PEEK functions added (PEEK, PEEKI, PEEKW, PEEKL)
+  * CH32V003: a part of SPI library implemented
+  * some library functions are rewritten in c1 language (instead of assembler)
+  * other minor fixes
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Fri, 07 Aug 2026 18:32:04 +0300
+
 b1c (1.0.0-75) unstable; urgency=low
 
   * small code review

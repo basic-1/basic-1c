@@ -127,6 +127,10 @@ bool select_target(Settings &settings)
 			B1_CMP_FN(L"CLNG",		B1Types::B1T_LONG,		{ B1Types::B1T_INT },				L""),
 			B1_CMP_FN(L"CLNG",		B1Types::B1T_LONG,		{ B1Types::B1T_WORD },				L""),
 			B1_CMP_FN(L"CLNG",		B1Types::B1T_LONG,		{ B1Types::B1T_LONG },				L""),
+			B1_CMP_FN(L"PEEK",		B1Types::B1T_BYTE,		{ B1Types::B1T_WORD },				L""),
+			B1_CMP_FN(L"PEEKI",		B1Types::B1T_INT,		{ B1Types::B1T_WORD },				L""),
+			B1_CMP_FN(L"PEEKW",		B1Types::B1T_WORD,		{ B1Types::B1T_WORD },				L""),
+			B1_CMP_FN(L"PEEKL",		B1Types::B1T_LONG,		{ B1Types::B1T_WORD },				L""),
 
 			// special PRINT statement functions
 			B1_CMP_FN(L"TAB",		B1Types::B1T_STRING,	{ B1Types::B1T_BYTE },				L""),
@@ -137,9 +141,6 @@ bool select_target(Settings &settings)
 			// it's a special function so argument types validation is performed in another way
 			B1_CMP_FN(L"IOCTL",		B1Types::B1T_UNKNOWN,	{ B1Types::B1T_STRING, B1Types::B1T_STRING },	L""),
 			B1_CMP_FN(L"IOCTL$",	B1Types::B1T_UNKNOWN,	{ B1Types::B1T_STRING, B1Types::B1T_STRING },	L""),
-
-			B1_CMP_FN(L"XORIN",		B1Types::B1T_BYTE,		{ B1Types::B1T_BYTE },				L""),
-			B1_CMP_FN(L"XOROUT",	B1Types::B1T_BYTE,		{ B1Types::B1T_BYTE },				L""),
 
 			// the last empty record, used to get records number
 			B1_CMP_FN(L"",			B1Types::B1T_UNKNOWN,	std::initializer_list<B1Types>(),	L"")
@@ -270,6 +271,10 @@ bool select_target(Settings &settings)
 			B1_CMP_FN(L"CLNG",		B1Types::B1T_LONG,		{ B1Types::B1T_INT },				L""),
 			B1_CMP_FN(L"CLNG",		B1Types::B1T_LONG,		{ B1Types::B1T_WORD },				L""),
 			B1_CMP_FN(L"CLNG",		B1Types::B1T_LONG,		{ B1Types::B1T_LONG },				L""),
+			B1_CMP_FN(L"PEEK",		B1Types::B1T_BYTE,		{ B1Types::B1T_LONG },				L""),
+			B1_CMP_FN(L"PEEKI",		B1Types::B1T_INT,		{ B1Types::B1T_LONG },				L""),
+			B1_CMP_FN(L"PEEKW",		B1Types::B1T_WORD,		{ B1Types::B1T_LONG },				L""),
+			B1_CMP_FN(L"PEEKL",		B1Types::B1T_LONG,		{ B1Types::B1T_LONG },				L""),
 
 			// special PRINT statement functions
 			B1_CMP_FN(L"TAB",		B1Types::B1T_STRING,	{ B1Types::B1T_BYTE },				L""),
@@ -280,9 +285,6 @@ bool select_target(Settings &settings)
 			// it's a special function so argument types validation is performed in another way
 			B1_CMP_FN(L"IOCTL",		B1Types::B1T_UNKNOWN,	{ B1Types::B1T_STRING, B1Types::B1T_STRING },	L""),
 			B1_CMP_FN(L"IOCTL$",	B1Types::B1T_UNKNOWN,	{ B1Types::B1T_STRING, B1Types::B1T_STRING },	L""),
-
-			B1_CMP_FN(L"XORIN",		B1Types::B1T_BYTE,		{ B1Types::B1T_BYTE },				L""),
-			B1_CMP_FN(L"XOROUT",	B1Types::B1T_BYTE,		{ B1Types::B1T_BYTE },				L""),
 
 			// the last empty record, used to get records number
 			B1_CMP_FN(L"",			B1Types::B1T_UNKNOWN,	std::initializer_list<B1Types>(),	L"")

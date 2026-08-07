@@ -1,0 +1,16 @@
+; sends array data over SPI bus
+; A1 - address of data to send, A2 - the data size (in bytes)
+ASM
+:::__LBL_NEXT
+LBU T1, 0(A1)
+
+:::__LBL_WAIT_SPI_TXE
+LHU A0, SPI1_STATR
+ANDI A0, A0, SPI1_STATR_TXE
+BEQ A0, ZERO, ::__LBL_WAIT_SPI_TXE
+SH T1, SPI1_DATAR
+
+ADDI A1, A1, 1
+ADDI A2, A2, -1
+BNE A2, ZERO, ::__LBL_NEXT
+ENDASM

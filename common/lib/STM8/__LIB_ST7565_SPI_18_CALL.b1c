@@ -20,6 +20,7 @@ LDW X, (__LIB_ST7565_SPI_FONT_EXT)
 
 :::__LBL_CALC_CHR_OFF
 JREQ ::__LBL_RET ; font is not loaded
+PUSH 1 ; the first parameter value for __LIB_ST7565_SPI_DRAW_BMP_8X8 function call
 PUSHW X
 CLRW X
 LD XL, A
@@ -36,8 +37,6 @@ BTJF (__LIB_ST7565_SPI_FONT_OPT), 0, ::__LBL_DRAW_8X8_CHR
 ; draw 8x16 character
 CLR A ; draw upper part of the character
 CALLR __LIB_ST7565_SPI_SET_CHAR_POS
-LD A, 1
-LDW X, (1, SP)
 CALLR __LIB_ST7565_SPI_DRAW_BMP_8X8
 POPW X
 ADDW X, 8
@@ -46,9 +45,8 @@ PUSHW X
 :::__LBL_DRAW_8X8_CHR
 LD A, 1 ; draw 8x8 character or lower part of 8x16 character
 CALLR __LIB_ST7565_SPI_SET_CHAR_POS
-LD A, 1
-POPW X
 CALLR __LIB_ST7565_SPI_DRAW_BMP_8X8
+ADDW SP, 3
 
 :::__LBL_RET
 RET

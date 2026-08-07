@@ -1,0 +1,27 @@
+; sends string data over SPI bus
+; A0 - string to send
+USES,RA
+USES,A1
+ASM
+MV A1, A0
+BEQ A0, ZERO, ::__LBL_EXIT
+LBU T2, 1(A0) ; string length
+BEQ T2, ZERO, ::__LBL_EXIT
+ADDI T1, A0, 2 ; string data
+ADD T2, T2, T1 ; points to the next byte after the last string character
+
+:::__LBL_NEXT
+LBU A0, 0(T1)
+
+:::__LBL_WAIT_SPI_TXE
+LHU T0, SPI1_STATR
+ANDI T0, T0, SPI1_STATR_TXE
+BEQ T0, ZERO, ::__LBL_WAIT_SPI_TXE
+SH A0, SPI1_DATAR
+
+ADDI T1, T1, 1
+BNE T1, T2, ::__LBL_NEXT
+
+:::__LBL_EXIT
+CALL __LIB_STR_RLS
+ENDASM

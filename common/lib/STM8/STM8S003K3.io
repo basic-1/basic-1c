@@ -74,7 +74,7 @@ CFGPINS,       2,  INL,      ,        ,         ,                    ,          
 INIT,          3,  INL,      ,        ,         ,                    ,          TRUE,        VARREF,    ,          FALSE
 FONT,          4,  CALL,     ,        ,         ,                    ,          TRUE,        VARREF,    _ST7565,   FALSE
 ZONEWIDTH,     5,  INL,      ,        ,         ,                    ,          TRUE,        BYTE,      IMR,       FALSE
-INVERT,        6,  INL,      ,        ,         ,                    ,          TRUE,        BYTE,      ,          TRUE,        4,       ON,0xFF, OFF,0, ENABLE,0xFF, DISABLE,0,                                                   ON
+INVERT,        6,  INL,      ,        ,         ,                    ,          TRUE,        BYTE,      ,          TRUE,        4,       ON,1, OFF,0, ENABLE,1, DISABLE,0,                                                         ON
 START,         7,  CALL,     ,        ,         ,                    ,          TRUE,        BYTE,      ,          TRUE,        2,       NORMAL,0, ROTATE180,1,                                                                    NORMAL
 STOP,          8,  INL,      ,        ,         ,                    ,          FALSE
 ENABLE,        9,  INL,      ,        ,         ,                    ,          FALSE

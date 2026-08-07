@@ -1,30 +1,11 @@
 ; sets ST7565 page address
 ; A - page address (0..8)
+DEF,__LIB_ST7565_SPI_SET_PAGE_ADDR,NONE,BYTE
 :__LIB_ST7565_SPI_SET_PAGE_ADDR
-ASM
-PUSH A
-ENDASM
-
-; select command mode
-CALL,__LIB_ST7565_SPI_DC_LO
-
-ASM
-POP A
-AND A, 0xF
-OR A, 0xB0 ; set page address command
-ENDASM
-
-; select page
-ASM
-.IF FIND(__MCU_NAME,"STM8S|STM8L101|STM8L001") >= 0
-ENDASM
-INL,__LIB_SPI_PUT_B_INL
-ASM
-.ELSE
-ENDASM
-INL,__LIB_SPI1_PUT_B_INL
-ASM
-.ENDIF
-ENDASM
-
+CALL,__LIB_ST7565_SPI_DC_LO ; select command mode
+LA,::__LCL_TMP_0,BYTE
+&,__ARG_0<BYTE>,0xF<BYTE>,::__LCL_TMP_0<BYTE>
+|,::__LCL_TMP_0<BYTE>,0xB0<BYTE>,::__LCL_TMP_0<BYTE> ; set page address command
+PUT,SPI,::__LCL_TMP_0<BYTE>
+LF,::__LCL_TMP_0
 RET

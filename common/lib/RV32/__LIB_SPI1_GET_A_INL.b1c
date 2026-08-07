@@ -1,0 +1,14 @@
+; reads data from SPI bus and stores it in memory
+; A1 - address of buffer to store data at, A2 - the data size (in bytes)
+ASM
+:::__LBL_NEXT
+LHU A0, SPI1_STATR
+ANDI A0, A0, SPI1_STATR_RXNE
+BEQ A0, ZERO, ::__LBL_NEXT
+LHU A0, SPI1_DATAR
+
+SB A0, 0(A1)
+ADDI A1, A1, 1
+ADDI A2, A2, -1
+BNE A2, ZERO, ::__LBL_NEXT
+ENDASM
