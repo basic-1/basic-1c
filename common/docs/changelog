@@ -1,3 +1,11 @@
+b1c (1.0.0-77) unstable; urgency=low
+
+  * documentation updated
+  * a bug in RTC library fixed
+  * 12-hour clock format support added
+
+ -- Nikolay Pletnev <b1justomore@gmail.com>  Tue, 08 Sep 2026 20:54:02 +0300
+
 b1c (1.0.0-76) unstable; urgency=low
 
   * simplified GET/PUT/TRANSFER statements syntax (removed USING clause)

@@ -3930,9 +3930,24 @@ C1_T_ERROR C1STM8Compiler::stm8_shift_op(const B1_CMP_CMD &cmd)
 	}
 	else
 	{
-		for(; n > 0; n--)
+		if(arg1[0].type == B1Types::B1T_BYTE && n == 4)
 		{
-			stm8_add_shift_op(cmd.cmd, arg1[0].type);
+			add_op(*_curr_code_sec, L"SWAP A", false);
+			if(cmd.cmd == L"<<")
+			{
+				add_op(*_curr_code_sec, L"AND A, 0xF0", false);
+			}
+			else
+			{
+				add_op(*_curr_code_sec, L"AND A, 0xF", false);
+			}
+		}
+		else
+		{
+			for(; n > 0; n--)
+			{
+				stm8_add_shift_op(cmd.cmd, arg1[0].type);
+			}
 		}
 	}
 
@@ -6757,7 +6772,7 @@ bool C1STM8Compiler::is_arithm_op(const B1_ASM_OP_STM8 &ao, int32_t &size, int *
 	auto &op = ao._op;
 
 	if(op == L"LDW" || op == L"ADDW" || op == L"SUBW" || op == L"MUL" || op == L"DIV" || op == L"DIVW" || op == L"INCW" || op == L"DECW" || op == L"NEGW" || op == L"CPLW" || op == L"CLRW" ||
-		op == L"SLLW" || op == L"SLAW" || op == L"SRLW" || op == L"SRAW" || op == L"RLWA" || op == L"RRWA")
+		op == L"SLLW" || op == L"SLAW" || op == L"SRLW" || op == L"SRAW" || op == L"RLWA" || op == L"RRWA" || op == L"SWAPW")
 	{
 		size = 2;
 		res = true;
@@ -6773,7 +6788,7 @@ bool C1STM8Compiler::is_arithm_op(const B1_ASM_OP_STM8 &ao, int32_t &size, int *
 	}
 	else
 	if(op == L"LD" || op == L"ADD" || op == L"SUB" || op == L"ADC" || op == L"SBC" || op == L"INC" || op == L"DEC" || op == L"NEG" || op == L"AND" || op == L"OR" || op == L"XOR" || op == L"CPL"
-		|| op == L"CLR" || op == L"SLL" || op == L"SLA" || op == L"SRL" || op == L"SRA" || op == L"RLC")
+		|| op == L"CLR" || op == L"SLL" || op == L"SLA" || op == L"SRL" || op == L"SRA" || op == L"RLC" || op == L"SWAP")
 	{
 		size = 1;
 		res = true;

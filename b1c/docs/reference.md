@@ -195,6 +195,59 @@ There are two types of functions in BASIC1: built-in functions and user-defined 
 - `PEEKI(<numeric>)` - reads a 16-bit signed (`INT`) value from the specified memory address  
 - `PEEKW(<numeric>)` - reads a 16-bit unsigned (`WORD`) value from the specified memory address  
 - `PEEKL(<numeric>)` - reads a 32-bit signed (`LONG`) value from the specified memory address  
+- `DATEPART(<string>, <numeric>)` - extracts a specific date part value (in integer form) from the specified date in string format. The first argument is the date string in `YYYY-MM-DD` format, the second argument is the date part to extract (one of the predefined constants).  
+- `TIMEPART(<string>, <numeric>)` - extracts a specific time part value (in integer form) from the specified time in string format. The first argument is the time string in `hh:mm:ss` format, the second argument is the time part to extract (one of the predefined constants).  
+- `DATE$(<string1>, <numeric>, [<string2>])` - re-formats a date specified with the first string argument according to the new format specified with the second argument (one of the predefined constants). The initial date format must be `YYYY-MM-DD`. The third optional argument is the string used as date parts delimiter (default value is "-").  
+- `TIME$(<string1>, <numeric>, [<string2>])` - re-formats a time specified with the first string argument according to the new format specified with the second argument (one of the predefined constants). The initial time format must be `hh:mm:ss`. The third optional argument is the string used as time parts delimiter (default value is ":").  
+  
+#### Date and time functions constants  
+  
+Constants for `DATEPART` function:  
+- `b1dpYYYY` - extract 4-digit year  
+- `b1dpYY` - 2-digit year  
+- `b1dpMM` - month  
+- `b1dpDD` - day  
+  
+Constants for `TIMEPART` function:  
+- `b1tpHH` - extract hour  
+- `b1tpMM` - minute  
+- `b1tpSS` - second  
+  
+Constants for `DATE$` function:  
+- `b1dfDDMMYYYY` - DD-MM-YYYY, e.g. "15-08-2026"  
+- `b1dfDDMMYY` - DD-MM-YY, e.g. "15-08-26"  
+- `b1dfMMDDYYYY` - MM-DD-YYYY, e.g. "08-15-2026"  
+- `b1dfMMDDYY` - MM-DD-YY, e.g. "08-15-26"  
+- `b1dfYYYYMMDD` - YYYY-MM-DD, e.g. "2026-08-15"  
+- `b1dfYYMMDD` - YY-MM-DD, e.g. "26-08-15"  
+- `b1dfDMYYYY` - D-M-YYYY, e.g. "15-8-2026"  
+- `b1dfDMYY` - D-M-YY, e.g. "15-8-26"  
+- `b1dfMDYYYY` - M-D-YYYY, e.g. "8-15-2026"  
+- `b1dfMDYY` - M-D-YY, e.g. "8-15-26"  
+- `b1dfYYYYMD` - YYYY-M-D, e.g. "2026-8-15"  
+- `b1dfYYMD` - YY-M-D, e.g. "26-8-15"  
+- `b1dfYYYY` - year (4-digit format), e.g. "2026"  
+- `b1dfYY` - year (2-digit format), e.g. "26"  
+- `b1dfMM` - month with leading zero, e.g. "08"  
+- `b1dfDD` - day with leading zero, e.g. "15"  
+- `b1dfM` - month without leading zero, e.g. "8"  
+- `b1dfD` - day without leading zero, e.g. "15"  
+  
+Constants for `TIME$` function:  
+- `b1tfHHMMSS` - hh:mm:ss, e.g. "09:31:05"  
+- `b1tfHHMM` - hh:mm, e.g. "09:31"  
+- `b1tfHMMSS` - h:mm:ss, e.g. "9:31:05"  
+- `b1tfHMM` - h:mm, e.g. "9:31"  
+- `b1tfHH` - hour with leading zero, e.g. "09"  
+- `b1tfH` - hour without leading zero, e.g. "9"  
+- `b1tfMM` - minute, e.g. "31"  
+- `b1tfSS` - second, e.g. "05"  
+- `b1tfHHMMSSTT` - 12-hour clock hh:mm:ss format, e.g. "09:31:05 AM"  
+- `b1tfHHMMTT` - 12-hour clock hh:mm format, e.g. "09:31 AM"  
+- `b1tfHMMSSTT` - 12-hour clock h:mm:ss format, e.g. "9:31:05 AM"  
+- `b1tfHMMTT` - 12-hour clock h:mm format, e.g. "9:31 AM"  
+- `b1tfHHTT` - 12-hour clock, hour with leading zero and AM/PM part, e.g. "09 AM"  
+- `b1tfHTT` - 12-hour clock, hour without leading zero and AM/PM part, e.g. "9 AM"  
   
 **Examples:**  
 `POS = INSTR(, "BASIC1", "BASIC")` 'look for "BASIC" in "BASIC1" string  
@@ -206,6 +259,9 @@ There are two types of functions in BASIC1: built-in functions and user-defined 
 `A = CINT("-1")` 'variable `A` is assigned -1 value of type `INT`  
 `A = CBYTE("-1")` 'error: -1 value cannot be represented with `BYTE` data type  
 `A = CBYTE(300)` '`A` is assigned 44 value (300 converted to `BYTE` type)  
+`Y4 = DATEPART("2026-08-15", b1dpYYYY)` '`Y4` variable is assigned 2026 value  
+`Y2 = DATEPART("2026-08-15", b1dpYY)` '`Y2` variable is assigned 26 value  
+`PRINT DATE$("2026-08-15", b1dfDMYY, "\")` 'prints "15\8\26" string  
   
 ## Implicit data type conversion in expressions  
   

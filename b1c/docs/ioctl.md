@@ -235,17 +235,30 @@ Tested displays, back view
   
 Real-time clock peripheral device of STM8Lx5x MCUs. Uses LSE oscillator so the corresponding circuit should be implemented (32.768 kHz crystal oscillator with its load capacitors and other components should be connected to the proper MCU pins).  
   
-`IOCTL RTC, SETDATE, <str_date>` - set the current date, e.g. "2026-04-03" stands for April 3, 2026  
-`IOCTL RTC, SETTIME, <str_time>` - set the current time, e.g. "18:26:00"  
-`IOCTL$ (RTC, GETDATE)` - return the current date in string form  
-`IOCTL$ (RTC, GETTIME)` - return the current time in string form  
-`IOCTL RTC, ENABLE` - start LSE oscillator if necessary and enable RTC system clock  
-`IOCTL RTC, DISABLE` - disable RTC system clock  
-`IOCTL (RTC, ISACTIVE)` - return RTC activity status: 0 - not active, 1 - active. The function returns 1 if LSE is on, RTC system clock is enabled and the current year is not 2000 (year 2000 is treated as an initial value RTC is set to after power-on reset, read corresponding STM8 MCUs reference manual for details)  
+- `IOCTL RTC, SETDATE, <str_date>` - set the current date, e.g. "2026-04-03" stands for April 3, 2026  
+- `IOCTL RTC, SETTIME, <str_time>` - set the current time, e.g. "18:26:00"  
+- `IOCTL$ (RTC, GETDATE)` - return the current date in string form  
+- `IOCTL$ (RTC, GETTIME)` - return the current time in string form  
+- `IOCTL RTC, SETDAYOFWEEK, <numeric_day>` - set day of week: a numeric value from 1 (for Monday) to 7 (for Sunday)  
+- `IOCTL (RTC, GETDAYOFWEEK)` - return the current day of week: a numeric value from 1 (for Monday) to 7 (for Sunday)  
+- `IOCTL RTC, ENABLE` - start LSE oscillator if necessary and enable RTC system clock  
+- `IOCTL RTC, DISABLE` - disable RTC system clock  
+- `IOCTL (RTC, ISACTIVE)` - return RTC activity status: 0 - not active, 1 - active. The function returns 1 if LSE is on, RTC system clock is enabled and the current year is not 2000 (year 2000 is treated as an initial value RTC is set to after power-on reset, read corresponding STM8 MCUs reference manual for details)  
   
-The commands use fixed string date and time format: `YYYY-MM-DD` for dates and `hh:mm:ss` for time. 24-hour time format is the only supported time format for now. Use special functions to convert date and time to another format (`DATE$` and `TIME$`) or to extract date and time values (`DATEPART` and `TIMEPART`).  
+The libary defines symbolic constants for week days:  
+- `b1dwMON` or `b1dwMONDAY` for Monday  
+- `b1dwTUE` or `b1dwTUESDAY` for Tuesday  
+- `b1dwWED` or `b1dwWEDNESDAY` for Wednesday  
+- `b1dwTHU` or `b1dwTHURSDAY` for Thursday  
+- `b1dwFRI` or `b1dwFRIDAY` for Friday  
+- `b1dwSAT` or `b1dwSATURDAY` for Saturday  
+- `b1dwSUN` or `b1dwSUNDAY` for Sunday  
+  
+`SETDATE`, `GETDATE`, `SETTIME` and `GETTIME` commands use fixed string date and time format: `YYYY-MM-DD` for dates and `hh:mm:ss` for time. 24-hour time format is the only supported time format for now. Use special functions to convert date and time to another format (`DATE$` and `TIME$`) or to extract date and time values (`DATEPART` and `TIMEPART`).  
   
 **Example:**  
 `REM print the current date in DD/MM/YYYY format`  
 `PRINT DATE$(IOCTL$(RTC, GETDATE), b1dfDDMMYYYY, "/")`  
+`CONST WD$ = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")`  
+`PRINT WD$(IOCTL(RTC, GETDAYOFWEEK) - 1)`  
   

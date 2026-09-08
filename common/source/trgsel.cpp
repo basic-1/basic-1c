@@ -189,6 +189,12 @@ bool select_target(Settings &settings)
 		_B1C_consts.emplace(L"B1TFH", std::make_pair((int32_t)20, B1Types::B1T_WORD));
 		_B1C_consts.emplace(L"B1TFMM", std::make_pair((int32_t)13, B1Types::B1T_WORD));
 		_B1C_consts.emplace(L"B1TFSS", std::make_pair((int32_t)16, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1TFHHMMSSTT", std::make_pair((int32_t)26139, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1TFHHMMTT", std::make_pair((int32_t)539, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1TFHMMSSTT", std::make_pair((int32_t)26149, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1TFHMMTT", std::make_pair((int32_t)549, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1TFHHTT", std::make_pair((int32_t)19, B1Types::B1T_WORD));
+		_B1C_consts.emplace(L"B1TFHTT", std::make_pair((int32_t)29, B1Types::B1T_WORD));
 
 		_B1C_consts.emplace(L"B1DWMON", std::make_pair((int32_t)1, B1Types::B1T_BYTE));
 		_B1C_consts.emplace(L"B1DWTUE", std::make_pair((int32_t)2, B1Types::B1T_BYTE));

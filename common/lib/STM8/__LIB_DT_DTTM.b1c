@@ -1,12 +1,20 @@
 ; DATE$ and TIME$ function: formats date or time (initial format should be YYYY-MM-DD or HH:MM:SS)
 ; X - source string address, stack1 - date or time format (word), stack2 - string to use as separator, returns resulting string in X
 
+GA,__LIB_DT_DTTM_LEADZERO_STR,BYTE(C),0<BYTE>,1<BYTE>
+DAT,__LIB_DT_DTTM_LEADZERO_STR,1<BYTE>,48<BYTE>
+GA,__LIB_DT_DTTM_AM_STR,BYTE(C),0<BYTE>,3<BYTE>
+DAT,__LIB_DT_DTTM_AM_STR,3<BYTE>,32<BYTE>,65<BYTE>,77<BYTE>
+GA,__LIB_DT_DTTM_PM_STR,BYTE(C),0<BYTE>,3<BYTE>
+DAT,__LIB_DT_DTTM_PM_STR,3<BYTE>,32<BYTE>,80<BYTE>,77<BYTE>
+
 :__LIB_DT_DTTM
 ASM
 PUSHW X
 CLRW Y ; resulting string
 LDW X, (__RET_ADDR_SIZE + 5, SP) ; substring positions
 JREQ ::__LBL_EXIT
+PUSHW Y ; AM/PM part string address
 
 :::__LBL_LOOP
 LD A, 40
@@ -18,15 +26,64 @@ LD A, 10
 DIV X, A
 PUSHW Y
 
-CPW X, 2 ; a special case: no leading zero
-JRNE ::__LBL_EXTR_SUBSTR
-ADD A, 10
-LDW X, (5, SP) ; source string
-CALLR __LIB_STR_CPY
+PUSH 0 ; add leading zero
+CPW X, 2 ; 2 stands for value without leading zero
+JRNE ::__LBL_ALLOW_LEAD_ZERO
+INC (1, SP) ; no leading zero
+
+:::__LBL_ALLOW_LEAD_ZERO
+CP A, 9 ; 9 stands for 12-hour value format
+JREQ ::__LBL_12H_FMT
+TNZ (1, SP)
+JREQ ::__LBL_EXTR_SUBSTR ; just copy a part of the source string
+JRA ::__LBL_24H_FMT
+
+:::__LBL_12H_FMT
+CLR A ; position = 0
+LDW X, __LIB_DT_DTTM_AM_STR ; AM
+LDW (6, SP), X
+
+:::__LBL_24H_FMT
+ADD A, 10 ; length = 2
 PUSH A
+LDW X, (9, SP) ; source string
+CALLR __LIB_STR_CPY
 CALLR __LIB_DT_DTP
+
+; convert hour value to 12-hour format
+LD A, XL
+LDW X, (7, SP)
+JREQ ::__LBL_CVT_TO_STR
+CP A, 12
+JRULT ::__LBL_AM_TIME
+LDW X, __LIB_DT_DTTM_PM_STR ; PM
+LDW (7, SP), X
+CP A, 12
+JREQ ::__LBL_CVT_TO_STR
+SUB A, 12
+JRA ::__LBL_CVT_TO_STR
+
+:::__LBL_AM_TIME
+TNZ A
+JRNE ::__LBL_CVT_TO_STR
+LD A, 12
+
+:::__LBL_CVT_TO_STR
+CLRW X
+LD XL, A
 PUSH 0
 CALLR __LIB_STR_STR16
+
+; append leading zero if necessary
+TNZ (3, SP)
+JRNE ::__LBL_APPEND
+LD A, (1, X) ; get string length
+CP A, 2
+JRUGE ::__LBL_APPEND
+PUSHW X
+LDW X, __LIB_DT_DTTM_LEADZERO_STR
+CALLR __LIB_STR_APD
+ADDW SP, 2
 JRA ::__LBL_APPEND
 
 :::__LBL_EXTR_SUBSTR
@@ -35,22 +92,22 @@ PUSH A ; position
 LD A, XL
 INC A
 PUSH A ; chars num
-LDW X, (7, SP) ; source string
+LDW X, (10, SP) ; source string
 CALLR __LIB_STR_CPY
 CALLR __LIB_STR_MID
 
 :::__LBL_APPEND
 LDW (1, SP), X
-LDW X, (3, SP)
+LDW X, (4, SP)
 CALLR __LIB_STR_APD
-ADDW SP, 4
+ADDW SP, 5
 LDW Y, X
 POPW X
 TNZW X
-JREQ ::__LBL_EXIT
+JREQ ::__LBL_CHECK_AM_PM
 ; append separator
 PUSHW X
-LDW X, (__RET_ADDR_SIZE + 5, SP) ; separator
+LDW X, (__RET_ADDR_SIZE + 7, SP) ; separator
 CALLR __LIB_STR_CPY
 PUSHW X
 LDW X, Y
@@ -59,6 +116,12 @@ ADDW SP, 2
 LDW Y, X
 POPW X
 JRA ::__LBL_LOOP
+
+:::__LBL_CHECK_AM_PM
+LDW X, Y
+CALLR __LIB_STR_APD
+ADDW SP, 2
+EXGW X, Y
 
 :::__LBL_EXIT
 POPW X
